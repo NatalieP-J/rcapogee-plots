@@ -25,12 +25,10 @@ def pixmask_find(maskdata,pix,bitval = None):
     of indices indicating spectra which are bad at pix, both in the form of 
     numpy.where output
     """
-    mask = []
-    for i in range(len(maskdata)):
-        if bitval == None:
-            indx = np.where(np.array(maskdata[i][pix]) == 0)
-            bindx = np.where(np.array(maskdata[i][pix]) != 0)
-        elif bitval != None:
-            indx = np.where(np.array(maskdata[i][pix]) != bitval)
-            bindx = np.where(np.array(maskdata[i][pix]) == bitval)  
+    if bitval == None:
+        indx = np.where(np.array(maskdata[:,pix]) == 0)
+        bindx = np.where(np.array(maskdata[:,pix]) != 0)
+    elif bitval != None:
+        indx = np.where(np.array(maskdata[:,pix]) != bitval)
+        bindx = np.where(np.array(maskdata[:,pix]) == bitval)  
     return indx,bindx

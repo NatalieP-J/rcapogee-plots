@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 
 def makematrix(x,order):
     """
@@ -116,3 +118,54 @@ def magenresidual(weights,residuals):
     Returns an array of residual values
     """
     return np.array(np.matrix(weights)*np.matrix(residuals))[0]
+
+def hist2d(x,y,nbins = 50 ,saveloc = '',labels=[]):
+    """
+    Creates a 2D histogram from data given by numpy's histogram
+
+    x,y:        two 2D arrays to correlate
+    nbins:      number of bins
+    saveloc:    place to save histogram plot - if unspecified, do not
+                save plot (kwarg, default = '')
+    labels:     labels for histogram plot, with the following format
+                [title,xlabel,ylabel,zlabel] - if unspecified, do 
+                not label plot (kwarg, default = [])
+
+    Returns the edges of the histogram bins and the 2D histogram
+
+    """
+    # Create histogram
+    H,xedges,yedges = np.histogram2d(x,y,bins=nbins)
+    # Reorient appropriately
+    H = np.rot90(H)
+    H = np.flipud(H)
+    # Mask zero value bins
+    Hmasked = np.ma.masked_where(H==0,H)
+    # Begin creating figure
+    plt.figure(figsize=(12,10))
+    # Make histogram pixels with logscale
+    plt.pcolormesh(xedges,yedges,Hmasked,
+                   norm = LogNorm(vmin = Hmasked.min(),
+                                  vmax = Hmasked.max()),
+                   cmap = plt.get_cmap('Spectral_r'))
+    # Create fit line x-array
+    uplim = np.max(x)+5
+    dolim = np.min(x)-5
+    # Set plot limits
+    plt.xlim(dolim+5,uplim-5)
+    plt.ylim(np.min(y),np.max(y))
+    # Add colourbar
+    cbar = plt.colorbar()
+    # Add labels
+    if labels != []:
+        title,xlabel,ylabel,zlabel = labels
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        plt.title(title)
+        cbar.ax.set_ylabel(zlabel)
+    # Save plot
+    if saveloc != '':
+        plt.savefig(saveloc)
+    plt.close()
+    # Return histogram
+    return xedges,yedges,Hmasked

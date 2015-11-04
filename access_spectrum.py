@@ -10,16 +10,30 @@ def get_spectra_asp(data,ext = 1,header=False):
     """
     specs = []
     hdrs = {}
+    goodind = []
+    badind = []
     for i in range(len(data)):
-        spec = apread.aspcapStar(data['LOCATION_ID'][i],data['APOGEE_ID'][i],ext = ext, header = header, aspcapWavegrid=True)
+        try:
+            spec = apread.aspcapStar(data['LOCATION_ID'][i],data['APOGEE_ID'][i],ext = ext, header = header, aspcapWavegrid=True)
+            goodind.append(i)
+            if header:
+                spec,hdr = spec
+                hdrs[i] = hdr
+            specs.append(spec)
+        except IOError as e:
+            badind.append(i)
+            print e
+            continue
+    if badind == []:
         if header:
-            spec,hdr = spec
-            hdrs[i] = hdr
-        specs.append(spec)
-    if header:
-        return np.array(specs),hdrs
-    elif not header:
-        return np.array(specs)
+            return np.array(specs),hdrs
+        elif not header:
+            return np.array(specs)
+    elif badind != []:
+        if header:
+            return np.array(specs),hdrs,goodind
+        elif not header:
+            return np.array(specs),goodind
 
 def get_spectra_ap(data,ext = 1, header = False,indx = None):
     """
