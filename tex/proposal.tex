@@ -5,7 +5,7 @@
 
 \begin{document}
 
-\title{The dimensionaliy of stellar abundances space for red clump stars from APOGEE data}
+\title{The dimensionality of stellar abundances space for red clump stars from APOGEE data}
 \author{Natalie Price-Jones, supervised by Professor Jo Bovy}
 
 \begin{abstract}
@@ -15,11 +15,11 @@ Recent spectroscopic surveys have provided abundant data on stars in the Milky W
 
 \section{Introduction}
 \label{sec:back}
-A star's history, from its formation environment to its migratory motions, can be traced through its composition. Calculation of elemental abundances from stellar spectra establishes this compositon. However, current methods for calculating these abundances require robust theoretical models and complete understand of in uncertainties associated with instrumentation. At present, these methods still exhibit systematic trends with other stellar properties, such as effective temperature $T_{\rm eff}$ or surface gravity $\log(g)$ (CITE). Removing these contaminating effects from abundance calculations entirely may reveal statistically significant correlations between abundances and stellar age or location within a galaxy. 
+A star's history, from its formation environment to its migratory motions, can be traced through its composition (CITE?). Calculation of elemental abundances from stellar spectra establishes this composition. However, current methods for calculating these abundances require robust theoretical models and complete understand of in uncertainties associated with instrumentation. At present, these methods still exhibit systematic trends with other stellar properties, such as effective temperature $T_{\rm eff}$ or surface gravity $\log(g)$ (CITE). Removing these contaminating effects from abundance calculations entirely may reveal statistically significant correlations between abundances and stellar age or location within a galaxy. 
 
-To this end, we will employ an alternative method for investigating abundance space (CITE). This method, described in \S\ref{sec:methods}, uses spectra directly, rather than derived quantities. This reduces complexity in calculations of uncertainty, and incorporates an understanding of the systematic effects of additional stellar properties. This will allow a more accurate investigation the dimensionality of abundance space for a sample of stars, including probing the relative siginificance of particular elements and searching out positional trends.
+Recent large-volume spectroscopic survey data from the APO Galactic Evolution Experiment (APOGEE) (CITE), the Large Sky Area Multi-Object Fibre Spectroscopic Telescope (LAMOST) (CITE) and upcoming data from the Gaia mission (CITE) will offer rich spectral information about hundreds of thousands of stars. This data offers a prime opportunity for abundance analysis. However, even with data reduction pipelines in place, interpreting that volume of data to find meaningful results is challenging. 
 
-Recent large-volume spectroscopic survey data from the APO Galactic Evolution Experiment (APOGEE) (CITE), the Large Sky Area Multi-Object Fibre Spectroscopic Telescope (LAMOST) (CITE) and upcoming data from the Gaia mission (CITE) will offer rich spectral information about hundreds of thousands of stars. However, even with data reduction pipelines in place, interpreting that volume of data to find meaningful results is challenging. 
+To this end, we will employ an efficient method for investigating abundance space (CITE). This method, described in \S\ref{sec:methods}, uses spectra directly, rather than derived quantities. This reduces complexity in calculations of uncertainty, and incorporates an understanding of the systematic effects of other stellar properties. This will allow a more accurate investigation the dimensionality of abundance space for a sample of stars, including probing the relative significance of particular elements and searching out positional trends.
 
 %Binning stars with similar abundance values in all elements into mono-abundance populations (MAPs), allows us to find locational trends when stars in the same MAP are located on-sky. 
  
@@ -30,11 +30,11 @@ Recent large-volume spectroscopic survey data from the APO Galactic Evolution Ex
 
 \section{Data Set}
 \label{sec:data}
-This work will focus on analysing the spectra of a sample of red clump stars from APOGEE's Data Release 12. These stars are selected as belonging to the red clump according to cuts in gravity, effective temperature, and metallicity, and leave us with an initial sample of 19936 stars (BOVY et al 2014). These stars trace, to some extent, the stellar population of the Milky Way through the volume of the APOGEE survey. A star's time in the red clump is short compared to its lifetime, so the sample is biased towards locating younger stars (CITE?). Data on these stars comes in the form of infrared (H-band) spectra covering a wavelength range from 1.514 $\mu$m to 1.696 $\mu$m (with some small nm gaps between detectors). APOGEE's DR12 pipeline provides data on abundances of 15 elements (C, N, O, Na, Mg, Al, Si, S, K, Ca, Ti, V, Mn, Fe, Ni) as well as effective temperature ($T_{\rm eff}$), surface gravity ($\log(g)$), metallicity ($Z$), and alpha-element enhancements ([$\alpha$/Fe]).
+This work will focus on analyzing the spectra of a sample of red clump stars from APOGEE's Data Release 12. These stars are selected as belonging to the red clump according to cuts in gravity, effective temperature, and metallicity, and leave us with an initial sample of 19936 stars (BOVY et al 2014). These stars trace, to some extent, the stellar population of the Milky Way through the volume of the APOGEE survey. A star's time in the red clump is short compared to its lifetime, so the sample is biased towards locating younger stars (CITE?). Data on these stars comes in the form of infrared (H-band) spectra covering a wavelength range from 1.514 $\mu$m to 1.696 $\mu$m (with some small nm gaps between detectors). APOGEE's DR12 pipeline provides data on abundances of 15 elements (C, N, O, Na, Mg, Al, Si, S, K, Ca, Ti, V, Mn, Fe, Ni) as well as effective temperature ($T_{\rm eff}$), surface gravity ($\log(g)$), metallicity ($Z$), and alpha-element enhancements ([$\alpha$/Fe]).
 
 \section{Methods}
 \label{sec:methods}
-We will perform fits to remove non-abundance stellar properties. Flux values from each spectrum at a given pixel $p$ $(F(p))$ are fit with a low order polynomial in $T_{\rm eff}$, $\log(g)$ and $Z$, so some function for flux is found: $f(p,T_{\rm eff},\log(g),Z)$. At pixels ($p_\mathrm{X}$) known to host absorption features for an element X, residuals are calculated from the fit $\delta = F(p_\mathrm{X}) - f(p_\mathrm{X},T_{\rm eff},\log(g),Z)$. Residuals for element X are weighted by normalized window functions which trace each X absorption feature and summed for each spectrum. This gives some scatter for element X, since other systematic effects have ostensibly removed by the fit. It remains to characterize how much of this scatter is due to measurement noise and how much is due to intrinsic effects. The measurement noise can be determined from uncertainties in $F(p)$, and intrinsic abundance scatter can be calculated from open cluster stars, which all have similar abundance properties \citep{meszaros2015}. The remaining scatter after these effects have been accounted for will represent some variation in the 15 dimensional abundance space for each star. The importance of these variations will be investigated through principal component analysis (PCA), finding linear combinations of element residuals with siginificant variance.
+Starting with our sample of APOGEE spectra, we will perform fits to remove non-abundance stellar properties. Flux values from each spectrum at a given pixel $p$ $(F(p))$ are fit with a low order polynomial in $T_{\rm eff}$, $\log(g)$ and $Z$, so some function for flux is found: $f(p,T_{\rm eff},\log(g),Z)$. At pixels ($p_\mathrm{X}$) known to host absorption features for an element X, residuals are calculated from the fit $\delta = F(p_\mathrm{X}) - f(p_\mathrm{X},T_{\rm eff},\log(g),Z)$. Residuals for element X are weighted by normalized window functions which trace each X absorption feature and summed for each spectrum. This gives some scatter in element X, since other systematic effects have ostensibly removed by the fit. It remains to characterize what portion of this scatter is due to measurement noise or intrinsic effects particular to the element. The measurement noise can be determined from uncertainties in $F(p)$, and intrinsic element scatter can be calculated from a sample of open cluster stars \citep{meszaros2015}, which all have similar abundance properties. The remaining scatter for each star after these effects have been accounted for will represent some variation in the 15 dimensional abundance space. The importance of these variations will be investigated through principal component analysis (PCA), finding linear combinations of element residuals with the most significant variance.
 
 \section{Timeline}
 \label{sec:timeline}
@@ -49,12 +49,12 @@ We will perform fits to remove non-abundance stellar properties. Flux values fro
 \begin{itemize}
 \item Use principal component analysis to identify elements of primary importance
 \end{itemize}
-\item Jan/Feb 2016, Q: Is there any positional dependance of MAPs identified in the remaining dimensions of residual space?
+\item Jan/Feb 2016, Q: Is there any positional dependence of MAPs identified in the remaining dimensions of residual space?
 \begin{itemize}
 \item Collect stars from small bins in the multidimensional residual space and plot their radial and vertical positions.
 \item Determine if stars belonging to different MAPs inhabit different sections of the galaxy, as well as positional variations for stars within a MAP.
 \end{itemize}
-\item Mar/Apr 2016, Q: Can we understand the reasons certain elements may be more significant after PCA by modelling spectra?
+\item Mar/Apr 2016, Q: Can we understand the reasons certain elements may be more significant after PCA by modeling spectra?
 \begin{itemize}
 \item Create model spectra by varying abundances of the 15 elements.
 \item Perform fitting described in \S\ref{sec:methods} and compare with fitting done on APOGEE data. Ascertain whether model spectra created with derived abundances for the red clump stars can reproduce residual results from the data set.
