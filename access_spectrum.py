@@ -22,7 +22,7 @@ def get_spectra_asp(data,ext = 1,header=False):
             specs.append(spec)
         except IOError as e:
             badind.append(i)
-            print e
+            print i,e
             continue
     if badind == []:
         if header:
@@ -35,27 +35,30 @@ def get_spectra_asp(data,ext = 1,header=False):
         elif not header:
             return np.array(specs),goodind
 
-def get_spectra_ap(data,ext = 1, header = False,indx = None):
+def get_spectra_ap(data,ext = 1,header = False,indx = None):
     """
     Returns apStar spectra and header information for each object specified in data 
     
     data:    labels for a subset of the APOGEE survey
     """
-    specs = []
+    specs = np.zeros((len(data),7214),dtype=np.int16)
     hdrs = {}
+    goodind = []
+    badind = []
     for i in range(len(data)):
-    	if indx != None and header == False:
-    		spec = apread.apStar(data['LOCATION_ID'][i],data['APOGEE_ID'][i],ext = ext, header = header, aspcapWavegrid=True)[indx]
-    	elif indx == None or header != False:
-        	spec = apread.apStar(data['LOCATION_ID'][i],data['APOGEE_ID'][i],ext = ext, header = header, aspcapWavegrid=True)
-	        if header:
-	            spec,hdr = spec
-	            hdrs[i] = hdr
-        specs.append(spec)
-    if header and indx == None:
-        return np.array(specs),hdrs
-    elif not header:
-        return np.array(specs)
+        try:
+            specs[i] = apread.apStar(data['LOCATION_ID'][i],data['APOGEE_ID'][i],ext = ext, header = header, aspcapWavegrid=True)[indx]
+            #specs.append(spec)
+            goodind.append(i)
+        except IOError as e:
+            badind.append(i)
+            print i,e
+            continue
+    print specs[0].dtype
+    if badind == []:
+        return specs
+    if badind != []:
+        return specs,(np.array(goodind),)
 
 def pklread(fname):
     """
