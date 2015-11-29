@@ -18,6 +18,6 @@ for elem in elems:
 								   rcsample.residElemName(elem))
 	weighteds = rcsample.weighting(rcsample.sigma,elem,
 								   rcsample.sigmaElemName(elem))
-	doubleResidualHistPlot(elem,weightedr,weighteds,
-						   rcsample.residhistElemPlotName(elem),
-						   bins = 50)
+	#doubleResidualHistPlot(elem,weightedr,weighteds,
+	#					   rcsample.residhistElemPlotName(elem),
+	#					   bins = 50)

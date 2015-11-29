@@ -29,9 +29,9 @@ for c in clusterlis:
 									  clusters.residElemName(elem,cluster=c))
 		weighteds = clusters.weighting(clusters.sigma,elem,
 									  clusters.sigmaElemName(elem,cluster=c))
-		doubleResidualHistPlot(elem,weightedr,weighteds,
-							   clusters.residhistElemPlotName(elem,cluster=c),
-							   bins = 50)
+		#doubleResidualHistPlot(elem,weightedr,weighteds,
+		#					   clusters.residhistElemPlotName(elem,cluster=c),
+		#					   bins = 50)
 	clusters.data = masterdata
 	clusters.specs = masterspecs
 	clusters.errs = mastererrs

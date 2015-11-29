@@ -1,16 +1,21 @@
 import apogee.tools.read as apread
 from apogee.tools import bitmask
 import numpy as np
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.colors import LogNorm
-import window as wn
+try:
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.mplot3d import Axes3D
+        from matplotlib.colors import LogNorm
+        import matplotlib
+        import window as wn
+except RuntimeError as e:
+        if 'display' in e:
+                print 'Running remotely, plot generation will fail if not turned off'
+#import window as wn
 import os
 import access_spectrum as acs
 import reduce_dataset as rd
 import polyfit as pf
-import matplotlib
-import apogee.spec.plot as splot
+#import apogee.spec.plot as splot
 from read_clusterdata import read_caldata
 import time
 
@@ -136,14 +141,12 @@ class Sample:
 			self.specname = self.overdir+outdirs['pkl']+'spectra_{0}_u{1}_d{2}.pkl'.format(label,low,up)
 			self.errname = self.overdir+outdirs['pkl']+'errs_{0}_u{1}_d{2}.pkl'.format(label,low,up)
 			self.maskname = self.overdir+outdirs['pkl']+'mask_{0}_u{1}_d{2}.pkl'.format(label,low,up)
-			self.paramname = self.overdir+outdirs['pkl']+'fitparam_{0}_{1}_u{2}_d{3}.pkl'.format(order,label,low,up)
 			self.disname = self.overdir+outdirs['pkl']+'discard_order{0}_{1}_u{2}_d{3}.pkl'.format(order,label,low,up)
 			self.failname = self.overdir+outdirs['pkl']+'fails_order{0}_{1}_u{2}_d{3}.pkl'.format(order,label,low,up)
 		elif label == 0:
 			self.specname = self.overdir+outdirs['pkl']+'spectra.pkl'
 			self.errname = self.overdir+outdirs['pkl']+'errs.pkl'
 			self.maskname = self.overdir+outdirs['pkl']+'mask.pkl'
-			self.paramname = self.overdir+outdirs['pkl']+'fitparam_{0}.pkl'.format(order)
 			self.disname = self.overdir+outdirs['pkl']+'discard_order{0}.pkl'.format(order)
 			self.failname = self.overdir+outdirs['pkl']+'fails_order{0}.pkl'.format(order)
 		
@@ -152,9 +155,12 @@ class Sample:
         		'weight' : 'normal',
         		'size'   : fontsize}
 
-		matplotlib.rc('font', **font)
+		try:
+                        matplotlib.rc('font', **font)
+                except NameError:
+                        print 'plotting turned off'
 
-	def paramname(self.cluster=False):
+	def paramname(self,cluster=False):
 		if self.label != 0 and not cluster:
 			return self.overdir+outdirs['pkl']+'fitparam_order{0}_{1}_u{2}_d{3}.pkl'.format(self.order,self.label,self.low,self.up)
 		elif self.label == 0 and not cluster:
@@ -292,7 +298,7 @@ class Sample:
 				ress.append(res)
 				params.append(param)
 			self.residual = np.array(ress)
-			self.param = np.array(params)
+			self.params = np.array(params)
 			acs.pklwrite(self.resname(cluster=cluster),self.residual)
 			acs.pklwrite(self.paramname(cluster=cluster),self.params)
 
