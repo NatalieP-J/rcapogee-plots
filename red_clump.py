@@ -1,7 +1,7 @@
 from residuals import Sample,elems,doubleResidualHistPlot
 
 genstep = {'specs':True,
-		   'autopixplot':True,
+		   'autopixplot':False,
 		   'pixplot':False,
 		   'pixfit':True,
 		   'ransig':True,

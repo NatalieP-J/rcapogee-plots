@@ -2,7 +2,7 @@ from residuals import Sample,elems,doubleResidualHistPlot
 import numpy as np
 
 genstep = {'specs':True,
-		   'autopixplot':True,
+		   'autopixplot':False,
 		   'pixplot':False,
 		   'pixfit':True,
 		   'ransig':True,
