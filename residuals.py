@@ -154,6 +154,14 @@ class Sample:
 
 		matplotlib.rc('font', **font)
 
+	def paramname(self.cluster=False):
+		if self.label != 0 and not cluster:
+			return self.overdir+outdirs['pkl']+'fitparam_order{0}_{1}_u{2}_d{3}.pkl'.format(self.order,self.label,self.low,self.up)
+		elif self.label == 0 and not cluster:
+			return self.overdir+outdirs['pkl']+'fitparam_order{0}.pkl'.format(self.order)
+		elif cluster != False:
+			return self.overdir+outdirs['pkl']+'{0}_fitparam_order{1}.pkl'.format(cluster,self.order)
+
 	def resname(self,cluster=False):
 		if self.label != 0 and not cluster:
 			return self.overdir+outdirs['pkl']+'residuals_order{0}_{1}_u{2}_d{3}.pkl'.format(self.order,self.label,self.low,self.up)
@@ -268,20 +276,25 @@ class Sample:
 						self.specs[:,pix][nomask],self.errs[:,pix][nomask],res[nomask],
 						self.order,p,self.type)
 		except np.linalg.linalg.LinAlgError as e:
+			p = np.zeros(self.order*len(indeps)+1)
 			print cluster,pix,len(nomask[0])
 			print e
-		return res
+		return res,p
 
 	def allPixFit(self,cluster=False):
 		if os.path.isfile(self.resname(cluster=cluster)) and not self.genstep['pixfit']:
 			self.residual = acs.pklread(self.resname)
 		elif not os.path.isfile(self.resname(cluster=cluster)) or self.genstep['pixfit']:
 			ress = []
+			params = []
 			for pix in range(aspcappix):
-				res = self.pixFit(pix,cluster=cluster)
+				res,param = self.pixFit(pix,cluster=cluster)
 				ress.append(res)
+				params.append(param)
 			self.residual = np.array(ress)
+			self.param = np.array(params)
 			acs.pklwrite(self.resname(cluster=cluster),self.residual)
+			acs.pklwrite(self.paramname(cluster=cluster),self.params)
 
 	def randomSigma(self,pix):
 		nomask = np.where(self.specs[:,pix] != -1)
