@@ -54,7 +54,6 @@ def get_spectra_ap(data,ext = 1,header = False,indx = None):
             badind.append(i)
             print i,e
             continue
-    print specs[0].dtype
     if badind == []:
         return specs
     if badind != []:

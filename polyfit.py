@@ -82,6 +82,26 @@ def poly(p,x,order = 1):
             o += 1
     return y
 
+def idealerrs(p,x,err,order=1):
+    X = makematrix(x)
+    C = np.diag(err**2)
+    return np.array(np.linalg.inv(X.T*C*X))
+
+def bootstrap(p,x,y,err,order=1,ntrials = 10):
+    params = np.zeros((ntrials,len(p)))
+    for n in ntrials:
+        sample = np.random.choice(x,size = x.shape,replace = True,p = None) #set p = 1/err**2?
+        params[n] = regfit(sample,y,err = err,order = order)
+    return (1./ntrials)*np.sum((params-p)**2,axis = 0)
+    
+def jackknife(p,x,y,err,order=1):
+    params = np.zeros((len(x),len(p)))
+    for n in range(len(x)):
+        params[n] = regfit(np.delete(x,n),np.delete(y,n),err = np.delete(err,n),order=order)
+    finalparam = (1./len(x))*np.sum(params,axis = 0)
+    return finalparam,((len(x)-1)/len(x))*np.sum((params-finalparam)**2,axis = 0)
+
+
 def normweights(weights):
     """
     Normalize an array of weights by dividing them by their sum.

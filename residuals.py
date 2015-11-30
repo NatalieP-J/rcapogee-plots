@@ -289,7 +289,7 @@ class Sample:
 
 	def allPixFit(self,cluster=False):
 		if os.path.isfile(self.resname(cluster=cluster)) and not self.genstep['pixfit']:
-			self.residual = acs.pklread(self.resname)
+			self.residual = acs.pklread(self.resname(cluster=cluster))
 		elif not os.path.isfile(self.resname(cluster=cluster)) or self.genstep['pixfit']:
 			ress = []
 			params = []
@@ -311,7 +311,7 @@ class Sample:
 
 	def allRandomSigma(self,cluster=False):
 		if os.path.isfile(self.signame(cluster=cluster)) and not self.genstep['ransig']:
-			self.sigma = acs.pklread(self.signame)
+			self.sigma = acs.pklread(self.signame(cluster=cluster))
 		elif not os.path.isfile(self.signame(cluster=cluster)) or self.genstep['ransig']:
 			sigs = []
 			for pix in range(aspcappix):
