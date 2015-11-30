@@ -296,7 +296,7 @@ class Sample:
 			for pix in range(aspcappix):
 				res,param = self.pixFit(pix,cluster=cluster)
 				ress.append(res)
-				params.append(param)
+				params.append(param[0])
 			self.residual = np.array(ress)
 			self.params = np.array(params)
 			acs.pklwrite(self.resname(cluster=cluster),self.residual)
