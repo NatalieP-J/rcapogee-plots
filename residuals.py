@@ -83,26 +83,32 @@ def indepOrdered(indeps,length):
 		indepOrder+=(arr,)
 	return indepOrder
 
-def pixPlot(pix,indeps,inames,savename,specs,errs,res,order,p,samptype):
-	rpl = np.where((errs > 0.1))
-	bpl = np.where((errs < 0.1))
+def pixPlot(pix,indeps,inames,savename,specs,errs,res,order,p,samptype,maskarr):
+	nomask = np.where((maskarr!=-1))
+        mask = np.where(maskarr==-1)
+        rpl = np.where((errs[nomask] > 0.1))
+	bpl = np.where((errs[nomask] < 0.1))
 	indepOrder = indepOrdered(indeps,1000)
 	plt.figure(figsize = (16,14))
 	for loc in range(len(indeps)):
 		plt.subplot2grid((2,len(indeps)+1),(0,loc))
-		plt.errorbar(indeps[loc][rpl],specs[rpl],yerr=errs[rpl],fmt='.',color='red')
-		plt.plot(indeps[loc][bpl],specs[bpl],'.',color = 'blue',alpha = alphas[samptype])
+		plt.errorbar(indeps[loc][nomask][rpl],specs[nomask][rpl],yerr=errs[nomask][rpl],fmt='.',color='red')
+		plt.plot(indeps[loc][nomask][bpl],specs[nomask][bpl],'.',color = 'blue',alpha = alphas[samptype])
+                plt.plot(indeps[loc][mask],specs[mask],'.',color = 'magenta',alpha = alphas[samptype])
 		plt.plot(indepOrder[loc],pf.poly(p,indepOrder,order=order),color='k',linewidth = 3)
 		plt.xlabel(inames[loc])
 		plt.ylabel('Pixel {0}'.format(pix))
 		plt.subplot2grid((2,len(indeps)+1),(1,loc))
-		plt.plot(indeps[loc][rpl],res[rpl],'.',color='red')
-		plt.plot(indeps[loc][bpl],res[bpl],'.',color='blue',alpha=alphas[samptype])
+                plt.plot(indeps[loc][mask],res[mask],'.',color='magenta',alpha = alphas[samptype])
+		plt.plot(indeps[loc][nomask][rpl],res[nomask][rpl],'.',color='red')
+		plt.plot(indeps[loc][nomask][bpl],res[nomask][bpl],'.',color='blue',alpha=alphas[samptype])
 		plt.xlabel(inames[loc])
 		plt.ylabel('Fit residuals')
 		plt.ylim(min(res),max(res))
 	plt.subplot2grid((2,len(indeps)+1),(0,len(indeps)))
-	plt.semilogx(errs,res,'.',alpha = alphas[samptype])
+	plt.semilogx(errs[nomask][bpl],res[nomask][bpl],'.',color = 'blue',alpha = alphas[samptype])
+        plt.semilogx(errs[nomask][rpl],res[nomask][rpl],'.',color = 'red')
+        plt.semilogx(errs[mask],res[mask],'.',color='magenta',alpha = alphas[samptype])
 	plt.xlabel('Uncertainty in Pixel {0}'.format(pix))
 	plt.ylabel('Fit residuals')
 	plt.ylim(min(res),max(res))
@@ -237,50 +243,57 @@ class Sample:
 			self.data['APOGEE_ID'] = self.data['ID']	
 		self.specs = getSpectra(self.data,self.specname,1,'asp',gen=self.genstep['specs'])
 		self.errs = getSpectra(self.data,self.errname,2,'asp',gen=self.genstep['specs'])
-		self.mask = getSpectra(self.data,self.maskname,3,'ap',gen=self.genstep['specs'])
+		self.bitmask = getSpectra(self.data,self.maskname,3,'ap',gen=self.genstep['specs'])
 		if len(self.specs) > 1:
 			if isinstance(self.specs[1],list):
 				self.data = self.data[self.specs[1]]
 				self.specs = self.specs[0]
 				self.errs = self.errs[0]
-				self.mask = self.mask[0][self.mask[1]]
+				self.bitmask = self.mask[0][self.mask[1]]
+                self.mask = np.zeros(self.specs.shape)
 
 	def snrCorrect(self):
 		SNR = self.specs/self.errs
 		toogood = np.where(SNR > 200.)
 		self.errs[toogood] = self.specs[toogood]/200.
 
+        def snrCut(self):
+                SNR = self.specs/self.errs
+                toobad = np.where(SNR < 1.)
+                self.mask[toobad] = -1
+
 	def maskData(self):
-		maskregions = np.where((self.mask != 0))
-		print maskregions
-		self.specs[maskregions] = -1
-		self.errs[maskregions] = -1
+		maskregions = np.where((self.bitmask != 0))
+                self.mask[maskregions] = -1
 		maskregions = np.where((self.specs < 1e-5))
-		self.specs[maskregions] = -1
-		self.errs[maskregions] = -1
-		self.nomask = np.where(self.specs!=-1)
+                self.mask[maskregions] = -1
 
 
 	def pixFit(self,pix,cluster=False):
-		nomask = np.where(self.specs[:,pix] != -1)
+		nomask = np.where(self.mask[:,pix] != -1)
+                mask = np.where(self.mask[:,pix] == -1)
 		res = np.array([-1]*(len(self.specs[:,pix])),dtype=np.float64)
-		indeps = ()
+		allindeps = ()
+                for fvar in fitvars[self.type]:
+                        allindeps += (self.data[fvar],)
+                indeps = ()
 		for fvar in fitvars[self.type]:
 			indeps += (self.data[fvar][nomask],)
 		try:
 			p = pf.regfit(indeps,self.specs[:,pix][nomask],err = self.errs[:,pix][nomask],order = self.order)
 			res[nomask] = self.specs[:,pix][nomask] - pf.poly(p,indeps,order=self.order)
+                        res[mask] = self.specs[:,pix][mask] - pf.poly(p,allindeps,order = self.order)[mask]
 			if self.genstep['autopixplot'] and not self.genstep['pixplot']:
 				if totalw[pix] != 0:
-					pixPlot(pix,indeps,fitvars[self.type],
+					pixPlot(pix,allindeps,fitvars[self.type],
 							self.fitPlotName(pix,cluster=cluster),
-							self.specs[:,pix][nomask],self.errs[:,pix][nomask],res[nomask],
-							self.order,p,self.type)
+							self.specs[:,pix],self.errs[:,pix],res,
+							self.order,p,self.type,self.mask[:,pix])
 			elif self.genstep['pixplot']:
-				pixPlot(pix,indeps,fitvars[self.type],
+				pixPlot(pix,allindeps,fitvars[self.type],
 						self.fitPlotName(pix,cluster=cluster),
-						self.specs[:,pix][nomask],self.errs[:,pix][nomask],res[nomask],
-						self.order,p,self.type)
+						self.specs[:,pix],self.errs[:,pix],res,
+						self.order,p,self.type,self.mask[:,pix])
 		except np.linalg.linalg.LinAlgError as e:
 			p = np.zeros(self.order*len(indeps)+1)
 			print cluster,pix,len(nomask[0])
@@ -303,7 +316,7 @@ class Sample:
 			acs.pklwrite(self.paramname(cluster=cluster),self.params)
 
 	def randomSigma(self,pix):
-		nomask = np.where(self.specs[:,pix] != -1)
+		nomask = np.where(self.mask[:,pix] != -1)
 		sigma = np.array([-1]*(len(self.specs[:,pix])),dtype = np.float64)
 		for s in nomask:
 			sigma[s] = np.random.normal(loc = 0,scale = self.errs[:,pix][s])
@@ -328,7 +341,8 @@ class Sample:
 			nw = pf.normweights(w)
 			weighted = []
 			for star in range(len(arr[0])):
-				weighted.append(pf.genresidual(nw[tophats[elem]],arr[:,star][tophats[elem]]))
+                                nomask = np.where(self.mask[star][tophats[elem]] != -1)
+				weighted.append(pf.genresidual(nw[tophats[elem]][nomask],arr[:,star][tophats[elem]][nomask]))
 			weighted = np.array(weighted)
 			acs.pklwrite(name,weighted)
 			return weighted
