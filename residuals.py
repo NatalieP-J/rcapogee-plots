@@ -45,6 +45,14 @@ alphas = {'clusters':1,
 		   'GCs':1,
 		   'red_clump':0.5}
 
+genstepF = {'specs':False,
+		    'autopixplot':False,
+		    'pixplot':False,
+		    'pixfit':False,
+		    'ransig':False,
+		    'weight':False}
+
+
 aspcappix = 7214
 
 windowinfo = 'windowinfo.pkl'
@@ -68,13 +76,11 @@ def getSpectra(data,name,ind,readtype,gen=False):
 		return acs.pklread(name)
 	elif not os.path.isfile(name) or gen:
 		if readtype == 'asp':
-			spectra = acs.get_spectra_asp(data,ext = ind,header = False)
+			spectra = acs.get_spectra_asp(data,ext = ind)
 		elif readtype == 'ap':
-			spectra = acs.get_spectra_ap(data,ext = ind,header = False, indx = 1)
+			spectra = acs.get_spectra_ap(data,ext = ind, indx = 1)
 		else:
 			print 'Choose asp or ap as type.'
-		if isinstance(spectra,tuple):
-			spectra = spectra[0]
 		acs.pklwrite(name,spectra)
 		return spectra
 
@@ -86,8 +92,8 @@ def indepOrdered(indeps,length):
 	return indepOrder
 
 def pixPlot(pix,indeps,inames,savename,specs,errs,res,order,p,samptype,maskarr):
-	nomask = np.where((maskarr!=-1))
-	mask = np.where(maskarr==-1)
+	nomask = np.where((maskarr==0))
+	mask = np.where(maskarr!=0)
 	rpl = np.where((errs[nomask] > 0.1))
 	bpl = np.where((errs[nomask] < 0.1))
 	indepOrder = indepOrdered(indeps,1000)
@@ -131,7 +137,7 @@ def doubleResidualHistPlot(elem,residual,sigma,savename,bins = 50):
 	plt.close()
 
 class Sample:
-	def __init__(self,sampletype,seed,order,genstep,label = 0,low = 0,up = 0,cross=True,fontsize = 18):
+	def __init__(self,sampletype,seed,order,genstep = genstepF,label = 0,low = 0,up = 0,cross=True,fontsize = 18):
 		self.type = sampletype
 		self.overdir = './'+sampletype+'/'
 		self.seed = seed
@@ -249,15 +255,12 @@ class Sample:
 		if self.type != 'red_clump':
 			self.data['APOGEE_ID'] = self.data['ID']	
 		self.specs = getSpectra(self.data,self.specname,1,'asp',gen=self.genstep['specs'])
+		if isinstance(self.specs,tuple):
+			self.data = self.data[self.specs[1]]
+			self.specs = self.specs[0][self.specs[1]]
 		self.errs = getSpectra(self.data,self.errname,2,'asp',gen=self.genstep['specs'])
 		self.bitmask = getSpectra(self.data,self.maskname,3,'ap',gen=self.genstep['specs'])
-		if len(self.specs) > 1:
-			if isinstance(self.specs[1],tuple):
-				self.data = self.data[self.specs[1]]
-				self.specs = self.specs[0]
-				self.errs = self.errs[0]
-				self.bitmask = self.bitmask[0]
-                self.mask = np.zeros(self.specs.shape)
+		self.mask = np.zeros(self.specs.shape)
 
 	def snrCorrect(self):
 		SNR = self.specs/self.errs
@@ -275,8 +278,8 @@ class Sample:
 
 
 	def pixFit(self,pix,cluster=False):
-		nomask = np.where(self.mask[:,pix] != -1)
-		mask = np.where(self.mask[:,pix] == -1)
+		nomask = np.where(self.mask[:,pix] == 0)
+		mask = np.where(self.mask[:,pix] != 0)
 		res = np.array([-1]*(len(self.specs[:,pix])),dtype=np.float64)
 		allindeps = ()
 		for fvar in fitvars[self.type]:
@@ -291,6 +294,8 @@ class Sample:
 			if any(abs(eigvals) < 1e-5):
 				X,colcode = pf.makematrix(indeps,self.order,cross=self.cross)
 			p = pf.regfit(X,self.specs[:,pix][nomask],C = C,order = self.order)
+			if len(nomask[0]) <= len(p) + 1:
+				raise np.linalg.linalg.LinAlgError('Data set too small to determine fit coefficients')
 			res[nomask] = self.specs[:,pix][nomask] - pf.poly(p,colcode,indeps,order=self.order)
 			res[mask] = self.specs[:,pix][mask] - pf.poly(p,colcode,allindeps,order = self.order)[mask]
 			if self.genstep['autopixplot'] and not self.genstep['pixplot']:
@@ -306,13 +311,14 @@ class Sample:
 						self.order,p,self.type,self.mask[:,pix])
 		except np.linalg.linalg.LinAlgError as e:
 			p = np.zeros(self.order*len(indeps)+1)
+			self.mask[:,pix] += -3
 			print cluster,pix,len(nomask[0])
 			print e
 		return res,p
 
 	def errPixFit(self,p,pix,cluster=False):
-		nomask = np.where(self.mask[:,pix] != -1)
-		mask = np.where(self.mask[:,pix] == -1)
+		nomask = np.where(self.mask[:,pix] == 0)
+		mask = np.where(self.mask[:,pix] != 0)
 		indeps = ()
 		for fvar in fitvars[self.type]:
 			indeps += (self.data[fvar][nomask],)
@@ -352,7 +358,7 @@ class Sample:
 
 
 	def randomSigma(self,pix):
-		nomask = np.where(self.mask[:,pix] != -1)
+		nomask = np.where(self.mask[:,pix] == 0)
 		sigma = np.array([-1]*(len(self.specs[:,pix])),dtype = np.float64)
 		for s in nomask:
 			sigma[s] = np.random.normal(loc = 0,scale = self.errs[:,pix][s])
@@ -377,7 +383,7 @@ class Sample:
 			nw = pf.normweights(w)
 			weighted = []
 			for star in range(len(arr[0])):
-                                nomask = np.where(self.mask[star][tophats[elem]] != -1)
+                                nomask = np.where(self.mask[star][tophats[elem]] == 0)
 				weighted.append(pf.genresidual(nw[tophats[elem]][nomask],arr[:,star][tophats[elem]][nomask]))
 			weighted = np.array(weighted)
 			acs.pklwrite(name,weighted)

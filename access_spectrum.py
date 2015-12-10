@@ -2,40 +2,31 @@ import apogee.tools.read as apread
 import numpy as np
 import pickle
 
-def get_spectra_asp(data,ext = 1,header=False):
+def get_spectra_asp(data,ext = 1):
     """
     Returns aspcapStar spectra and header information for each object specified in data 
     
     data:    labels for a subset of the APOGEE survey
     """
-    specs = []
+    specs = np.zeros((len(data),7214),dtype = np.float32)
     hdrs = {}
     goodind = []
     badind = []
     for i in range(len(data)):
         try:
-            spec = apread.aspcapStar(data['LOCATION_ID'][i],data['APOGEE_ID'][i],ext = ext, header = header, aspcapWavegrid=True)
+            specs[i] = apread.aspcapStar(data['LOCATION_ID'][i],data['APOGEE_ID'][i],ext = ext, header = False, aspcapWavegrid=True)
             goodind.append(i)
-            if header:
-                spec,hdr = spec
-                hdrs[i] = hdr
-            specs.append(spec)
         except IOError as e:
             badind.append(i)
             print i,e
             continue
     if badind == []:
-        if header:
-            return np.array(specs),hdrs
-        elif not header:
-            return np.array(specs)
-    elif badind != []:
-        if header:
-            return np.array(specs),hdrs,goodind
-        elif not header:
-            return (np.array(specs),goodind)
+        return specs
+    if badind != []:
+        return (specs,(np.array(goodind),))
 
-def get_spectra_ap(data,ext = 1,header = False,indx = None):
+
+def get_spectra_ap(data,ext = 1,indx = None):
     """
     Returns apStar spectra and header information for each object specified in data 
     
@@ -47,8 +38,7 @@ def get_spectra_ap(data,ext = 1,header = False,indx = None):
     badind = []
     for i in range(len(data)):
         try:
-            specs[i] = apread.apStar(data['LOCATION_ID'][i],data['APOGEE_ID'][i],ext = ext, header = header, aspcapWavegrid=True)[indx]
-            #specs.append(spec)
+            specs[i] = apread.apStar(data['LOCATION_ID'][i],data['APOGEE_ID'][i],ext = ext, header = False, aspcapWavegrid=True)[indx]
             goodind.append(i)
         except IOError as e:
             badind.append(i)

@@ -1,11 +1,11 @@
 from residuals import Sample,elems,doubleResidualHistPlot
 import numpy as np
 
-genstep = {'specs':True,
+genstep = {'specs':False,
 		   'autopixplot':False,
 		   'pixplot':False,
-		   'pixfit':False,
-		   'ransig':False,
+		   'pixfit':True,
+		   'ransig':True,
 		   'weight':False}
 
 clusterlis = ['M107','M13','M15','M2','M3','M5','M53','M71','M92','N5466','M67','N188','N2158','N2420','N4147','N6791','N6819','N7789']
@@ -14,7 +14,7 @@ GCs = ['M107','M13','M15','M2','M3','M5','M53','M71','M92','N5466']
 OCs = ['M67','N188','N2158','N2420','N4147','N6791','N6819','N7789']
 
 
-clusters = Sample('clusters',15,2,genstep,fontsize = 10)
+clusters = Sample('clusters',15,2,genstep=genstep,fontsize = 10)
 clusters.getData()
 clusters.snrCut()
 clusters.maskData()
@@ -27,6 +27,7 @@ OCres = {}
 OCsig = {}
 OCmembers = {}
 OC_allres = np.zeros((87,7214))
+OC_allsigs = np.zeros((87,7214))
 OC_allspecs = np.zeros((87,7214))
 OC_allmasks = np.zeros((87,7214))
 OC_allbitmasks = np.zeros((87,7214))
@@ -44,7 +45,8 @@ for c in clusterlis:
 	clusters.allRandomSigma(cluster=c)
 	if c in OCs and nummembers > 9:
 		for star in range(len(clusters.residual[0])):
-			OC_allres[i] = clusters.residual[:,star]/clusters.sigma[:,star]
+			OC_allres[i] = clusters.residual[:,star]
+			OC_allsigs[i] = clusters.sigma[:,star]
 			OC_allspecs[i] = clusters.specs[star]
 			OC_allmasks[i] = clusters.mask[star]
 			OC_allbitmasks[i] = clusters.bitmask[star]
@@ -80,9 +82,9 @@ from matplotlib.colors import LogNorm
 
 plt.ion()
 plt.figure(1,figsize=(16,14))
-mask = np.where(OC_allmasks==-1)
+mask = np.where(OC_allmasks<0)
 OC_allres[mask] = np.nan
-plt.imshow(abs(OC_allres),norm = LogNorm(vmin = 1e-3,vmax = 10),aspect = 100,interpolation='nearest')
+plt.imshow(abs(OC_allres/OC_allsigs),norm = LogNorm(vmin = 1e-3,vmax = 10),aspect = 100,interpolation='nearest')
 plt.figtext(0.1,0.2,'M67')
 plt.axhline(24,linewidth = 2)
 plt.figtext(0.1,0.35,'N2158')
@@ -91,9 +93,23 @@ plt.figtext(0.1,0.53,'N6791')
 plt.axhline(24+10+23,linewidth = 2)
 plt.figtext(0.1,0.77,'N6819')
 plt.ylim(0,87)
-#plt.xlim(87,0)
 plt.colorbar()
 plt.savefig('NormalizedOCResiduals.png')
+plt.close()
+plt.figure(5,figsize=(16,14))
+mask = np.where(OC_allmasks<0)
+OC_allres[mask] = np.nan
+plt.imshow(abs(OC_allres),norm = LogNorm(vmin = 1e-5,vmax = 5),aspect = 100,interpolation='nearest')
+plt.figtext(0.1,0.2,'M67')
+plt.axhline(24,linewidth = 2)
+plt.figtext(0.1,0.35,'N2158')
+plt.axhline(24+10,linewidth = 2)
+plt.figtext(0.1,0.53,'N6791')
+plt.axhline(24+10+23,linewidth = 2)
+plt.figtext(0.1,0.77,'N6819')
+plt.ylim(0,87)
+plt.colorbar()
+plt.savefig('OCResiduals.png')
 plt.close()
 plt.figure(2,figsize=(16,14))
 plt.imshow(abs(OC_allspecs),norm = LogNorm(vmin = 1e-1,vmax = 2),aspect = 100,interpolation='nearest')
@@ -110,7 +126,7 @@ plt.savefig('OCspectra.png')
 plt.close()
 plt.figure(3,figsize=(16,14))
 OC_allmasks[np.where(OC_allmasks==0)] = np.nan
-plt.imshow(OC_allmasks,aspect = 100,vmin = 0,vmax=-3,interpolation='nearest')
+plt.imshow(OC_allmasks,aspect = 100,vmin = 0,vmax=-7,interpolation='nearest')
 plt.figtext(0.1,0.2,'M67')
 plt.axhline(24,linewidth = 2)
 plt.figtext(0.1,0.35,'N2158')
@@ -122,7 +138,7 @@ plt.ylim(0,87)
 plt.colorbar()
 plt.savefig('OCmask.png')
 plt.close()
-plt.figure(3,figsize=(16,14))
+plt.figure(4,figsize=(16,14))
 OC_allbitmasks[np.where(OC_allbitmasks==0)] = np.nan
 plt.imshow(OC_allbitmasks,aspect = 100,norm = LogNorm(),interpolation='nearest')
 plt.figtext(0.1,0.2,'M67')
@@ -134,7 +150,7 @@ plt.axhline(24+10+23,linewidth = 2)
 plt.figtext(0.1,0.77,'N6819')
 plt.ylim(0,87)
 plt.colorbar()
-plt.savefig('OCbitrmask.png')
+plt.savefig('OCbitmask.png')
 plt.close()
 '''
 plt.figure(3)
