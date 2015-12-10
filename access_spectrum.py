@@ -33,7 +33,7 @@ def get_spectra_asp(data,ext = 1,header=False):
         if header:
             return np.array(specs),hdrs,goodind
         elif not header:
-            return np.array(specs),goodind
+            return (np.array(specs),goodind)
 
 def get_spectra_ap(data,ext = 1,header = False,indx = None):
     """
@@ -57,7 +57,7 @@ def get_spectra_ap(data,ext = 1,header = False,indx = None):
     if badind == []:
         return specs
     if badind != []:
-        return specs,(np.array(goodind),)
+        return (specs,(np.array(goodind),))
 
 def pklread(fname):
     """

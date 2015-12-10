@@ -43,7 +43,7 @@ fitvars = {'clusters':['TEFF'],
 alphas = {'clusters':1,
 		   'OCs':1,
 		   'GCs':1,
-		   'red_clump':0.3}
+		   'red_clump':0.5}
 
 aspcappix = 7214
 
@@ -73,6 +73,8 @@ def getSpectra(data,name,ind,readtype,gen=False):
 			spectra = acs.get_spectra_ap(data,ext = ind,header = False, indx = 1)
 		else:
 			print 'Choose asp or ap as type.'
+		if isinstance(spectra,tuple):
+			spectra = spectra[0]
 		acs.pklwrite(name,spectra)
 		return spectra
 
@@ -85,37 +87,33 @@ def indepOrdered(indeps,length):
 
 def pixPlot(pix,indeps,inames,savename,specs,errs,res,order,p,samptype,maskarr):
 	nomask = np.where((maskarr!=-1))
-        mask = np.where(maskarr==-1)
-        rpl = np.where((errs[nomask] > 0.1))
+	mask = np.where(maskarr==-1)
+	rpl = np.where((errs[nomask] > 0.1))
 	bpl = np.where((errs[nomask] < 0.1))
 	indepOrder = indepOrdered(indeps,1000)
 	plt.figure(figsize = (16,14))
 	for loc in range(len(indeps)):
-		plt.subplot2grid((2,len(indeps)+1),(0,loc))
-		plt.errorbar(indeps[loc][nomask][rpl],specs[nomask][rpl],yerr=errs[nomask][rpl],fmt='.',color='red')
-		plt.plot(indeps[loc][nomask][bpl],specs[nomask][bpl],'.',color = 'blue',alpha = alphas[samptype])
-                plt.plot(indeps[loc][mask],specs[mask],'.',color = 'magenta',alpha = alphas[samptype])
-		plt.plot(indepOrder[loc],pf.poly(p,indepOrder,order=order),color='k',linewidth = 3)
-		plt.xlabel(inames[loc])
-		plt.ylabel('Pixel {0}'.format(pix))
-		plt.subplot2grid((2,len(indeps)+1),(1,loc))
-                plt.plot(indeps[loc][mask],res[mask],'.',color='magenta',alpha = alphas[samptype])
+		plt.subplot2grid((1,len(indeps)+1),(0,loc))
+		plt.plot(indeps[loc][mask],res[mask],'.',color='magenta',alpha = alphas[samptype])
 		plt.plot(indeps[loc][nomask][rpl],res[nomask][rpl],'.',color='red')
 		plt.plot(indeps[loc][nomask][bpl],res[nomask][bpl],'.',color='blue',alpha=alphas[samptype])
+		plt.ylim(-0.1,0.1)
 		plt.xlabel(inames[loc])
-		plt.ylabel('Fit residuals')
-		plt.ylim(min(res),max(res))
-	plt.subplot2grid((2,len(indeps)+1),(0,len(indeps)))
+		if loc == 0:
+			plt.ylabel('Fit residuals')
+	plt.subplot2grid((1,len(indeps)+1),(0,len(indeps)))
 	plt.semilogx(errs[nomask][bpl],res[nomask][bpl],'.',color = 'blue',alpha = alphas[samptype])
-        plt.semilogx(errs[nomask][rpl],res[nomask][rpl],'.',color = 'red')
-        plt.semilogx(errs[mask],res[mask],'.',color='magenta',alpha = alphas[samptype])
+	plt.semilogx(errs[nomask][rpl],res[nomask][rpl],'.',color = 'red')
+	plt.semilogx(errs[mask],res[mask],'.',color='magenta',alpha = alphas[samptype])
+	plt.ylim(-0.1,0.1)
 	plt.xlabel('Uncertainty in Pixel {0}'.format(pix))
-	plt.ylabel('Fit residuals')
-	plt.ylim(min(res),max(res))
-	ws = [item for item in windowPixels.values() if pix in item[0]][0]
-	elem = [item for item in windowPixels.keys() if ws == windowPixels[item]][0]
-	plt.suptitle(elem+' Pixel')
-	plt.tight_layout()
+	try:
+		ws = [item for item in windowPixels.values() if pix in item[0]][0]
+		elem = [item for item in windowPixels.keys() if ws == windowPixels[item]][0]
+		plt.suptitle(elem+' Pixel')
+	except IndexError:
+		plt.suptitle('Unassociated Pixel')
+	#plt.tight_layout()
 	plt.savefig(savename)
 	plt.close()
 
@@ -133,7 +131,7 @@ def doubleResidualHistPlot(elem,residual,sigma,savename,bins = 50):
 	plt.close()
 
 class Sample:
-	def __init__(self,sampletype,seed,order,genstep,label = 0,low = 0,up = 0,fontsize = 18):
+	def __init__(self,sampletype,seed,order,genstep,label = 0,low = 0,up = 0,cross=True,fontsize = 18):
 		self.type = sampletype
 		self.overdir = './'+sampletype+'/'
 		self.seed = seed
@@ -143,6 +141,7 @@ class Sample:
 		self.low = low
 		self.up = up
 		self.genstep = genstep
+		self.cross = cross
 		if label != 0:
 			self.specname = self.overdir+outdirs['pkl']+'spectra_{0}_u{1}_d{2}.pkl'.format(label,low,up)
 			self.errname = self.overdir+outdirs['pkl']+'errs_{0}_u{1}_d{2}.pkl'.format(label,low,up)
@@ -173,6 +172,14 @@ class Sample:
 			return self.overdir+outdirs['pkl']+'fitparam_order{0}.pkl'.format(self.order)
 		elif cluster != False:
 			return self.overdir+outdirs['pkl']+'{0}_fitparam_order{1}.pkl'.format(cluster,self.order)
+
+	def uncertname(self,cluster=False):
+		if self.label != 0 and not cluster:
+			return self.overdir+outdirs['pkl']+'fituncertainty_order{0}_{1}_u{2}_d{3}.pkl'.format(self.order,self.label,self.low,self.up)
+		elif self.label == 0 and not cluster:
+			return self.overdir+outdirs['pkl']+'fituncertainty_order{0}.pkl'.format(self.order)
+		elif cluster != False:
+			return self.overdir+outdirs['pkl']+'{0}_fituncertainty_order{1}.pkl'.format(cluster,self.order)
 
 	def resname(self,cluster=False):
 		if self.label != 0 and not cluster:
@@ -245,11 +252,11 @@ class Sample:
 		self.errs = getSpectra(self.data,self.errname,2,'asp',gen=self.genstep['specs'])
 		self.bitmask = getSpectra(self.data,self.maskname,3,'ap',gen=self.genstep['specs'])
 		if len(self.specs) > 1:
-			if isinstance(self.specs[1],list):
+			if isinstance(self.specs[1],tuple):
 				self.data = self.data[self.specs[1]]
 				self.specs = self.specs[0]
 				self.errs = self.errs[0]
-				self.bitmask = self.mask[0][self.mask[1]]
+				self.bitmask = self.bitmask[0]
                 self.mask = np.zeros(self.specs.shape)
 
 	def snrCorrect(self):
@@ -257,32 +264,35 @@ class Sample:
 		toogood = np.where(SNR > 200.)
 		self.errs[toogood] = self.specs[toogood]/200.
 
-        def snrCut(self):
-                SNR = self.specs/self.errs
-                toobad = np.where(SNR < 1.)
-                self.mask[toobad] = -1
+	def snrCut(self):
+		SNR = self.specs/self.errs
+		toobad = np.where(SNR < 50.)
+		self.mask[toobad] += -2
 
 	def maskData(self):
 		maskregions = np.where((self.bitmask != 0))
-                self.mask[maskregions] = -1
-		maskregions = np.where((self.specs < 1e-5))
-                self.mask[maskregions] = -1
+		self.mask[maskregions] += -1
 
 
 	def pixFit(self,pix,cluster=False):
 		nomask = np.where(self.mask[:,pix] != -1)
-                mask = np.where(self.mask[:,pix] == -1)
+		mask = np.where(self.mask[:,pix] == -1)
 		res = np.array([-1]*(len(self.specs[:,pix])),dtype=np.float64)
 		allindeps = ()
-                for fvar in fitvars[self.type]:
-                        allindeps += (self.data[fvar],)
-                indeps = ()
+		for fvar in fitvars[self.type]:
+		    allindeps += (self.data[fvar],)
+		indeps = ()
 		for fvar in fitvars[self.type]:
 			indeps += (self.data[fvar][nomask],)
 		try:
-			p = pf.regfit(indeps,self.specs[:,pix][nomask],err = self.errs[:,pix][nomask],order = self.order)
-			res[nomask] = self.specs[:,pix][nomask] - pf.poly(p,indeps,order=self.order)
-                        res[mask] = self.specs[:,pix][mask] - pf.poly(p,allindeps,order = self.order)[mask]
+			X,colcode = pf.makematrix(indeps,self.order)
+			C = np.diag(self.errs[:,pix][nomask]**2)
+			eigvals,eigvecs = np.linalg.eig(X.T*np.linalg.inv(C)*X)
+			if any(abs(eigvals) < 1e-5):
+				X,colcode = pf.makematrix(indeps,self.order,cross=self.cross)
+			p = pf.regfit(X,self.specs[:,pix][nomask],C = C,order = self.order)
+			res[nomask] = self.specs[:,pix][nomask] - pf.poly(p,colcode,indeps,order=self.order)
+			res[mask] = self.specs[:,pix][mask] - pf.poly(p,colcode,allindeps,order = self.order)[mask]
 			if self.genstep['autopixplot'] and not self.genstep['pixplot']:
 				if totalw[pix] != 0:
 					pixPlot(pix,allindeps,fitvars[self.type],
@@ -300,9 +310,21 @@ class Sample:
 			print e
 		return res,p
 
+	def errPixFit(self,p,pix,cluster=False):
+		nomask = np.where(self.mask[:,pix] != -1)
+		mask = np.where(self.mask[:,pix] == -1)
+		indeps = ()
+		for fvar in fitvars[self.type]:
+			indeps += (self.data[fvar][nomask],)
+		ideal = pf.idealerrs(p,indeps,self.errs[:,pix][nomask],order=self.order)
+		boots = pf.bootstrap(p,indeps,self.specs[:,pix][nomask],self.errs[:,pix][nomask],order=self.order,ntrials = 10)
+		jacks = pf.jackknife(p,indeps,self.specs[:,pix][nomask],self.errs[:,pix][nomask],order=self.order)
+		return ideal,boots,jacks
+
 	def allPixFit(self,cluster=False):
 		if os.path.isfile(self.resname(cluster=cluster)) and not self.genstep['pixfit']:
 			self.residual = acs.pklread(self.resname(cluster=cluster))
+			self.params = acs.pklread(self.paramname(cluster=cluster))
 		elif not os.path.isfile(self.resname(cluster=cluster)) or self.genstep['pixfit']:
 			ress = []
 			params = []
@@ -314,6 +336,20 @@ class Sample:
 			self.params = np.array(params)
 			acs.pklwrite(self.resname(cluster=cluster),self.residual)
 			acs.pklwrite(self.paramname(cluster=cluster),self.params)
+
+	def allErrPixFit(self,cluster=False):
+		if not os.path.isfile(self.paramname(cluster=cluster)):
+			self.allPixFit(cluster=cluster)
+		if os.path.isfile(self.uncertname(cluster=cluster)):
+			self.uncertainties = acs.pklread(self.uncertname(cluster=cluster))
+		elif not os.path.isfile(self.uncertname(cluster=cluster)):
+			errs = []
+			for pix in range(aspcappix):
+				errstuff = self.errPixFit(self.params[pix],pix,cluster=cluster)
+				errs.append(errstuff)
+			self.uncertainties = errs
+			acs.pklwrite(self.uncertname(cluster=cluster),self.uncertainties)
+
 
 	def randomSigma(self,pix):
 		nomask = np.where(self.mask[:,pix] != -1)
