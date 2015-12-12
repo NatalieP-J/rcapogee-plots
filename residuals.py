@@ -46,6 +46,7 @@ alphas = {'clusters':1,
 		   'red_clump':0.5}
 
 genstepF = {'specs':False,
+			'remask':False,
 		    'autopixplot':False,
 		    'pixplot':False,
 		    'pixfit':False,
@@ -152,12 +153,14 @@ class Sample:
 			self.specname = self.overdir+outdirs['pkl']+'spectra_{0}_u{1}_d{2}.pkl'.format(label,low,up)
 			self.errname = self.overdir+outdirs['pkl']+'errs_{0}_u{1}_d{2}.pkl'.format(label,low,up)
 			self.maskname = self.overdir+outdirs['pkl']+'mask_{0}_u{1}_d{2}.pkl'.format(label,low,up)
+			self.bitmaskname = self.overdir+outdirs['pkl']+'bitmask_{0}_u{1}_d{2}.pkl'.format(label,low,up)
 			self.disname = self.overdir+outdirs['pkl']+'discard_order{0}_{1}_u{2}_d{3}.pkl'.format(order,label,low,up)
 			self.failname = self.overdir+outdirs['pkl']+'fails_order{0}_{1}_u{2}_d{3}.pkl'.format(order,label,low,up)
 		elif label == 0:
 			self.specname = self.overdir+outdirs['pkl']+'spectra.pkl'
 			self.errname = self.overdir+outdirs['pkl']+'errs.pkl'
 			self.maskname = self.overdir+outdirs['pkl']+'mask.pkl'
+			self.bitmaskname = self.overdir+outdirs['pkl']+'bitmask.pkl'
 			self.disname = self.overdir+outdirs['pkl']+'discard_order{0}.pkl'.format(order)
 			self.failname = self.overdir+outdirs['pkl']+'fails_order{0}.pkl'.format(order)
 		
@@ -170,6 +173,14 @@ class Sample:
                         matplotlib.rc('font', **font)
                 except NameError:
                         print 'plotting turned off'
+
+   	def cmaskname(self,cluster = False):
+		if self.label != 0 and not cluster:
+			return self.overdir+outdirs['pkl']+'mask_order{0}_{1}_u{2}_d{3}.pkl'.format(self.order,self.label,self.low,self.up)
+		elif self.label == 0 and not cluster:
+			return self.overdir+outdirs['pkl']+'mask_order{0}.pkl'.format(self.order)
+		elif cluster != False:
+			return self.overdir+outdirs['pkl']+'{0}_mask_order{1}.pkl'.format(cluster,self.order)	
 
 	def paramname(self,cluster=False):
 		if self.label != 0 and not cluster:
@@ -259,8 +270,12 @@ class Sample:
 			self.data = self.data[self.specs[1]]
 			self.specs = self.specs[0][self.specs[1]]
 		self.errs = getSpectra(self.data,self.errname,2,'asp',gen=self.genstep['specs'])
-		self.bitmask = getSpectra(self.data,self.maskname,3,'ap',gen=self.genstep['specs'])
-		self.mask = np.zeros(self.specs.shape)
+		self.bitmask = getSpectra(self.data,self.bitmaskname,3,'ap',gen=self.genstep['specs'])
+		if self.genstep['remask']:
+			self.mask = np.zeros(self.specs.shape)
+			acs.pklwrite(self.maskname,self.mask)
+		elif not self.genstep['remask']:
+			self.mask = acs.pklread(self.maskname)
 
 	def snrCorrect(self):
 		SNR = self.specs/self.errs
@@ -268,13 +283,18 @@ class Sample:
 		self.errs[toogood] = self.specs[toogood]/200.
 
 	def snrCut(self):
-		SNR = self.specs/self.errs
-		toobad = np.where(SNR < 50.)
-		self.mask[toobad] += -2
+		if self.genstep['remask']:
+			SNR = self.specs/self.errs
+			toobad = np.where(SNR < 50.)
+			self.mask[toobad] += 2**2
 
 	def maskData(self):
-		maskregions = np.where((self.bitmask != 0))
-		self.mask[maskregions] += -1
+		if self.genstep['remask']:
+			maskregions = np.where((self.bitmask != 0))
+			self.mask[maskregions] += 2
+
+	def saveMask(self):
+		acs.pklwrite(self.maskname,self.mask)
 
 
 	def pixFit(self,pix,cluster=False):
@@ -311,7 +331,8 @@ class Sample:
 						self.order,p,self.type,self.mask[:,pix])
 		except np.linalg.linalg.LinAlgError as e:
 			p = np.zeros(self.order*len(indeps)+1)
-			self.mask[:,pix] += -3
+			if self.genstep['remask']:
+				self.mask[:,pix] += 2**3
 			print cluster,pix,len(nomask[0])
 			print e
 		return res,p
@@ -332,6 +353,7 @@ class Sample:
 			self.residual = acs.pklread(self.resname(cluster=cluster))
 			self.params = acs.pklread(self.paramname(cluster=cluster))
 		elif not os.path.isfile(self.resname(cluster=cluster)) or self.genstep['pixfit']:
+			self.mask = acs.pklread(self.cmaskname(cluster=cluster))
 			ress = []
 			params = []
 			for pix in range(aspcappix):
@@ -367,7 +389,9 @@ class Sample:
 	def allRandomSigma(self,cluster=False):
 		if os.path.isfile(self.signame(cluster=cluster)) and not self.genstep['ransig']:
 			self.sigma = acs.pklread(self.signame(cluster=cluster))
+			self.mask = acs.pklread(self.cmaskname(cluster=cluster))
 		elif not os.path.isfile(self.signame(cluster=cluster)) or self.genstep['ransig']:
+			self.mask = acs.pklread(self.cmaskname(cluster=cluster))
 			sigs = []
 			for pix in range(aspcappix):
 				sig = self.randomSigma(pix)
