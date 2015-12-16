@@ -1,47 +1,25 @@
 from residuals import Sample,elems,doubleResidualHistPlot
 import numpy as np
 import access_spectrum as acs
+from apogee.tools import bitmask
 
 genstep = {'specs':False,
-		   'remask':False,
+		   'remask':True,
 		   'autopixplot':False,
 		   'pixplot':False,
-		   'pixfit':False,
-		   'ransig':False,
-		   'weight':False}
+		   'pixfit':True,
+		   'ransig':True,
+		   'weight':True}
 
 clusterlis = ['M107','M13','M15','M2','M3','M5','M53','M71','M92','N5466','M67','N188','N2158','N2420','N4147','N6791','N6819','N7789']
 
 GCs = ['M107','M13','M15','M2','M3','M5','M53','M71','M92','N5466']
 OCs = ['M67','N188','N2158','N2420','N4147','N6791','N6819','N7789']
 
-def covariance(x,y):
-	print x, len(x)
-	if len(x) != 0:
-		return np.sum((x-np.mean(x))*(y-np.mean(y)))/(len(x)-1)
-	elif len(x) == 0:
-		return np.nan
-
-def cov_mask(data,mask):
-	covout = np.zeros((len(data),len(data)))
-	for x in range(len(data)):
-		xmask = mask[x].astype(int)
-		xdata = data[x]
-		for y in range(len(data)):
-			ymask = mask[y].astype(int)
-			ydata = data[y]
-			combmask = xmask+ymask
-			combmask[np.where(combmask == 2)] = 1
-			combmask = combmask.astype(bool)
-			covout[x,y] = covariance(xdata[combmask],ydata[combmask])
-	return covout
-
-
-
 clusters = Sample('clusters',15,2,genstep=genstep,fontsize = 10)
 clusters.getData()
 clusters.snrCut()
-clusters.maskData()
+clusters.maskData(maskvals = [0,1,2,3,4,5,6,7,12])
 clusters.snrCorrect()
 masterdata = np.copy(clusters.data)
 masterspecs = np.copy(clusters.specs)
@@ -55,9 +33,9 @@ OC_allres = np.zeros((87,7214))
 OC_allsigs = np.zeros((87,7214))
 OC_allspecs = np.zeros((87,7214))
 OC_allmasks = np.zeros((87,7214))
-OC_allbitmasks = np.zeros((87,7214))
+OC_allbitmasks = np.zeros((87,7214),dtype=int)
 i = 0
-for c in clusterlis:
+for c in OCs:
 	match = np.where(masterdata['CLUSTER'] == c)
 	clusters.data = clusters.data[match]
 	nummembers = len(clusters.data)
@@ -67,7 +45,6 @@ for c in clusterlis:
 	clusters.errs = clusters.errs[match]
 	clusters.mask = clusters.mask[match]
 	clusters.bitmask = clusters.bitmask[match]
-	acs.pklwrite(clusters.cmaskname(cluster=c),clusters.mask)
 	clusters.allPixFit(cluster=c)
 	clusters.allRandomSigma(cluster=c)
 	if c in OCs and nummembers > 9:
@@ -100,24 +77,24 @@ for c in clusterlis:
 	mastermask[match] = clusters.mask
 	clusters.mask = mastermask
 	clusters.bitmask = masterbitmask
-clusters.saveMask()
+clusters.saveFiles()
 
-
+'''
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 
-mask = np.where(OC_allmasks.T!=0)
-nomask = np.where(OC_allmasks.T == 0)
+mask = np.where(OC_allmasks.T==0)
+nomask = np.where(OC_allmasks.T != 0)
 
 OCresmask = np.zeros(OC_allres.T.shape)
-OCresmask[mask] = False
-OCresmask[nomask] = True
+OCresmask[mask] = True
+OCresmask[nomask] = False
 
-OCresmasked = np.ma.masked_array((OC_allres).T,mask = OCresmask )
+OCresmasked = np.ma.masked_array((OC_allres).T,mask = OCresmask)
 
 covar = np.ma.cov(OCresmasked)
 plt.figure(figsize = (12,10))
-plt.imshow(covar,vmin = -1e-2,vmax =1e-2,interpolation = 'nearest',cmap = 'viridis')
+plt.imshow(covar,vmin = -1e-4,vmax =1e-4,interpolation = 'nearest',cmap = 'viridis')
 plt.colorbar()
 plt.savefig('PixelSpaceCovariance.png')
 plt.close()
@@ -132,7 +109,7 @@ elemarray = np.array(OCres.values())
 
 
 plt.figure(figsize = (12,10))
-plt.imshow(np.cov(elemarray),vmin = -1e-3,vmax =1e-3,interpolation = 'nearest',cmap = 'viridis')
+plt.imshow(np.cov(elemarray),vmin = -1e-4,vmax =1e-4,interpolation = 'nearest',cmap = 'viridis')
 for i in range(len(elems)):
 	plt.text(0,i,elems[i],color='black')
 for i in range(1,len(elems)):
@@ -141,12 +118,12 @@ plt.colorbar()
 plt.savefig('ElementSpaceCovariance.png')
 plt.close()
 
-'''
-plt.ion()
+
 plt.figure(1,figsize=(16,14))
-mask = np.where(OC_allmasks>0)
-OC_allres[mask] = np.nan
-plt.imshow(abs(OC_allres/OC_allsigs),norm = LogNorm(vmin = 1e-3,vmax = 10),aspect = 100,interpolation='nearest',cmap = 'viridis')
+OC_allresplot = np.copy(OC_allres)
+mask = np.where(OC_allmasks==0)
+OC_allresplot[mask] = np.nan
+plt.imshow(abs(OC_allresplot/OC_allsigs),vmax = 1.1,aspect = 100,interpolation='nearest',cmap = 'viridis')
 plt.figtext(0.1,0.2,'M67')
 plt.axhline(24,linewidth = 2,color='r')
 plt.figtext(0.1,0.35,'N2158')
@@ -158,10 +135,9 @@ plt.ylim(0,87)
 plt.colorbar()
 plt.savefig('NormalizedOCResiduals.png')
 plt.close()
+
 plt.figure(5,figsize=(16,14))
-mask = np.where(OC_allmasks>0)
-OC_allres[mask] = np.nan
-plt.imshow(abs(OC_allres),norm = LogNorm(vmin = 1e-5,vmax = 5),aspect = 100,interpolation='nearest',cmap = 'viridis')
+plt.imshow(abs(OC_allresplot),aspect = 100,vmax = 0.06,interpolation='nearest',cmap = 'viridis')
 plt.figtext(0.1,0.2,'M67')
 plt.axhline(24,linewidth = 2,color='r')
 plt.figtext(0.1,0.35,'N2158')
@@ -173,8 +149,10 @@ plt.ylim(0,87)
 plt.colorbar()
 plt.savefig('OCResiduals.png')
 plt.close()
+
 plt.figure(2,figsize=(16,14))
-plt.imshow(abs(OC_allspecs),norm = LogNorm(vmin = 1e-1,vmax = 1),aspect = 100,interpolation='nearest',cmap = 'viridis')
+OC_allspecsplot = np.copy(OC_allspecs)
+plt.imshow(abs(OC_allspecsplot),aspect = 100,interpolation='nearest',cmap = 'viridis')
 plt.figtext(0.1,0.2,'M67')
 plt.axhline(24,linewidth = 2,color='r')
 plt.figtext(0.1,0.35,'N2158')
@@ -186,9 +164,11 @@ plt.ylim(0,87)
 plt.colorbar()
 plt.savefig('OCspectra.png')
 plt.close()
+
 plt.figure(3,figsize=(16,14))
-OC_allmasks[np.where(OC_allmasks==0)] = np.nan
-plt.imshow(OC_allmasks,aspect = 100,interpolation='nearest',cmap = 'viridis')
+OC_allmasksplot = np.copy(OC_allmasks)
+OC_allmasksplot[np.where(OC_allmasks!=0)] = np.nan
+plt.imshow(OC_allmasksplot,aspect = 100,interpolation='nearest',cmap = 'viridis')
 plt.figtext(0.1,0.2,'M67')
 plt.axhline(24,linewidth = 2,color='r')
 plt.figtext(0.1,0.35,'N2158')
@@ -200,9 +180,11 @@ plt.ylim(0,87)
 plt.colorbar()
 plt.savefig('OCmask.png')
 plt.close()
+
 plt.figure(4,figsize=(16,14))
-OC_allbitmasks[np.where(OC_allbitmasks==0)] = np.nan
-plt.imshow(np.log2(OC_allbitmasks),aspect = 100,interpolation='nearest',cmap = 'viridis')
+OC_allbitmasksplot = np.copy(OC_allbitmasks).astype(np.float64)
+OC_allbitmasksplot[np.where(OC_allbitmasks==0)] = np.nan
+plt.imshow(np.log2(OC_allbitmasksplot),aspect = 100,interpolation='nearest',cmap = 'viridis')
 plt.figtext(0.1,0.2,'M67')
 plt.axhline(24,linewidth = 2,color='r')
 plt.figtext(0.1,0.35,'N2158')

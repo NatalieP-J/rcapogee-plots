@@ -272,10 +272,11 @@ class Sample:
 		self.errs = getSpectra(self.data,self.errname,2,'asp',gen=self.genstep['specs'])
 		self.bitmask = getSpectra(self.data,self.bitmaskname,3,'ap',gen=self.genstep['specs'])
 		if self.genstep['remask']:
-			self.mask = np.zeros(self.specs.shape)
-			acs.pklwrite(self.maskname,self.mask)
+			print 'Creating mask'
+			self.mask = np.ones(self.specs.shape).astype(bool)
 		elif not self.genstep['remask']:
 			self.mask = acs.pklread(self.maskname)
+
 
 	def snrCorrect(self):
 		SNR = self.specs/self.errs
@@ -286,21 +287,25 @@ class Sample:
 		if self.genstep['remask']:
 			SNR = self.specs/self.errs
 			toobad = np.where(SNR < 50.)
-			self.mask[toobad] += 2**2
+			self.mask[toobad] = False
 
-	def maskData(self):
+	def maskData(self,maskvals = 'all'):
 		if self.genstep['remask']:
-			maskregions = np.where((self.bitmask != 0))
-			self.mask[maskregions] += 2
+			if isinstance(maskvals,str):
+				maskregions = np.where((self.bitmask != 0))
+				self.mask[maskregions] = False
+			elif not isinstance(maskvals,str):
+				for m in maskvals:
+					self.mask = self.mask & bitmask.bit_set(m,self.bitmask)
 
-	def saveMask(self):
+	def saveFiles(self):
 		acs.pklwrite(self.maskname,self.mask)
 
 
 	def pixFit(self,pix,cluster=False):
-		nomask = np.where(self.mask[:,pix] == 0)
-		mask = np.where(self.mask[:,pix] != 0)
-		res = np.array([-1]*(len(self.specs[:,pix])),dtype=np.float64)
+		nomask = np.where(self.mask[:,pix] != 0)
+		mask = np.where(self.mask[:,pix] == 0)
+		res = np.zeros(len(self.specs[:,pix]),dtype=np.float64)-1
 		allindeps = ()
 		for fvar in fitvars[self.type]:
 		    allindeps += (self.data[fvar],)
@@ -332,14 +337,14 @@ class Sample:
 		except np.linalg.linalg.LinAlgError as e:
 			p = np.zeros(self.order*len(indeps)+1)
 			if self.genstep['remask']:
-				self.mask[:,pix] += 2**3
-			print cluster,pix,len(nomask[0])
-			print e
+				self.mask[:,pix] = False
+			#print cluster,pix,len(nomask[0])
+			#print e
 		return res,p
 
 	def errPixFit(self,p,pix,cluster=False):
-		nomask = np.where(self.mask[:,pix] == 0)
-		mask = np.where(self.mask[:,pix] != 0)
+		nomask = np.where(self.mask[:,pix] != 0)
+		mask = np.where(self.mask[:,pix] == 0)
 		indeps = ()
 		for fvar in fitvars[self.type]:
 			indeps += (self.data[fvar][nomask],)
@@ -353,7 +358,6 @@ class Sample:
 			self.residual = acs.pklread(self.resname(cluster=cluster))
 			self.params = acs.pklread(self.paramname(cluster=cluster))
 		elif not os.path.isfile(self.resname(cluster=cluster)) or self.genstep['pixfit']:
-			self.mask = acs.pklread(self.cmaskname(cluster=cluster))
 			ress = []
 			params = []
 			for pix in range(aspcappix):
@@ -380,18 +384,15 @@ class Sample:
 
 
 	def randomSigma(self,pix):
-		nomask = np.where(self.mask[:,pix] == 0)
 		sigma = np.array([-1]*(len(self.specs[:,pix])),dtype = np.float64)
-		for s in nomask:
+		for s in range(len(sigma)):
 			sigma[s] = np.random.normal(loc = 0,scale = self.errs[:,pix][s])
 		return sigma
 
 	def allRandomSigma(self,cluster=False):
 		if os.path.isfile(self.signame(cluster=cluster)) and not self.genstep['ransig']:
 			self.sigma = acs.pklread(self.signame(cluster=cluster))
-			self.mask = acs.pklread(self.cmaskname(cluster=cluster))
 		elif not os.path.isfile(self.signame(cluster=cluster)) or self.genstep['ransig']:
-			self.mask = acs.pklread(self.cmaskname(cluster=cluster))
 			sigs = []
 			for pix in range(aspcappix):
 				sig = self.randomSigma(pix)
@@ -407,7 +408,7 @@ class Sample:
 			nw = pf.normweights(w)
 			weighted = []
 			for star in range(len(arr[0])):
-                                nomask = np.where(self.mask[star][tophats[elem]] == 0)
+				nomask = np.where(self.mask[star][tophats[elem]] != 0)
 				weighted.append(pf.genresidual(nw[tophats[elem]][nomask],arr[:,star][tophats[elem]][nomask]))
 			weighted = np.array(weighted)
 			acs.pklwrite(name,weighted)
