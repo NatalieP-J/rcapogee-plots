@@ -1,0 +1,59 @@
+\documentclass[preprint]{aastex}
+
+\usepackage{float}
+\bibliographystyle{apj}
+
+\begin{document}
+
+\title{Positional Abudance Trends in Red Clump Star in the Milky Way}
+\author{Natalie Price-Jones, supervised by Professor Jo Bovy}
+
+\begin{abstract}
+Many recent spectroscopic surveys have provided abundant data on stars in the Milky Way. We will analyze a subset of data from the APO Galactic Evolution Experiment (APOGEE) survey, focusing on stars in the red clump, a metal-enriched component of the horizontal branch. This enrichment makes it possible to divide stars into small bins in the abudance of each element identified from their spectra. Stars belonging to the same bin in each element are idenfitied as mono-abundance populations (MAPs). In the simplest case (where abundances do not change over a star's lifetime), stars belonging to the same MAP can be assumed to have similar formation environments. Locating the stars belonging to the MAPs in this simple case affords understanding of how stars move through the Milky Way, tracing out effects of our galaxy's dynamical history.
+\end{abstract}
+
+\section{Background}
+\label{sec:back}
+The method by which galaxies form remains open to explanation. Although simulations have succeeded in tracing the broad strokes of formation history (CITE), there are subtle effects which are not well understood. Observational evidence implies empirical relations between properties of different bulk components of galaxies, like bulge and disk velocity dispersion (FERRARESE 2002). We also observe correlations between large and small scales, such as the $M_{\rm BH}-\sigma$ relation (FERRARESE 2000). Observations of a galaxy's visible components also serve as indirect evidence for dark matter, but the way in which this elusive substance influences a galaxy's dynamical history is not known in detail. Better understanding of a galaxy's formation history offers an opportunity to investigate the source of these relations and may allow for more accurate predictions about how galaxies will continue to evolve and interact.
+
+In distant galaxies, we may study bulk properties, but our position in the Milky Way offers us the opportunity to examine the individual stars of our own galaxy in detail. These individual elements at small scales are influenced by dynamical evolution of the galaxy. By searching for correlations in properties including effective temperature ($T_{\rm eff}$), gravitational acceleration ($\log(g)$), and elemental abundances ([X/Fe]), we can learn about where and how populations of stars form and what happens to them over their lifetime in the Milky Way 
+
+This information relies on stellar surveys that extend far beyond the solar neighbourhood. Large-volume spectroscopic survey data from the APO Galactic Evolution Experiment (APOGEE) (CITE), the Large Sky Area Multi-Object Fibre Spectroscopic Telescope (LAMOST) (CITE) and upcoming data from the Gaia mission (CITE) will offer rich information about hundreds of thousands of stars. Even with data reduction pipelines in place, interpreting that volume data to find meaningful results is challenging. However, these results may offer constraints on theories of the Milky Way's formation and evolution, which in turn hints at similar processes at work in other galaxies.  
+
+
+\section{Research Plan}
+\label{sec:rp}
+
+In the broadest sense, this project will attempt to address some questions about galaxy formation through analysis of Milky Way stars. Previous work \citep{bovy2015} has found that comparing alpha-element abundance [$\alpha$/Fe] to iron abundance [Fe/H] reveals two distinct populations: a main trendline, with another population that has an enhancement above this line in $\alpha$ elements (O, Mg, Si, S, Ca, Ti): see Figure \ref{fig:abun}. We will investigate the $\alpha$ elements individually, as well as the other 8 elemental abudances identified by APOGEE, for similar correlations, and trace where these stars are located within the galaxy (radially and vertically). Stars falling into the same small bins in all elemental abundances we call mono abundance populations (MAPS). Locating such populations may make it possible to trace motion of stars over the course of their lifetimes, knowing that stars with similar elemental abudances likely had similar formation environments.
+
+\subsection{Data Set}
+\label{sec:data}
+This work will focus on analysing the spectra of a sample of red clump stars from APOGEE's Data Release 12. These stars are originally selected according to cuts in gravity, effective temperature, and metallicity, and leave us with an initial sample of 19936 stars (BOVY et al 2014). These stars trace, to some extent, the stellar population of the Milky Way through the volume of the APOGEE survey. A star's time in the red clump is short compared to its lifetime, so the sample is biased towards locating younger stars (CITE?). Data on these stars comes in the form of infrared (H-band) spectra covering a wavelength range from 1.514 $\mu$m to 1.696 $\mu$m (with some small nm gaps between detectors). APOGEE's DR12 pipeline provides data on abundances of 15 elements (C, N, O, Na, Mg, Al, Si, S, K, Ca, Ti, V, Mn, Fe, Ni) as well as effective temperature ($T_{\rm eff}$), surface gravity ($\log(g)$) and alpha-element enhancements ([$\alpha$/Fe]).
+
+\subsection{Timeline}
+\label{sec:timeline}
+
+Need to break this down into an actual timeline
+
+In order to have confidence in our elemental abudances, we must remove other effects from the stellar spectra. We will start by fitting each pixel with a polynomial in stellar parameters $T_{\rm eff}$, $\log(g)$ and $[Fe/H]$, and calculate the residuals of this fit in pixels corresponding to absorption features corresponding to particular elements. A sample of stars from globular clusters observed by APOGEE and analyzed by \citet{meszaros2015} will undergo the same fitting to make an estimation of the intrinsic scatter in this residual measurement. Stars from the same cluster are expected to have low variation in abudances, having all formed in the same environment, and so provide a good comparison baseline. This fitting method is straightforward, but a more sophisticated method of modelling stellar parameters may later be used \citep{ness2015}.
+
+\begin{figure}%[H]
+\begin{centering}
+\includegraphics[width = 0.8\linewidth]{alpha_vs_fe.png}
+\caption{$\alpha$-enhancement vs iron abundance for 19936 red clump stars from APOGEE Data Release 12.}
+\end{centering}
+\label{fig:abun}
+\end{figure}
+
+%\begin{figure}%[H]
+%\begin{centering}
+%\includegraphics[width = 0.8\linewidth]{samplerc.png}
+%\caption{A sample spectrum from a red clump star. - ANY WAY TO MODIFY FONT SIZE EASILY}
+%\end{centering}
+%\label{fig:rc}
+%\end{figure}
+
+
+\bibliography{cite}
+
+\end{document}

@@ -4,8 +4,11 @@ import numpy as np
 def codedcolumns(x,order):
     indepvals = {}
     for o in range(1,order+1):
-        for n in range(len(x)):
-            indepvals['i{0}_o{1}'.format(n,o)] = x[n]**o
+        if isinstance(x,tuple):
+            for n in range(len(x)):
+                indepvals['i{0}_o{1}'.format(n,o)] = x[n]**o
+        elif isinstance(x,(list,np.ndarray)):
+            indepvals['i0_o{0}'.format(o)] = x**o
     return indepvals
 
 def matrixterms(x,order,cross=True):
@@ -21,7 +24,7 @@ def matrixterms(x,order,cross=True):
     for pcombnum in range(1,len(x)+1):
         combos = [tuple(i) for i in combinations(indepvals.keys(),pcombnum)]
         for c in combos:
-            totalindep = np.ones(len(x[0]))
+            totalindep = np.ma.masked_array(np.ones(len(x[0])))
             totalorder = 0
             inds = []
             for key in c:
@@ -58,12 +61,10 @@ def matrixterms(x,order,cross=True):
                         matrixcolumns.pop()
                     elif not all(i==inds[0] for i in inds):
                         for partial in cross:
-                            print inds
                             if not set(inds) <= set(partial):
                                 columncode.pop()
                                 matrixcolumns.pop()
-
-    return np.array(matrixcolumns),columncode
+    return np.ma.masked_array(matrixcolumns),columncode
 
 def makematrix(x,order,cross = True):
     """
@@ -78,18 +79,20 @@ def makematrix(x,order,cross = True):
     """
     if isinstance(x,tuple):
         matrixcols,colcode = matrixterms(x,order,cross=cross)
-        X = np.empty((len(x[0]),len(matrixcols)+1))
-        X[:,0] = x[0]**0
-        for mcol in range(len(matrixcols)):
+        X = np.ma.masked_array(np.ones((len(x[0]),len(matrixcols)+1)))
+        for mcol in range(len(matrixcols)): 
             X[:,mcol+1] = matrixcols[mcol]
+        X[:,0].mask = X[:,1].mask #***********************
     elif isinstance(x,(list,np.ndarray)):
-        X = np.empty((len(x),order+1))
+        X = np.ma.masked_array(np.zeros((len(x),order+1)))
         for o in range(order+1):
             X[:,o] = x**o
-    X = np.matrix(X)
+        if X.shape[1] != 1 and not all(X[:,1].mask == False):
+            X[:,0].mask = X[:,1].mask
+        colcode = codedcolumns(x,order)
     return X,colcode
 
-def regfit(X,y,C = 0,order = 1):
+def regfit(X,colcode,y,C = 0,order = 1):
     """
     Fits a (nD-)polynomial of specified order with independent values given in x,
     given dependent values in y.
@@ -103,11 +106,24 @@ def regfit(X,y,C = 0,order = 1):
     multiple independent variables, returns coefficients at each polynomial order
     in order of the variables listed in x.
     """
+    try:
+        try:
+            if X.mask == False:
+                raise AttributeError('No masking needed') #**** TRUE CASE???
+        
+        except ValueError:
+            Xmat = np.matrix(np.reshape(X.data[X.mask==False],(-1,len(colcode)+1)))
+            ymat = np.matrix(y.data[y.mask==False])
+
+    except AttributeError as e:
+        Xmat = np.matrix(X)
+        ymat = np.matrix(y)
+
     if isinstance(C,(float,int)):
-        return np.array(np.linalg.inv(X.T*X)*X.T*np.matrix(y).T)
+        return np.array(np.linalg.inv(Xmat.T*Xmat)*Xmat.T*ymat.T)
     elif isinstance(C,(list,np.ndarray)):
         icov = np.linalg.inv(C)
-        return np.array(np.linalg.inv(X.T*icov*X)*(X.T*icov*np.matrix(y).T))
+        return np.array(np.linalg.inv(Xmat.T*icov*Xmat)*(Xmat.T*icov*ymat.T))
 
 def poly(p,colcode,x,order = 1):
     """
@@ -125,7 +141,7 @@ def poly(p,colcode,x,order = 1):
     if isinstance(x,tuple):
         nindeps = len(x)
         order = (len(p)-1)/nindeps
-        y = np.zeros(x[0].shape)
+        y = np.ma.masked_array(np.zeros(x[0].shape))
         y += p[0]*x[0]**0
         for i in range(1,len(p)):
             multi = np.ones(len(x[0]))
@@ -135,7 +151,7 @@ def poly(p,colcode,x,order = 1):
 
     elif isinstance(x,(list,np.ndarray)):
         order = len(p)-1
-        y = np.zeros(x.shape)
+        y = np.ma.masked_array(np.zeros(x.shape))
         o = 0
         while o <= order:
             y += p[o]*x**o

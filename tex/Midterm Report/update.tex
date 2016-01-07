@@ -1,0 +1,70 @@
+\documentclass[preprint]{aastex}
+
+\usepackage{float}
+\bibliographystyle{apj}
+
+\begin{document}
+
+\title{The dimensionality of stellar abundance space using red clump stars from APOGEE}
+\author{Natalie Price-Jones, supervised by Professor Jo Bovy}
+
+\begin{abstract}
+Recent spectroscopic surveys have provided abundant data on stars in the Milky Way. I will analyze a subset of data from the Apache Point Observatory Galactic Evolution Experiment (APOGEE) survey, in the form of red clump stars. These metal-enriched stars offer a complex abundance space to explore, which I will do by studying the spectra themselves, rather than derived abundances. This direct use of the spectra facilitates the characterization of errors and systematic effects in interpretation of absorption features. An understanding of these uncertainties allows accurate investigation of the multi-dimensional abundance space, which may reveal trends in abundances with stellar age and position throughout the Milky Way. Tracing out a star's abundances and these possible trends offers a way to investigate the dynamical and formation history of the Milky Way.
+
+%These trends may also provide a comparative method to assess uncertainties associated with current abundance calculations.
+
+\end{abstract}
+
+\section{Introduction}
+\label{sec:back}
+A star's history, from its formation environment to its migratory motions, can be traced through its composition. Measuring elemental abundances from stellar spectra establishes this composition. However, current methods for calculating these abundances require robust theoretical models and complete understanding of measurement uncertainties. At present, these methods still exhibit systematic trends with other stellar properties, such as effective temperature $T_{\rm eff}$ or surface gravity $\log(g)$ \citep{holtzman2015}. Removing these contaminating effects from abundance calculations entirely may reveal statistically significant correlations between abundances and stellar age or location within a galaxy. 
+
+Recent large-volume spectroscopic survey data from the Apache Point Observatory Galactic Evolution Experiment (APOGEE, \citealt{APOGEE}), upcoming data from the Gaia mission \citep{GAIA} and other large spectroscopic surveys will offer rich spectral information about hundreds of thousands of stars. This data is a prime opportunity for abundance analysis. To take advantage of this, I will develop an efficient method for investigating abundance space \citep{openclusters}. The method, described in \S\ref{sec:methods}, uses spectra directly, rather than quantities derived by fitting multi-parameter model spectra. This reduces complexity in calculations of uncertainty, and is less sensitive to the systematic effects of other stellar properties than traditional methods. This will allow for a more accurate investigation the dimensionality of abundance space for a sample of stars, including probing the relative significance of particular elements. I will apply this method to spectra from APOGEE and investigate the dimensionality of the sample in abundance space. An understanding of trends in this space may place constraints on what chemical processes contributed to the formation of populations of stars. This in turn may reveal elements of the Milky Way's star formation history or trace how stars moved through the Milky Way after their formation.
+
+
+\section{Data Set}
+\label{sec:data}
+This work will analyze the spectra of a sample of red clump stars from APOGEE's Data Release 12. These stars are selected as belonging to the red clump according to cuts in gravity, effective temperature, and metallicity, and leave us with an initial sample of 19936 stars \citep{bovy2014}. These stars trace, to some extent, the stellar population of the Milky Way through the volume of the APOGEE survey, which covers a significant fraction of the Milky Way’s disk. Data on these stars comes in the form of infrared (H-band) spectra covering a wavelength range from 1.514 $\mu$m to 1.696 $\mu$m (with some small nm gaps between detectors, \citealt{APOGEE}). APOGEE's DR12 pipeline provides data on abundances of 15 elements (C, N, O, Na, Mg, Al, Si, S, K, Ca, Ti, V, Mn, Fe, Ni) as well as effective temperature ($T_{\rm eff}$), surface gravity ($\log(g)$), overall metallicity ($Z$), and alpha-element enhancements ([$\alpha$/Fe])\citep{holtzman2015}. I will analyze all 15 of these elements.
+
+\section{Methods}
+\label{sec:methods}
+Starting with our sample of APOGEE spectra, I will perform empirical fits to remove non-abundance stellar properties. Flux values from each spectrum at a given pixel $p$ $(F(p))$ are fit with a low order polynomial in $T_{\rm eff}$, $\log(g)$ and $Z$, so some function for flux is found: $f(p,T_{\rm eff},\log(g),Z)$. At each pixel residuals are calculated from the fit: $\delta = F(p) - f(p,T_{\rm eff},\log(g),Z)$. We can analyze these residuals directly, using principal component analysis (PCA). This assesses the amount of variance in each dimension of that data. In the case of the residual data, each pixel represents a dimension, with individual stars populating that dimension. Before running PCA with each pixel as an independent dimension we can get a broad sense of the influence of a particular element X by constructing a set of weighted residuals for that element. Residuals for element X pixels are weighted by normalized window functions which trace each X absorption feature and are then summed for each stellar spectrum. Performing PCA on these results reduces the problem from having dimension equal to the number of pixels to having dimensions equal to the number of elements (15). The resulting PCA eigenvectors will show which element (if any) is dominate in determining the residuals after other stellar parameters have been removed.
+
+I can improve upon the results of classic PCA method (applied to either the pixel or weighted residuals) by using EMPCA (Expectation Maximization PCA). This weights the input data according to its uncertainty \citep{EMPCA}. In order to use this, I need to find a good set of weights to use. A good place to start is to use the flux measurement uncertainties to serve as weights. However, it seems that for many pixels these uncertainties may be underestimatd. To correct for this, I use a sample of stars from open clusters, which should be internally homogeneous in terms of elemental composition. I calculate the residuals in the same way as I described above and take their covaraince. Assuming that the open clusters really are perfectly internally homogeneous (and thus any residual is due to some other source of noise) allows me to use the square root of the terms on the diagonal as a multiplicative factor to correct the uncertainties in the red clump sample. This assumes the pixels are not correlated with each other. These corrected uncertainties can then be used as weights for EMPCA.
+
+\section{Timeline}
+\label{sec:timeline}
+
+\begin{itemize}
+\item Nov 2015, Q: Can I see scatter in residuals of individual elements above our level of intrinsic and measurement uncertainty?
+\begin{itemize}
+\item Characterize measurement scatter by drawing from a Gaussian determined by the uncertainty in flux measurements. [DONE]
+\item Fit open clusters (from \citealt{meszaros2015}) in $T_{\rm eff}$ according to the outline in \S3 and take residuals from this fit as representative of intrinsic abundance scatter. [DONE]
+\end{itemize}
+\item Dec 2015, Q: What is the dimensionality of abundance space for all elements? Which elements are most significant for distinguishing stars?
+\begin{itemize}
+\item Use principal component analysis to identify elements of primary importance and the number of dimensions that are not due to noise. [MODIFIED - NOW DOING THIS ON ALL PIXEL SPACE AS WELL - CODE WORKS WITH PRELIMINARY WEIGHT ESTIMATES]
+\item Write a code to test existing fitting framework [NEW - DONE]
+\item Assess uncertainties from pixel fit. [NEW - CODE EXISTS, NOT YET RUN ON RED CLUMP DATA]
+\item Decide on appropriate weights for red clump sample based on results from open clusters. Use open clusters to correct given uncertainties at each pixel [NEW]
+\end{itemize}
+\item Jan 2016 Q: How can we most accurately find weights for PCA?
+\begin{itemize}
+\item Trace sources of uncertainty through data (i.e. uncertainty from fitting - how does this translate to uncertainty in open cluster pixel corrections? how in turn does this translate to uncertainty in red clump residuals, which also have uncertainty from their own fitting? this is necessary for accurate weights). [NEW]
+\item Use newly more accurate weights in EMPCA in both pixel residual and weighted residual spaces. Use empca.R2(n) where n in the number of the eigenvector to determine where the explained variance is equivalent to the noise variance. How many eigenvectors are needed to explain the variance in each space (pixel vs weighted)? [NEW]
+\end{itemize}
+\item Feb 2016, Q: Is there any positional dependence of populations in small bins in the remaining dimensions of abundance space?
+\begin{itemize} 
+\item Collect stars from small bins in the multidimensional residual space and plot their radial and vertical positions.
+\item Determine if stars belonging to different bins inhabit different sections of the galaxy, as well as positional variations for stars within a bin.
+\end{itemize}
+\item Mar/Apr 2016, Q: Can I understand the reasons certain elements may be more significant after PCA by modeling spectra?
+\begin{itemize}
+\item Create model spectra by varying abundances of the 15 elements.
+\item Perform fitting described in \S\ref{sec:methods} and compare with fitting done on APOGEE data. Ascertain whether model spectra created with derived abundances for the red clump stars can reproduce residual results from the data set.
+\end{itemize}
+\end{itemize}
+
+\bibliography{cite}
+
+\end{document}
