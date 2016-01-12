@@ -94,12 +94,12 @@ def retryPixFunction(fn,dependencies,*args,**kwargs):
 
 	"""
 	try:
-		return fn(*args)
+		return fn(*args,**kwargs)
 	except AttributeError as e:
 		for dep in dependencies:
-			dep(**kwargs)
+			dep()
 		try:
-			return fn(*args)
+			return fn(*args,**kwargs)
 		except AttributeError as e:
 			print e
 			warn('Missing Sample information')
@@ -201,7 +201,7 @@ class Sample:
 	A class object to hold information about a sample of stellar spectra, including properties of their fits in stellar parameters.
 
 	"""
-	def __init__(self,sampletype,seed=1,order=2,label=0,low=0,up=0,cross=True,fontsize=18,verbose=False):
+	def __init__(self,sampletype,seed=1,order=2,label=0,low=0,up=0,subgroup_type=False,subgroup_lis=False,cross=True,fontsize=18,verbose=False):
 		"""
 		Initializes appropriate variables for sample class.
 
@@ -235,6 +235,9 @@ class Sample:
 			if verbose:
 				warn('kwarg label was set, but limits are too close - reverting to use of entire sample.')
 			self.label = 0
+
+		self.subgroup=subgroup_type
+		self.subgroups=subgroup_lis		
 
 		# Create directories if necessary and initialize file paths.
 		self.makeDirec()
@@ -437,7 +440,7 @@ class Sample:
 ################################################################################
 ######################## MASK INDEPENDENT VARIABLES ############################
 
-	def indepVars(self,pix):
+	def indepVars(self,pix,match):
 		"""
 		Create tuple of independent variable arrays masked according to the given pixel.
 
@@ -447,31 +450,48 @@ class Sample:
 		"""
 		indeps = ()
 		for fvar in fitvars[self.type]:
-			indeps += (np.ma.masked_array(self.data[fvar],self.specs[:,pix].mask),)
+			indeps += (np.ma.masked_array(self.data[fvar][match],self.specs[:,pix].mask[match]),)
 		return indeps
 
-	def allIndepVars(self,subgroup=False):
+	def allIndepVars(self):
 		"""
 		Create a list of masked independent variable array tuples corresponding to each pixel.
 
-		subgroup:	If not False, a string kwarg describing the stellar grouping to which this data belongs. Default False.
-
 		Returns nothing, updates Sample.allindeps and writes it to file.
 		"""
-		fname = self.outName('pkl',content='indeps',subgroup=subgroup)
-		if os.path.isfile(fname):
-			self.allindeps = acs.pklread(fname)
-		elif not os.path.isfile(fname):
-			self.allindeps = []
-			for pix in range(aspcappix):
-				indeps = self.indepVars(pix)
-				self.allindeps.append(indeps)
-			acs.pklwrite(fname,self.allindeps)
+		# Case with no subgroups
+		if not self.subgroup:
+			fname = self.outName('pkl',content='indeps')
+			match = np.where(self.data)
+			if os.path.isfile(fname):
+				self.allindeps = acs.pklread(fname)
+			elif not os.path.isfile(fname):
+				self.allindeps = []
+				for pix in range(aspcappix):
+					indeps = self.indepVars(pix,match)
+					self.allindeps.append(indeps)
+				acs.pklwrite(fname,self.allindeps)
+		# Case with subgroups
+		elif self.subgroup != False:
+			self.allindeps = {}
+			for subgroup in self.subgroups:
+				fname = self.outName('pkl',content='indeps',subgroup=subgroup)
+				match = np.where(self.data[self.subgroup] == subgroup)
+				if os.path.isfile(fname):
+					allindeps = acs.pklread(fname)
+				elif not os.path.isfile(fname):
+					allindeps = []
+					for pix in range(aspcappix):
+						indeps = self.indepVars(pix,match)
+						allindeps.append(indeps)
+					acs.pklwrite(fname,allindeps)
+				self.allindeps[subgroup]= allindeps
+
 
 ################################################################################
 ############################## FIT ALONG PIXEL #################################
 
-	def pixFit(self,pix):
+	def pixFit(self,pix,match,indeps):
 		"""
 		Fits a data set in independent variables specified in fitvars at a particular pixel and calculates residuals from the fit.
 
@@ -480,7 +500,6 @@ class Sample:
 
 		Returns an array of fit parameters and a list identifying which variables belong to each parameter.
 		"""
-		indeps = self.allindeps[pix]
 		
 		if self.cross != False and len(indeps) == 1:
 			if self.verbose:
@@ -491,31 +510,32 @@ class Sample:
 			# Construct independent variable matrix and provide a dictionary identifying the columns with combinations of variables.
 			indepMatrix,colcode = pf.makematrix(indeps,self.order,cross=self.cross)
 			# Create matrix of uncertainty in flux for each star (assumes stars are uncorrelated)
-			uncert = np.diag(self.errs[:,pix]**2)
+			uncert = np.diag(self.errs[:,pix][match]**2)
 
 			# Check for potential degeneracy between terms, which leads to poor determination of fit parameters.
 			imat = np.matrix(indepMatrix)
 			eigvals,eigvecs = np.linalg.eig(imat.T*np.linalg.inv(uncert)*imat)	
 			if any(abs(eigvals) < 1e-10):
-				warn('With cross terms, there is too much degeneracy between terms. Reverting to no cross terms used for fit pix {0}'.format(pix))
+				if self.verbose:
+					warn('With cross terms, there is too much degeneracy between terms. Reverting to no cross terms used for fit pix {0}'.format(pix))
 				indepMatrix,colcode = pf.makematrix(indeps,self.order,cross=False)
 
-			uncert = np.diag(self.errs[:,pix].data[self.errs[:,pix].mask==False]**2)
+			uncert = np.diag(self.errs[:,pix][match].data[self.errs[:,pix][match].mask==False]**2)
 			# Attempt to calculate the fit parameters and determine if there are enough data points to trust results.
-			fitParam = pf.regfit(indepMatrix,colcode,self.specs[:,pix],C = uncert,order = self.order)
-			if (self.numstars-np.sum(self.specs[:,pix].mask)) <= len(fitParam) + 1:
+			fitParam = pf.regfit(indepMatrix,colcode,self.specs[:,pix][match],C = uncert,order = self.order)
+			if (self.numstars-np.sum(self.specs[:,pix][match].mask)) <= len(fitParam) + 1:
 				raise np.linalg.linalg.LinAlgError('Data set too small to determine fit coefficients')
 		
 		# If exception raised, mask pixel for all stars.
 		except np.linalg.linalg.LinAlgError as e:
 			fitParam = np.zeros(self.order*len(indeps)+1)
-			self.specs.mask[:,pix] = np.ones(self.numstars).astype(bool)
-			self.errs.mask[:,pix] = np.ones(self.numstars).astype(bool)
+			self.specs.mask[:,pix][match] = np.ones(self.numstars).astype(bool)
+			self.errs.mask[:,pix][match] = np.ones(self.numstars).astype(bool)
 			if self.verbose:
 				print e
 			if self.updatemask:
-				self.mask[:,pix] = True
-				self.bitmask[:,pix] += 2**16
+				self.mask[:,pix][match] = True
+				self.bitmask[:,pix][match] += 2**16
 				if self.verbose:
 					'Mask on pixel {0}'.format(pix)
 
@@ -529,26 +549,56 @@ class Sample:
 
 		Returns nothing, updates Sample.allparams, Sample.allcodes and saves them both to file.
 		"""
-		fname1 = self.outName('pkl',content='fitparam',order=self.order,subgroup=subgroup)
-		fname2 = self.outName('pkl',content='colcodes',order=self.order,subgroup=subgroup)
-		if not os.path.isfile(fname1) or not os.path.isfile(fname2):
-			self.allparams = []
-			self.allcodes = []
-			for pix in range(aspcappix):
-				param,colcode = retryPixFunction(self.pixFit,[self.allIndepVars],pix,subgroup=subgroup)
-				self.allparams.append(param)
-				self.allcodes.append(colcode)
-			acs.pklwrite(fname1,self.allparams)
-			acs.pklwrite(fname2,self.allcodes)
-		elif os.path.isfile(fname1) and os.path.isfile(fname2):
-			self.allparams = acs.pklread(fname1)
-			self.allcodes = acs.pklread(fname2)
+		if not self.subgroup:
+			fname1 = self.outName('pkl',content='fitparam',order=self.order)
+			fname2 = self.outName('pkl',content='colcodes',order=self.order)
+			match = np.where(self.data)
+			if not os.path.isfile(fname1) or not os.path.isfile(fname2):
+				self.allparams = []
+				self.allcodes = []
+				for pix in range(aspcappix):
+					indeps = self.allindeps[pix]
+					param,colcode = retryPixFunction(self.pixFit,[self.allIndepVars],pix,match,indeps)
+					self.allparams.append(param)
+					self.allcodes.append(colcode)
+				acs.pklwrite(fname1,self.allparams)
+				acs.pklwrite(fname2,self.allcodes)
+			elif os.path.isfile(fname1) and os.path.isfile(fname2):
+				self.allparams = acs.pklread(fname1)
+				self.allcodes = acs.pklread(fname2)
+		elif self.subgroup != False:
+			self.allparams = {}
+			self.allcodes = {}
+			masterstars = {}
+			for subgroup in self.subgroups:
+				fname1 = self.outName('pkl',content='fitparam',order=self.order,subgroup=subgroup)
+				fname2 = self.outName('pkl',content='colcodes',order=self.order,subgroup=subgroup)
+				allindeps = self.allindeps[subgroup]
+				match = np.where(self.data[self.subgroup] == subgroup)
+				self.numstars = len(match[0])
+				masterstars[subgroup] = self.numstars
+				if not os.path.isfile(fname1) or not os.path.isfile(fname2):
+					allparams = []
+					allcodes = []
+					for pix in range(aspcappix):
+						indeps = allindeps[pix]
+						param,colcode = retryPixFunction(self.pixFit,[self.allIndepVars],pix,match,indeps)
+						allparams.append(param)
+						allcodes.append(colcode)
+					acs.pklwrite(fname1,allparams)
+					acs.pklwrite(fname2,allcodes)
+				elif os.path.isfile(fname1) and os.path.isfile(fname2):
+					allparams = acs.pklread(fname1)
+					allcodes = acs.pklread(fname2)
+				self.allparams[subgroup] = allparams
+				self.allcodes[subgroup] = allcodes
+			self.numstars = masterstars
 
 	
 ################################################################################
 ########################### CALCULATE FIT RESIDUALS ############################
 
-	def pixResidiual(self,pix):
+	def pixResidiual(self,pix,indeps,params,colcode,match):
 		"""
 		Generates fit residuals at a pixel.
 
@@ -556,14 +606,11 @@ class Sample:
 
 		Returns residuals of fit.
 		"""
-		indeps = self.allindeps[pix]
-		params = self.allparams[pix]
-		colcode = self.allcodes[pix]
-		res = self.specs[:,pix] - pf.poly(params,colcode,indeps,order=self.order)
+		res = self.specs[:,pix][match] - pf.poly(params,colcode,indeps,order=self.order)
 		return res
 
 
-	def allPixResiduals(self,subgroup=False):
+	def allPixResiduals(self):
 		"""
 		Calculates residuals of the fit at each pixel.
 
@@ -571,21 +618,48 @@ class Sample:
 
 		Returns nothing, updates Sample.residual and saves it.
 		"""
-		fname = self.outName('pkl',content='residuals',order=self.order,subgroup=subgroup)
-		if os.path.isfile(fname):
-			self.residual = acs.pklread(fname)
-		elif not os.path.isfile(fname):
-			self.residual = []
-			for pix in range(aspcappix):
-				res = retryPixFunction(self.pixResidiual,[self.allPixFit],pix,subgroup=subgroup)
-				self.residual.append(res)
-			self.residual = np.ma.masked_array(self.residual)
-			acs.pklwrite(fname,self.residual)
+		if not self.subgroup:
+			fname = self.outName('pkl',content='residuals',order=self.order)
+			match = np.where(self.data)
+			if os.path.isfile(fname):
+				self.residual = acs.pklread(fname)
+			elif not os.path.isfile(fname):
+				self.residual = []
+				for pix in range(aspcappix):
+					indeps = self.allindeps[pix]
+					params = self.allparams[pix]
+					colcode = self.allcodes[pix]
+					res = retryPixFunction(self.pixResidiual,[self.allPixFit],pix,indeps,params,colcode,match)
+					self.residual.append(res)
+				self.residual = np.ma.masked_array(self.residual)
+				acs.pklwrite(fname,self.residual)
+		elif self.subgroup != False:
+			self.residual = {}
+			for subgroup in self.subgroups:
+				fname = self.outName('pkl',content='residuals',order=self.order,subgroup=subgroup)
+				match = np.where(self.data[self.subgroup] == subgroup)
+				if os.path.isfile(fname):
+					residual = acs.pklread(fname)
+				elif not os.path.isfile(fname):
+					allindeps = self.allindeps[subgroup]
+					allparams = self.allparams[subgroup]
+					allcodes = self.allcodes[subgroup]
+					residual = []
+					for pix in range(aspcappix):
+						indeps = allindeps[pix]
+						params = allparams[pix]
+						colcode = allcodes[pix]
+						res = retryPixFunction(self.pixResidiual,[self.allPixFit],pix,indeps,params,colcode,match)
+						residual.append(res)
+					residual = np.ma.masked_array(residual)
+					acs.pklwrite(fname,residual)
+				self.residual[subgroup] = residual
+
 
 ################################################################################
 ################################ PLOT RESIDUALS ################################
 
-	def pixPlot(self,pix,savename,errcut = 0.1):
+	def pixPlot(self,pix,savename,subgroup,errcut = 0.1):
 		"""
 		Creates a plot of fit residuals for a specified pixel.
 
@@ -600,9 +674,14 @@ class Sample:
 		"""
 
 		# Extract residuals and pixel uncertainties for given pixel.
-		indeps = self.allindeps[pix]
-		res = self.residual[pix]
-		errs = self.errs[:,pix]
+		if not subgroup:
+			indeps = self.allindeps[pix]
+			res = self.residual[pix]
+			errs = self.errs[:,pix]
+		elif subgroup != False:
+			indeps = self.allindeps[subgroup][pix]
+			res = self.residual[subgroup][pix]
+			errs = self.errs[np.where(self.data[self.subgroup] == subgroup)][:,pix]
 		# Find masked and unmasked stars.
 		nomask = np.where((res.mask==0))
 		mask = np.where(res.mask!=0)
@@ -655,7 +734,7 @@ class Sample:
 		plt.close()
 
 
-	def setPixPlot(self,subgroup=False,whichplot='auto_narrow'):
+	def setPixPlot(self,whichplot='auto_narrow'):
 		"""
 		Automatically plots a subset of pixel fits.
 
@@ -669,24 +748,49 @@ class Sample:
 		"""
 		if whichplot == 'auto_broad':
 			for pix in np.where(window_all != 0)[0]:
-				plotname = self.outName('fit',pixel=pix,subgroup=subgroup,order=self.order,cross=self.cross)
-				retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup=subgroup)
+				if not self.subgroup:
+					plotname = self.outName('fit',pixel=pix,order=self.order,cross=self.cross)
+					retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup=subgroup)
+				elif self.subgroup != False:
+					for subgroup in self.subgroups:
+						plotname = self.outName('fit',subgroup=subgroup,pixel=pix,order=self.order,cross=self.cross)
+						retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup)
 		elif whichplot == 'auto_narrow':
 			for pix in np.where(window_peak != 0)[0]:
-				plotname = self.outName('fit',pixel=pix,subgroup=subgroup,order=self.order,cross=self.cross) 
-				retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup=subgroup)
+				if not self.subgroup:
+					plotname = self.outName('fit',pixel=pix,order=self.order,cross=self.cross)
+					retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup=subgroup)
+				elif self.subgroup != False:
+					for subgroup in self.subgroups:
+						plotname = self.outName('fit',subgroup=subgroup,pixel=pix,order=self.order,cross=self.cross)
+						retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup)
 		elif whichplot == 'all':
 			for pix in range(aspcappix):
-				plotname = self.outName('fit',pixel=pix,subgroup=subgroup,order=self.order,cross=self.cross) 
-				retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup=subgroup)
+				if not self.subgroup:
+					plotname = self.outName('fit',pixel=pix,order=self.order,cross=self.cross)
+					retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup=subgroup)
+				elif self.subgroup != False:
+					for subgroup in self.subgroups:
+						plotname = self.outName('fit',subgroup=subgroup,pixel=pix,order=self.order,cross=self.cross)
+						retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup)
 		elif whichplot in windowPixels.keys():
 			for pix in windowPixels[whichplot]:
-				plotname = self.outName('fit',pixel=pix,subgroup=subgroup,order=self.order,cross=self.cross) 
-				retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup=subgroup)
+				if not self.subgroup:
+					plotname = self.outName('fit',pixel=pix,order=self.order,cross=self.cross)
+					retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup=subgroup)
+				elif self.subgroup != False:
+					for subgroup in self.subgroups:
+						plotname = self.outName('fit',subgroup=subgroup,pixel=pix,order=self.order,cross=self.cross)
+						retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup)
 		elif isinstance(whichplot,(list,np.ndarray)):
 			for pix in whichplot:
-				plotname = self.outName('fit',pixel=pix,subgroup=subgroup,order=self.order,cross=self.cross) 
-				retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup=subgroup)
+				if not self.subgroup:
+					plotname = self.outName('fit',pixel=pix,order=self.order,cross=self.cross)
+					retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup=subgroup)
+				elif self.subgroup != False:
+					for subgroup in self.subgroups:
+						plotname = self.outName('fit',subgroup=subgroup,pixel=pix,order=self.order,cross=self.cross)
+						retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup)
 		else:
 			warn('Unrecognized option choice for kwarg whichplot, please use "auto_narrow", "auto_broad" or "all", or provide a list of pixels to plot.')
 
@@ -694,7 +798,7 @@ class Sample:
 ################################# ESTIMATE UNCERTAINTY #########################
 
 
-	def randomSigma(self,pix):
+	def randomSigma(self,pix,match):
 		"""
 		Generates an uncertainty for each star by selecting randomly from a Gaussian with 
 		the standard deviation of the provided uncertainty.
@@ -704,13 +808,13 @@ class Sample:
 		Returns an array of uncertainties corresponding to each star at pixel pix.
 		"""
 
-		sigma = np.ma.masked_array([-1]*(len(self.specs[:,pix])),mask = self.mask[:,pix],dtype = np.float64)
+		sigma = np.ma.masked_array([-1]*(len(self.specs[match][:,pix])),mask = self.mask[match][:,pix],dtype = np.float64)
 		for s in range(len(sigma)):
 			if not sigma.mask[s]:
 				sigma.data[s] = np.random.normal(loc = 0,scale = self.errs[:,pix][s])
 		return sigma
 
-	def allRandomSigma(self,subgroup=False):
+	def allRandomSigma(self):
 		"""
 		Generates an uncertainty at each pixel for each star by selecting randomly from a Gaussian with 
 		the standard deviation of the provided uncertainty.
@@ -719,15 +823,31 @@ class Sample:
 
 		Returns nothing, just updates the sigma attribute of Sample.
 		"""
-		fname = self.outName('pkl',content='sigma',seed = self.seed,subgroup=subgroup,order=self.order)
-		if os.path.isfile(fname):
-			self.sigma = acs.pklread(fname)
-		elif not os.path.isfile(fname):
-			sigs = []
-			for pix in range(aspcappix):
-				sig = self.randomSigma(pix)
-				sigs.append(sig)
-			self.sigma = np.ma.masked_array(sigs)
+		if not self.subgroup:
+			fname = self.outName('pkl',content='sigma',seed = self.seed,order=self.order)
+			if os.path.isfile(fname):
+				self.sigma = acs.pklread(fname)
+			elif not os.path.isfile(fname):
+				match = np.where(self.data)
+				sigs = []
+				for pix in range(aspcappix):
+					sig = self.randomSigma(pix,match)
+					sigs.append(sig)
+				self.sigma = np.ma.masked_array(sigs)
+				acs.pklwrite(fname,self.sigma)
+		elif self.subgroup != False:
+			self.sigma = {}
+			for subgroup in self.subgroups:
+				fname = self.outName('pkl',content='sigma',subgroup = subgroup,seed = self.seed,order=self.order)
+				if os.path.isfile(fname):
+					self.sigma[subgroup] = acs.pklread(fname)
+				elif not os.path.isfile(fname):
+					match = np.where(self.data[self.subgroup] == subgroup)
+					sigs = []
+					for pix in range(aspcappix):
+						sig = self.randomSigma(pix,match)
+						sigs.append(sig)
+					sigma = np.ma.masked_array(sigs)
 			acs.pklwrite(fname,self.sigma)
 
 ################################################################################

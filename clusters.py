@@ -3,36 +3,29 @@ import numpy as np
 import access_spectrum as acs
 from apogee.tools import bitmask
 
-genstep = {'specs':False,
-		   'remask':False,
-		   'autopixplot':False,
-		   'pixplot':False,
-		   'pixfit':False,
-		   'ransig':False,
-		   'weight':False}
-
 clusterlis = ['M107','M13','M15','M2','M3','M5','M53','M71','M92','N5466','M67','N188','N2158','N2420','N4147','N6791','N6819','N7789']
 
 GCs = ['M107','M13','M15','M2','M3','M5','M53','M71','M92','N5466']
 OCs = ['M67','N188','N2158','N2420','N4147','N6791','N6819','N7789']
 
-clusters = Sample('clusters',15,2,genstep=genstep,fontsize = 10)
+clusters = Sample('clusters',seed = 15,order = 1,fontsize = 10,cross=False)
 clusters.snrCut()
-clusters.bitmaskData(maskvals = badcombpixmask+2**15)
+clusters.bitmaskData(maskbits = badcombpixmask+2**15)
 clusters.snrCorrect()
-masterdata = np.copy(clusters.data)
-masterspecs = np.copy(clusters.specs)
-mastererrs = np.copy(clusters.errs)
-mastermask = np.copy(clusters.mask)
-masterbitmask = np.copy(clusters.bitmask)
+masterdata = np.ma.copy(clusters.data)
+masterspecs = np.ma.copy(clusters.specs)
+mastererrs = np.ma.copy(clusters.errs)
+mastermask = np.ma.copy(clusters.mask)
+masterbitmask = np.ma.copy(clusters.bitmask)
+masterstars = np.ma.copy(clusters.numstars)
 OCres = {}
 OCsig = {}
 OCmembers = {}
-OC_allres = np.zeros((87,7214))
-OC_allsigs = np.zeros((87,7214))
-OC_allspecs = np.zeros((87,7214))
-OC_allmasks = np.zeros((87,7214))
-OC_allbitmasks = np.zeros((87,7214),dtype=int)
+OC_allres = np.ma.masked_array(np.zeros((87,7214)))
+OC_allsigs = np.ma.masked_array(np.zeros((87,7214)))
+OC_allspecs = np.ma.masked_array(np.zeros((87,7214)))
+OC_allmasks = np.ma.masked_array(np.zeros((87,7214)))
+OC_allbitmasks = np.ma.masked_array(np.zeros((87,7214),dtype=int))
 i = 0
 for c in OCs:
 	match = np.where(masterdata['CLUSTER'] == c)
@@ -44,8 +37,9 @@ for c in OCs:
 	clusters.errs = clusters.errs[match]
 	clusters.mask = clusters.mask[match]
 	clusters.bitmask = clusters.bitmask[match]
-	clusters.allPixFit(cluster=c)
-	clusters.allRandomSigma(cluster=c)
+	clusters.numstars = len(match[0])
+	clusters.allPixResiduals(subgroup=c)
+	clusters.allRandomSigma(subgroup=c)
 	if c in OCs and nummembers > 9:
 		for star in range(len(clusters.residual[0])):
 			OC_allres[i] = clusters.residual[:,star]
@@ -57,12 +51,12 @@ for c in OCs:
 	for elem in elems:
 
 		weightedr = clusters.weighting(clusters.residual,elem,
-									  clusters.outName(clusters,'pkl','resids',elem=elem,subgroup=c,order =clusters.order))
+									  clusters.outName('pkl','resids',elem=elem,subgroup=c,order =clusters.order))
 		weighteds = clusters.weighting(clusters.sigma,elem,
-									  clusters.outName(clusters,'pkl','sigma',elem=elem,subgroup=c,seed = clusters.seed,order =clusters.order))
-		#doubleResidualHistPlot(elem,weightedr,weighteds,
-		#					   clusters.outName(clusters,'res','residhist',elem = elem,subgroup=c,seed = clusters.seed,order =clusters.order),
-		#					   bins = 50)
+									  clusters.outName('pkl','sigma',elem=elem,subgroup=c,seed = clusters.seed,order =clusters.order))
+		doubleResidualHistPlot(elem,weightedr,weighteds,
+							   clusters.outName('res','residhist',elem = elem,subgroup=c,seed = clusters.seed,order =clusters.order),
+							   bins = 50)
 		if elem not in OCsig.keys():
 			OCsig[elem] = []
 		if elem not in OCres.keys():
@@ -74,10 +68,12 @@ for c in OCs:
 	clusters.specs = masterspecs
 	clusters.errs = mastererrs
 	mastermask[match] = clusters.mask
+	masterbitmask[match] = clusters.bitmask
 	clusters.mask = mastermask
 	clusters.bitmask = masterbitmask
-clusters.saveMaskFiles()
+clusters.saveFiles()
 
+'''
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 
@@ -140,9 +136,8 @@ plt.colorbar()
 plt.savefig('clusters/ElementSpaceCovariance.png')
 plt.close()
 
-'''
 plt.figure(1,figsize=(16,14))
-OC_allresplot = np.copy(OC_allres)
+OC_allresplot = np.ma.copy(OC_allres)
 mask = np.where(OC_allmasks!=0)
 OC_allresplot[mask] = np.nan
 plt.imshow(abs(OC_allresplot/OC_allsigs),vmax = 7.,aspect = 100,interpolation='nearest',cmap = 'viridis')
@@ -173,7 +168,7 @@ plt.savefig('clusters/OCResiduals.png')
 plt.close()
 
 plt.figure(2,figsize=(16,14))
-OC_allspecsplot = np.copy(OC_allspecs)
+OC_allspecsplot = np.ma.copy(OC_allspecs)
 plt.imshow(abs(OC_allspecsplot),aspect = 100,interpolation='nearest',cmap = 'viridis')
 plt.figtext(0.1,0.2,'M67')
 plt.axhline(24,linewidth = 2,color='r')
@@ -188,7 +183,7 @@ plt.savefig('clusters/OCspectra.png')
 plt.close()
 
 plt.figure(3,figsize=(16,14))
-OC_allmasksplot = np.copy(OC_allmasks)
+OC_allmasksplot = np.ma.copy(OC_allmasks)
 OC_allmasksplot[np.where(OC_allmasks==0)] = np.nan
 plt.imshow(OC_allmasksplot,aspect = 100,interpolation='nearest',cmap = 'viridis')
 plt.figtext(0.1,0.2,'M67')
@@ -204,7 +199,7 @@ plt.savefig('clusters/OCmask.png')
 plt.close()
 
 plt.figure(4,figsize=(16,14))
-OC_allbitmasksplot = np.copy(OC_allbitmasks).astype(np.float64)
+OC_allbitmasksplot = np.ma.copy(OC_allbitmasks).astype(np.float64)
 OC_allbitmasksplot[np.where(OC_allbitmasks==0)] = np.nan
 plt.imshow(np.log2(OC_allbitmasksplot),aspect = 100,interpolation='nearest',cmap = 'viridis')
 plt.figtext(0.1,0.2,'M67')
