@@ -456,7 +456,7 @@ class Sample:
 		"""
 		indeps = ()
 		for fvar in fitvars[self.type]:
-			indeps += (np.ma.masked_array(self.data[fvar][match],self.specs[:,pix].mask[match]),)
+			indeps += (np.ma.masked_array(self.data[fvar],self.specs[:,pix].mask),)
 		return indeps
 
 	def allIndepVars(self):
@@ -516,7 +516,7 @@ class Sample:
 			# Construct independent variable matrix and provide a dictionary identifying the columns with combinations of variables.
 			indepMatrix,colcode = pf.makematrix(indeps,self.order,cross=self.cross)
 			# Create matrix of uncertainty in flux for each star (assumes stars are uncorrelated)
-			uncert = np.diag(self.errs[:,pix][match]**2)
+			uncert = np.diag(self.errs[:,pix]**2)
 
 			# Check for potential degeneracy between terms, which leads to poor determination of fit parameters.
 			imat = np.matrix(indepMatrix)
@@ -525,24 +525,24 @@ class Sample:
 				warn('With cross terms, there is too much degeneracy between terms. Reverting to no cross terms used for fit pix {0}'.format(pix))
 				indepMatrix,colcode = pf.makematrix(indeps,self.order,cross=False)
 
-			if all(self.specs[:,pix][match].mask==True):
+			if all(self.specs[:,pix].mask==True):
 				raise np.linalg.linalg.LinAlgError('Data completely masked.')
-			uncert = np.diag(self.errs[:,pix][match].data[self.errs[:,pix][match].mask==False]**2)
+			uncert = np.diag(self.errs[:,pix].data[self.errs[:,pix].mask==False]**2)
 			# Attempt to calculate the fit parameters and determine if there are enough data points to trust results.
-			fitParam = pf.regfit(indepMatrix,colcode,self.specs[:,pix][match],C = uncert,order = self.order)
-			if (self.numstars-np.sum(self.specs[:,pix][match].mask)) <= len(fitParam) + 1:
+			fitParam = pf.regfit(indepMatrix,colcode,self.specs[:,pix],C = uncert,order = self.order)
+			if (self.numstars-np.sum(self.specs[:,pix].mask)) <= len(fitParam) + 1:
 				raise np.linalg.linalg.LinAlgError('Data set too small to determine fit coefficients')
 		
 		# If exception raised, mask pixel for all stars.
 		except np.linalg.linalg.LinAlgError as e:
 			fitParam = np.zeros(self.order*len(indeps)+1)
-			self.specs.mask[:,pix][match] = np.ones(self.numstars).astype(bool)
-			self.errs.mask[:,pix][match] = np.ones(self.numstars).astype(bool)
+			self.specs.mask[:,pix] = np.ones(self.numstars).astype(bool)
+			self.errs.mask[:,pix] = np.ones(self.numstars).astype(bool)
 			if self.verbose:
 				print e
 			if self.updatemask:
-				self.mask[:,pix][match] = True
-				self.bitmask[:,pix][match] += 2**16
+				self.mask[:,pix] = True
+				self.bitmask[:,pix] += 2**16
 				if self.verbose:
 					'Mask on pixel {0}'.format(pix)
 
@@ -613,7 +613,7 @@ class Sample:
 
 		Returns residuals of fit.
 		"""
-		res = self.specs[:,pix][match] - pf.poly(params,colcode,indeps,order=self.order)
+		res = self.specs[:,pix] - pf.poly(params,colcode,indeps,order=self.order)
 		return res
 
 
@@ -815,7 +815,7 @@ class Sample:
 		Returns an array of uncertainties corresponding to each star at pixel pix.
 		"""
 
-		sigma = np.ma.masked_array([-1]*(len(self.specs[match][:,pix])),mask = self.mask[match][:,pix],dtype = np.float64)
+		sigma = np.ma.masked_array([-1]*(len(self.specs[:,pix])),mask = self.mask[:,pix],dtype = np.float64)
 		for s in range(len(sigma)):
 			if not sigma.mask[s]:
 				sigma.data[s] = np.random.normal(loc = 0,scale = self.errs[:,pix][s])
@@ -860,7 +860,25 @@ class Sample:
 ################################################################################
 ############################### WEIGHT RESIDUALS ###############################
 
-	def weighting(self,arr,elem,name):
+	def weighting(self,arr,elem):
+		"""
+		Sums an input array weighted by the window function of a given element.
+
+		arr:		Input array of length of the element windows loaded in readElementWindow.
+		elem:		Element whose window function is to be used.
+
+		Returns weighted sum.
+
+		"""
+		w = elemwindows[elem]
+		# Normalize the weights.
+		nw = np.ma.masked_array(pf.normweights(w))
+		# Sum unmasked pixels weighted by element window for each star.
+		weighted = np.ma.sum(nw*arr)
+		return weighted
+
+
+	def weighting_stars(self,arr,elem,name):
 		"""
 		Sums an input array weighted by the window function of a given element.
 
@@ -874,13 +892,10 @@ class Sample:
 		if os.path.isfile(name):
 			return acs.pklread(name)
 		elif not os.path.isfile(name):
-			w = elemwindows[elem]
-			# Normalize the weights.
-			nw = np.ma.masked_array(pf.normweights(w))
 			weighted = np.ma.masked_array([])
 			# Sum unmasked pixels weighted by element window for each star.
 			for star in range(self.numstars):
-				weighted = np.append(weighted,np.ma.sum(nw*arr[:,star]))
+				weighted = np.append(weighted,self.weighting(arr[:,star],elem))
 			acs.pklwrite(name,weighted)
 			return weighted
 
