@@ -62,7 +62,7 @@ cross = arguments['--cross']
 
 empcarun = arguments['--empca']
 if empcarun == 'False':
-	empcarun == False
+	empcarun = False
 
 elif empcarun != 'False':
 	nvec = int(empcarun)
@@ -129,9 +129,9 @@ if run1:
 	testsample,runtime = timeIt(Sample,samptype,order=order,cross=cross,label=label,up=up,low=low,subgroup_type=subgroup_info[0],subgroup_lis=subgroup_info[1:],fontsize=10)
 
 	if label != 0:
-		statfilename = './{0}/statfile_order{1}_seed{2}_cross{3}_{4}_u{5}_d{6}.txt'.format(testsample.type, testsample.order,testsample.seed,testsample.cross,label,up,low)
+		statfilename = './{0}/test-statfile_order{1}_seed{2}_cross{3}_{4}_u{5}_d{6}.txt'.format(testsample.type, testsample.order,testsample.seed,testsample.cross,label,up,low)
 	elif label == 0:
-		 statfilename = './{0}/statfile_order{1}_seed{2}_cross{3}.txt'.format(testsample.type, testsample.order,testsample.seed,testsample.cross)
+		statfilename = './{0}/test-statfile_order{1}_seed{2}_cross{3}.txt'.format(testsample.type, testsample.order,testsample.seed,testsample.cross)
 	statfile = open(statfilename,'w+')
 
 	if verbose:
@@ -455,15 +455,15 @@ if run2:
 		print '\n\nLoading from saved files\n'
 
 	# Initialize the sample
-	testsample,runtime = timeIt(Sample,'red_clump',label=label,up=up,low=low,subgroup_type=subgroup_info[0],subgroup_lis=subgroup_info[1:],fontsize=10)
+	testsample,runtime = timeIt(Sample,samptype,order=order,cross=cross,label=label,up=up,low=low,subgroup_type=subgroup_info[0],subgroup_lis=subgroup_info[1:],fontsize=10)
 	if verbose:
 		print '\nInitialization runtime {0:.2f} s'.format(runtime)
 		print 'Number of stars {0}\n'.format(testsample.numstars)
 
 	if label != 0:
-		statfilename = './{0}/statfile_order{1}_seed{2}_cross{3}_{4}_u{5}_d{6}.txt'.format(testsample.type, testsample.order,testsample.seed,testsample.cross,label,up,low)
+		statfilename = './{0}/test-statfile_order{1}_seed{2}_cross{3}_{4}_u{5}_d{6}.txt'.format(testsample.type, testsample.order,testsample.seed,testsample.cross,label,up,low)
 	elif label == 0:
-		 statfilename = './{0}/statfile_order{1}_seed{2}_cross{3}.txt'.format(testsample.type, testsample.order,testsample.seed,testsample.cross)
+		 statfilename = './{0}/test-statfile_order{1}_seed{2}_cross{3}.txt'.format(testsample.type, testsample.order,testsample.seed,testsample.cross)
 	
 	try:
 		statfile.write('################################################################################\n')
@@ -540,28 +540,6 @@ if run2:
 	if verbose:
 		print 'Independent variable array generation runtime {0:.2f} s\n'.format(runtime)
 	statfile.write('Independent variable array generation runtime {0:.2f} s\n\n'.format(runtime))
-	# Case with no subgroups
-	if not isinstance(testsample.allindeps,dict):
-		for i in range(len(testsample.allindeps)):
-			for indep in testsample.allindeps[i]:
-				try:
-					assert np.array_equal(testsample.specs.mask[:,i],indep.mask)
-				except AssertionError:
-					if verbose:
-						print 'Independent variables improperly masked.\n'
-					statfile.write('Independent variables improperly masked at pixel {0} \n\n'.format(i))
-	# Case with subgroups
-	if isinstance(testsample.allindeps,dict):
-		for key in testsample.allindeps.keys():
-			match = np.where(testsample.data[testsample.subgroup]==key)
-			for i in range(len(testsample.allindeps[key])):
-				for indep in testsample.allindeps[key][i]:
-					try:
-						assert np.array_equal(testsample.specs.mask[match][:,i],indep.mask)
-					except AssertionError:
-						if verbose:
-							print 'Independent variables improperly masked.\n'
-						statfile.write('Independent variables improperly masked at pixel {0} \n\n'.format(i))
 
 	# Do pixel fitting
 	noneholder,runtime = timeIt(testsample.allPixFit)
@@ -644,8 +622,8 @@ if run2:
 			# Plot diagonal of  covariance of residuals divided by pixel flux uncertainty
 			plt.figure(figsize=(16,10))
 			normdiag = np.array([normresidcov[i,i] for i in range(len(normresidcov))])
-			plt.plot(diag)
-			plt.xlim(0,len(diag))
+			plt.plot(normdiag)
+			plt.xlim(0,len(normdiag))
 			plt.xlabel('Pixel')
 			plt.ylabel('Variance')
 			if label != 0:
@@ -804,6 +782,7 @@ if run2:
 	elif label == 0:
 		plt.savefig('./{0}/test2_SNR_order{1}_seed{2}_cross{3}.png'.format(testsample.type, testsample.order,testsample.seed,testsample.cross))
 	plt.close()
+
 ################################################################################
 
 # Re-run again, this time to check results of fitting.
@@ -815,19 +794,24 @@ if run3:
 	if verbose:
 		print '\n\nTesting fitting routines - produces false data sets and fit\n'
 
-	os.system('rm ./red_clump/pickles/*')
+	
+	# Remove possible cached data.
+	if label != 0:
+		os.system('rm ./{0}/pickles/*{1}*{2}*{3}*'.format(samptype,label,up,low))
+	elif label == 0:
+		os.system('rm ./{0}/pickles/*'.format(samptype))
 
 	# Initialize the sample
-	testsample,runtime = timeIt(Sample,'red_clump',label=label,up=up,low=low,subgroup_type=subgroup_info[0],subgroup_lis=subgroup_info[1:],fontsize=10)
+	testsample,runtime = timeIt(Sample,samptype,order=order,cross=cross,label=label,up=up,low=low,subgroup_type=subgroup_info[0],subgroup_lis=subgroup_info[1:],fontsize=10)
 	if verbose:
 		print '\nInitialization runtime {0:.2f} s\n'.format(runtime)
 		print 'Number of stars {0}\n'.format(testsample.numstars)
 
 
 	if label != 0:
-		statfilename = './{0}/statfile_order{1}_seed{2}_cross{3}_{4}_u{5}_d{6}.txt'.format(testsample.type, testsample.order,testsample.seed,testsample.cross,label,up,low)
+		statfilename = './{0}/test-statfile_order{1}_seed{2}_cross{3}_{4}_u{5}_d{6}.txt'.format(testsample.type, testsample.order,testsample.seed,testsample.cross,label,up,low)
 	elif label == 0:
-		 statfilename = './{0}/statfile_order{1}_seed{2}_cross{3}.txt'.format(testsample.type, testsample.order,testsample.seed,testsample.cross)
+		 statfilename = './{0}/test-statfile_order{1}_seed{2}_cross{3}.txt'.format(testsample.type, testsample.order,testsample.seed,testsample.cross)
 	try:
 		statfile.write('################################################################################\n')
 		statfile.write('Run 3 - Test Pixel Fitting (uses model data set and save files)\n')

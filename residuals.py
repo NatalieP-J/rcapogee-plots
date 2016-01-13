@@ -145,7 +145,7 @@ def readElementWindow(fname):
 
 elemwindows,window_all,window_peak,windowPeaks,windowPixels,tophats = readElementWindow(windowinfo)
 
-def getSpectra(data,fname,ind,readtype='asp',gen=False):
+def getSpectra(data,fname,ind,readtype='asp'):
 	"""
 	A sample-type independent function to retrieve spectra of the processed ('asp'),
 	or unprocessed ('ap') type.
@@ -159,9 +159,9 @@ def getSpectra(data,fname,ind,readtype='asp',gen=False):
 	Returns an array of spectra.
 
 	"""
-	if os.path.isfile(fname) and not gen:
+	if os.path.isfile(fname):
 		return acs.pklread(fname)
-	elif not os.path.isfile(fname) or gen:
+	elif not os.path.isfile(fname):
 		if readtype == 'asp':
 			spectra = acs.get_spectra_asp(data,ext = ind)
 		elif readtype == 'ap':
@@ -362,11 +362,17 @@ class Sample:
 
 		# Retrieve stellar spectra as array	
 		self.specs = getSpectra(self.data,self.specname,1,'asp')
+		self.goodinds = False
 
 		# If spectra returned as tuple, cut identified bad indices out of the data set.
 		if isinstance(self.specs,tuple):
-			self.data = self.data[self.specs[1]]
-			self.specs = self.specs[0][self.specs[1]]
+			self.goodinds = self.specs[1]
+			self.data = self.data[self.goodinds]
+			self.specs = self.specs[0][self.goodinds]
+		elif isinstance(self.specs,list) and self.specs[1] != False:
+			self.goodinds = self.specs[1]
+			self.specs = self.specs[0]
+			self.data = self.data[self.goodinds]
 
 		# Retrieve pixel flux uncertainties and bitmasks with new cropped data set.
 		self.errs = getSpectra(self.data,self.errname,2,'asp')
@@ -434,7 +440,7 @@ class Sample:
 	def saveFiles(self): #********************* a general save updated files?
 		acs.pklwrite(self.maskname,self.mask)
 		acs.pklwrite(self.bitmaskname,self.bitmask)
-		acs.pklwrite(self.specname,self.specs)
+		acs.pklwrite(self.specname,[self.specs,self.goodinds])
 		acs.pklwrite(self.errname,self.errs)
 
 ################################################################################
@@ -515,11 +521,12 @@ class Sample:
 			# Check for potential degeneracy between terms, which leads to poor determination of fit parameters.
 			imat = np.matrix(indepMatrix)
 			eigvals,eigvecs = np.linalg.eig(imat.T*np.linalg.inv(uncert)*imat)	
-			if any(abs(eigvals) < 1e-10):
-				if self.verbose:
-					warn('With cross terms, there is too much degeneracy between terms. Reverting to no cross terms used for fit pix {0}'.format(pix))
+			if any(abs(eigvals) < 1e-10) and self.cross==True:
+				warn('With cross terms, there is too much degeneracy between terms. Reverting to no cross terms used for fit pix {0}'.format(pix))
 				indepMatrix,colcode = pf.makematrix(indeps,self.order,cross=False)
 
+			if all(self.specs[:,pix][match].mask==True):
+				raise np.linalg.linalg.LinAlgError('Data completely masked.')
 			uncert = np.diag(self.errs[:,pix][match].data[self.errs[:,pix][match].mask==False]**2)
 			# Attempt to calculate the fit parameters and determine if there are enough data points to trust results.
 			fitParam = pf.regfit(indepMatrix,colcode,self.specs[:,pix][match],C = uncert,order = self.order)
