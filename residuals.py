@@ -456,7 +456,7 @@ class Sample:
 		"""
 		indeps = ()
 		for fvar in fitvars[self.type]:
-			indeps += (np.ma.masked_array(self.data[fvar],self.specs[:,pix].mask),)
+			indeps += (np.ma.masked_array(np.array(self.data[match][fvar]),self.specs[match][:,pix].mask),)
 		return indeps
 
 	def allIndepVars(self):
@@ -516,7 +516,7 @@ class Sample:
 			# Construct independent variable matrix and provide a dictionary identifying the columns with combinations of variables.
 			indepMatrix,colcode = pf.makematrix(indeps,self.order,cross=self.cross)
 			# Create matrix of uncertainty in flux for each star (assumes stars are uncorrelated)
-			uncert = np.diag(self.errs[:,pix]**2)
+			uncert = np.diag(self.errs[match][:,pix]**2)
 
 			# Check for potential degeneracy between terms, which leads to poor determination of fit parameters.
 			imat = np.matrix(indepMatrix)
@@ -525,24 +525,24 @@ class Sample:
 				warn('With cross terms, there is too much degeneracy between terms. Reverting to no cross terms used for fit pix {0}'.format(pix))
 				indepMatrix,colcode = pf.makematrix(indeps,self.order,cross=False)
 
-			if all(self.specs[:,pix].mask==True):
+			if all(self.specs[match][:,pix].mask==True):
 				raise np.linalg.linalg.LinAlgError('Data completely masked.')
-			uncert = np.diag(self.errs[:,pix].data[self.errs[:,pix].mask==False]**2)
+			uncert = np.diag(self.errs[match][:,pix].data[self.errs[match][:,pix].mask==False]**2)
 			# Attempt to calculate the fit parameters and determine if there are enough data points to trust results.
-			fitParam = pf.regfit(indepMatrix,colcode,self.specs[:,pix],C = uncert,order = self.order)
-			if (self.numstars-np.sum(self.specs[:,pix].mask)) <= len(fitParam) + 1:
+			fitParam = pf.regfit(indepMatrix,colcode,self.specs[match][:,pix],C = uncert,order = self.order)
+			if (self.numstars-np.sum(self.specs[match][:,pix].mask)) <= len(fitParam) + 1:
 				raise np.linalg.linalg.LinAlgError('Data set too small to determine fit coefficients')
 		
 		# If exception raised, mask pixel for all stars.
 		except np.linalg.linalg.LinAlgError as e:
 			fitParam = np.zeros(self.order*len(indeps)+1)
-			self.specs.mask[:,pix] = np.ones(self.numstars).astype(bool)
-			self.errs.mask[:,pix] = np.ones(self.numstars).astype(bool)
+			self.specs.mask[match][:,pix] = np.ones(self.numstars).astype(bool)
+			self.errs.mask[match][:,pix] = np.ones(self.numstars).astype(bool)
 			if self.verbose:
 				print e
 			if self.updatemask:
-				self.mask[:,pix] = True
-				self.bitmask[:,pix] += 2**16
+				self.mask[match][:,pix] = True
+				self.bitmask[match][:,pix] += 2**16
 				if self.verbose:
 					'Mask on pixel {0}'.format(pix)
 
@@ -613,7 +613,7 @@ class Sample:
 
 		Returns residuals of fit.
 		"""
-		res = self.specs[:,pix] - pf.poly(params,colcode,indeps,order=self.order)
+		res = self.specs[match][:,pix] - pf.poly(params,colcode,indeps,order=self.order)
 		return res
 
 
@@ -815,10 +815,10 @@ class Sample:
 		Returns an array of uncertainties corresponding to each star at pixel pix.
 		"""
 
-		sigma = np.ma.masked_array([-1]*(len(self.specs[:,pix])),mask = self.mask[:,pix],dtype = np.float64)
+		sigma = np.ma.masked_array([-1]*(len(self.specs[match][:,pix])),mask = self.mask[match][:,pix],dtype = np.float64)
 		for s in range(len(sigma)):
 			if not sigma.mask[s]:
-				sigma.data[s] = np.random.normal(loc = 0,scale = self.errs[:,pix][s])
+				sigma.data[s] = np.random.normal(loc = 0,scale = self.errs[match][:,pix][s])
 		return sigma
 
 	def allRandomSigma(self):
