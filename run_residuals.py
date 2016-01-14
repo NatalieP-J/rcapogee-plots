@@ -71,17 +71,7 @@ if __name__ == '__main__':
     verbose = arguments['--verbose']
     pixplot = arguments['--pixplot']
     generate = arguments['--generate']
-    loadin = arguments['--loadin']
     crossterm = arguments['--cross']
-    covariance = False #******************
-
-    if pixplot:
-        if not generate and not load:
-            generate = True 
-
-    if covariance:
-        if not generate and not load:
-            generate = True
 
     # Optional keyword arguments - convert to appropriate format
     label = arguments['--indep']
@@ -193,107 +183,6 @@ if __name__ == '__main__':
             maxes.append(np.max(arr[arr.mask==False]))
         statfile.write('Maximum residual {0} \n\n'.format(np.max(maxes)))
 
-        # Calculate covariance matrix
-        if covariance:
-            # Case with subgroups
-            if isinstance(starsample.residual,dict):
-                numstars = np.array(starsample.numstars.values())
-                # Condition for inclusion in the covariance matrix calculation
-                minstar = 9
-                condition = numstars > minstar
-                # Create output arrays
-                # Raw residuals
-                allresids = np.ma.masked_array(np.zeros((np.sum(numstars[np.where(condition)]),aspcappix)))
-                # Divided by flux uncertainty
-                allnormresids = np.ma.masked_array(np.zeros((np.sum(numstars[np.where(condition)]),aspcappix)))
-                i = 0
-                # Add appropriate stars to output array
-                for key in starsample.residual.keys():
-                    if starsample.residual[key].shape[1] > minstar:
-                        allresids[i:i+starsample.residual[key].shape[1]] = starsample.residual[key].T
-                        sigmas = starsample.errs[np.where(starsample.data[starsample.subgroup]==key)]
-                        allnormresids[i:i+starsample.residual[key].shape[1]] = starsample.residual[key].T/sigmas
-                        i += starsample.residual[key].shape[1]
-                # Find covariance
-                residcov = np.ma.cov(allresids.T)
-                normresidcov = np.ma.cov(allnormresids.T)
-                
-                # Plot covariance of raw pixel residuals
-                plt.figure(figsize=(16,10))
-                plt.imshow(residcov,interpolation='nearest',cmap = 'Spectral',vmax=1e-4,vmin=-1e-4)
-                plt.colorbar()
-                if label != 0:
-                    plt.savefig('./{0}/covariance_order{1}_seed{2}_cross{3}_{4}_u{5}_d{6}.png'.format(starsample.type, starsample.order,starsample.seed,starsample.cross,label,up,low))
-                elif label == 0:
-                    plt.savefig('./{0}/covariance_order{1}_seed{2}_cross{3}.png'.format(starsample.type, starsample.order,starsample.seed,starsample.cross))
-                plt.close()
-
-                # Plot covariance of residuals divided by pixel flux uncertainty
-                plt.figure(figsize=(16,10))
-                plt.imshow(normresidcov,interpolation='nearest',cmap = 'Spectral',vmax=4,vmin=-4)
-                plt.colorbar()
-                if label != 0:
-                    plt.savefig('./{0}/normcovariance_order{1}_seed{2}_cross{3}_{4}_u{5}_d{6}.png'.format(starsample.type, starsample.order,starsample.seed,starsample.cross,label,up,low))
-                elif label == 0:
-                    plt.savefig('./{0}/normcovariance_order{1}_seed{2}_cross{3}.png'.format(starsample.type, starsample.order,starsample.seed,starsample.cross))
-                plt.close()
-
-                # Plot diagonal of covariance of raw pixel residuals
-                plt.figure(figsize=(16,10))
-                diag = np.array([residcov[i,i] for i in range(len(residcov))])
-                plt.plot(diag)
-                plt.xlim(0,len(diag))
-                plt.xlabel('Pixel')
-                plt.ylabel('Variance')
-                if label != 0:
-                    plt.savefig('./{0}/covariance_diag_order{1}_seed{2}_cross{3}_{4}_u{5}_d{6}.png'.format(starsample.type, starsample.order,starsample.seed,starsample.cross,label,up,low))
-                elif label == 0:
-                    plt.savefig('./{0}/covariance_diag_order{1}_seed{2}_cross{3}.png'.format(starsample.type, starsample.order,starsample.seed,starsample.cross))
-                plt.close()
-
-                # Plot diagonal of  covariance of residuals divided by pixel flux uncertainty
-                plt.figure(figsize=(16,10))
-                normdiag = np.array([normresidcov[i,i] for i in range(len(normresidcov))])
-                plt.plot(diag)
-                plt.xlim(0,len(diag))
-                plt.xlabel('Pixel')
-                plt.ylabel('Variance')
-                if label != 0:
-                    plt.savefig('./{0}/normcovariance_diag_order{1}_seed{2}_cross{3}_{4}_u{5}_d{6}.png'.format(starsample.type, starsample.order,starsample.seed,starsample.cross,label,up,low))
-                elif label == 0:
-                    plt.savefig('./{0}/normcovariance_diag_order{1}_seed{2}_cross{3}.png'.format(starsample.type, starsample.order,starsample.seed,starsample.cross))
-                plt.close()
-
-                # Plot two slices of the covariance matrices
-                samppix = 3700
-                plt.figure(figsize=(16,10))
-                plt.plot(residcov[samppix]/np.max(residcov[samppix]),label = 'Raw residual, peak = {0}'.format(np.max(residcov[samppix])))
-                plt.plot(normresidcov[samppix]/np.max(normresidcov[samppix]),label = 'Sigma normalized residual, peak = {0}'.format(np.max(normresidcov[samppix])))
-                plt.axvline(samppix,color='red')
-                plt.ylabel('Covariance at pixel {0} normalized to peak'.format(samppix))
-                plt.xlabel('Pixel')
-                plt.xlim(samppix-100,samppix+100)
-                plt.legend(loc = 'best')
-                if label != 0:
-                    plt.savefig('./{0}/covariancepix{1}_order{2}_seed{3}_cross{4}_{5}_u{6}_d{7}.png'.format(starsample.type, samppix,starsample.order,starsample.seed,starsample.cross,label,up,low))
-                elif label == 0:
-                    plt.savefig('./{0}/covariancepix{1}_order{2}_seed{3}_cross{4}.png'.format(starsample.type, samppix, starsample.order,starsample.seed,starsample.cross))
-                plt.close()
-                samppix = 6000
-                plt.figure(figsize=(16,10))
-                plt.plot(residcov[samppix]/np.max(residcov[samppix]),label = 'Raw residual, peak = {0}'.format(np.max(residcov[samppix])))
-                plt.plot(normresidcov[samppix]/np.max(normresidcov[samppix]),label = 'Sigma normalized residual, peak = {0}'.format(np.max(normresidcov[samppix])))
-                plt.axvline(samppix,color='red')
-                plt.ylabel('Covariance at pixel {0} normalized to peak'.format(samppix))
-                plt.xlabel('Pixel')
-                plt.xlim(samppix-100,samppix+100)
-                plt.legend(loc = 'best')
-                if label != 0:
-                    plt.savefig('./{0}/covariancepix{1}_order{2}_seed{3}_cross{4}_{5}_u{6}_d{7}.png'.format(starsample.type, samppix,starsample.order,starsample.seed,starsample.cross,label,up,low))
-                elif label == 0:
-                    plt.savefig('./{0}/covariancepix{1}_order{2}_seed{3}_cross{4}.png'.format(starsample.type, samppix, starsample.order,starsample.seed,starsample.cross))
-                plt.close()
-
         # Make plots
         if pixplot:
             noneholder,runtime = timeIt(starsample.setPixPlot)
@@ -308,22 +197,3 @@ if __name__ == '__main__':
         statfile.write('Finding random sigma runtime {0:.2f} s\n\n'.format(runtime))
 
         starsample.saveFiles()
-
-        '''
-        # Create weighted residuals
-        weighted = np.zeros((len(tophats.keys()),len(starsample.specs)))
-        weightedsigs = np.zeros((len(tophats.keys()),len(starsample.specs)))
-        i=0
-        for elem in elems:
-            weightedr = starsample.weighting(starsample.rseidual,elem,
-                                           starsample.outName('pkl','resids',elem=elem,order = starsample.order,cross=starsample.cross))
-            weighteds = starsample.weighting(starsample.sigma,elem,
-                                           starsample.outName('pkl','sigma',elem=elem,order = starsample.order,seed = starsample.seed))
-            doubleResidualHistPlot(elem,weightedr,weighteds,
-                                   starsample.outName('res','residhist',elem = elem,order = starsample.order,cross=starsample.cross,seed = starsample.seed),
-                                   bins = 50)
-            weighted[i] = weightedr
-            weightedsigs[i] = weighteds
-            i+=1
-        '''
-
