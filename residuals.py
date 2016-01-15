@@ -859,7 +859,7 @@ class Sample:
                         sigs.append(sig)
                     sigma = np.ma.masked_array(sigs)
                     self.sigma[subgroup] = sigma
-                	acs.pklwrite(fname,sigma)
+                    acs.pklwrite(fname,sigma)
 
 ################################################################################
 ############################### WEIGHT RESIDUALS ###############################
