@@ -1,7 +1,7 @@
 """
 
 Usage:
-run_residuals [-hvpglfmx] [-e NVEC] [-i LABEL] [-u UPLIM] [-d LOWLIM] [-s starSAMPLETYPE] [-c CLUSTLIS] [-o ORDER]
+run_residuals [-hvpgx] [-i LABEL] [-u UPLIM] [-d LOWLIM] [-s SAMPTYPE] [-c CLUSTLIS] [-o ORDER]
 
 starSample call:
 
@@ -12,7 +12,6 @@ Options:
     -v, --verbose
     -p, --pixplot                       Option to turn on fit plots at each pixel.
     -g, --generate                      Option to run first sequence (generate everything from scratch)
-    -l, --loadin                        Option to run second sequence (load from file where possible)
     -x, --cross                         Option to include cross terms in the fit.
     -i LABEL, --indep LABEL             A string with a label in which to crop the starsample 
                                         [default: 0]
@@ -173,27 +172,30 @@ if __name__ == '__main__':
     noneholder,runtime = timeIt(starsample.allPixResiduals)
     if verbose:
         print 'Pixel residuals runtime {0:.2f} s'.format(runtime)
-        print 'Maximum residual {0} \n'.format(np.max(starsample.residual))
     statfile.write('Pixel residuals runtime {0:.2f} s\n'.format(runtime))
     if not isinstance(starsample.residual,dict):
+        if verbose:
+            print 'Maximum residual {0} \n'.format(np.max(starsample.residual))
         statfile.write('Maximum residual {0} \n\n'.format(np.max(starsample.residual)))
     elif isinstance(starsample.residual,dict):
         maxes = []
         for arr in starsample.residual.values():
             maxes.append(np.max(arr[arr.mask==False]))
+        if verbose:
+            print 'Maximum residual {0} \n'.format(np.max(maxes))
         statfile.write('Maximum residual {0} \n\n'.format(np.max(maxes)))
 
-        # Make plots
-        if pixplot:
-            noneholder,runtime = timeIt(starsample.setPixPlot)
-            if verbose:
-                print 'Plotting residuals at window peaks runtime {0:.2f} s\n'.format(runtime)
-            statfile.write('Plotting residuals at window peaks runtime {0:.2f} s\n'.format(runtime))
-
-        # Gather random sigma
-        noneholder,runtime = timeIt(starsample.allRandomSigma)
+    # Make plots
+    if pixplot:
+        noneholder,runtime = timeIt(starsample.setPixPlot)
         if verbose:
-            print 'Finding random sigma runtime {0:.2f} s\n'.format(runtime)
-        statfile.write('Finding random sigma runtime {0:.2f} s\n\n'.format(runtime))
+            print 'Plotting residuals at window peaks runtime {0:.2f} s\n'.format(runtime)
+        statfile.write('Plotting residuals at window peaks runtime {0:.2f} s\n\n'.format(runtime))
 
-        starsample.saveFiles()
+    # Gather random sigma
+    noneholder,runtime = timeIt(starsample.allRandomSigma)
+    if verbose:
+        print 'Finding random sigma runtime {0:.2f} s\n'.format(runtime)
+    statfile.write('Finding random sigma runtime {0:.2f} s\n\n'.format(runtime))
+
+    starsample.saveFiles()

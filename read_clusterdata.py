@@ -83,6 +83,7 @@ def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt'):
     alldata= apread.allStar(raw=True)
     locids= numpy.zeros(len(data),dtype='int')-1
     hmags= numpy.zeros(len(data),dtype='float')-1
+    snrs = numpy.zeros(len(data),dtype='float')-1
     # and match to allVisit for the fibers that each star was observed in
     allvdata= apread.allVisit(raw=True)
     fibers= numpy.zeros((len(data),numpy.nanmax(alldata['NVISITS'])),
@@ -96,11 +97,13 @@ def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt'):
             raise ValueError('Multiple matches found for for %s ...' % (data['ID'][ii]))
         locids[ii]= alldata['LOCATION_ID'][indx][0]
         hmags[ii]= alldata['H'][indx][0]
+        snrs[ii] = alldata['SNR'][indx][0]
         for jj in range(alldata['NVISITS'][indx][0]):
             fibers[ii,jj]= allvdata[alldata['VISIT_PK'][indx][0,jj]]['FIBERID']
     data['LOCATION_ID']= locids
     data['H']= hmags
     data['FIBERID']= fibers
+    data['SNR'] = snrs
     return data
 
 def read_spectra(cluster,teffmin=4000.,teffmax=5000.,cont_type='cannon',
