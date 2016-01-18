@@ -201,7 +201,7 @@ class Sample:
     A class object to hold information about a sample of stellar spectra, including properties of their fits in stellar parameters.
 
     """
-    def __init__(self,sampletype,seed=1,order=2,label=0,low=0,up=0,subgroup_type=False,subgroup_lis=False,cross=True,fontsize=18,verbose=False):
+    def __init__(self,sampletype,savestep=True,seed=1,order=2,label=0,low=0,up=0,subgroup_type=False,subgroup_lis=False,cross=True,fontsize=18,verbose=False):
         """
         Initializes appropriate variables for sample class.
 
@@ -225,6 +225,7 @@ class Sample:
         """
 
         self.verbose = verbose
+        self.savestep=savestep
 
         self.type = sampletype        
         self.overdir = './'+sampletype+'/'
@@ -443,7 +444,7 @@ class Sample:
     def saveFiles(self): #********************* a general save updated files?
         acs.pklwrite(self.maskname,self.mask)
         acs.pklwrite(self.bitmaskname,self.bitmask)
-        acs.pklwrite(self.specname,self.specs)
+        acs.pklwrite(self.specname,[self.specs,self.goodinds])
         acs.pklwrite(self.errname,self.errs)
 
 ################################################################################
@@ -500,7 +501,7 @@ class Sample:
 ################################################################################
 ############################## FIT ALONG PIXEL #################################
 
-    def pixFit(self,pix,match,indeps):
+    def pixFit(self,pix,match,indeps=False):
         """
         Fits a data set in independent variables specified in fitvars at a particular pixel and calculates residuals from the fit.
 
@@ -510,6 +511,11 @@ class Sample:
         Returns an array of fit parameters and a list identifying which variables belong to each parameter.
         """
         
+        returnindeps=False
+        if not isinstance(indeps,tuple):
+            returnindeps = True
+            indeps = self.indepVars(pix,match)
+
         if self.cross != False and len(indeps) == 1:
             if self.verbose:
                 warn('Cross terms were requested, but fit is in a single variable.')
@@ -549,7 +555,10 @@ class Sample:
                 if self.verbose:
                     'Mask on pixel {0}'.format(pix)
 
-        return fitParam,colcode
+        if returnindeps:
+            return fitParam,colcode,indeps
+        elif not returnindeps:
+            return fitParam,colcode
 
     def allPixFit(self,subgroup=False):
         """
@@ -636,33 +645,46 @@ class Sample:
             elif not os.path.isfile(fname):
                 self.residual = []
                 for pix in range(aspcappix):
-                    indeps = self.allindeps[pix]
-                    params = self.allparams[pix]
-                    colcode = self.allcodes[pix]
-                    res = retryPixFunction(self.pixResidiual,[self.allPixFit],pix,indeps,params,colcode,match)
+                    if self.savestep:
+                        indeps = self.allindeps[pix]
+                        params = self.allparams[pix]
+                        colcode = self.allcodes[pix]
+                        res = retryPixFunction(self.pixResidiual,[self.allPixFit],pix,indeps,params,colcode,match)
+                    if not self.savestep:
+                        params,colcode,indeps = self.pixFit(pix,match)
+                        res = self.pixResidiual(pix,indeps,params,colcode,match)
                     self.residual.append(res)
                 self.residual = np.ma.masked_array(self.residual)
                 acs.pklwrite(fname,self.residual)
         elif self.subgroup != False:
             self.residual = {}
+            masterstars = {}
             for subgroup in self.subgroups:
                 fname = self.outName('pkl',content='residuals',order=self.order,subgroup=subgroup)
                 match = np.where(self.data[self.subgroup] == subgroup)
+                self.numstars = len(match[0])
+                masterstars[subgroup] = self.numstars
                 if os.path.isfile(fname):
                     residual = acs.pklread(fname)
                 elif not os.path.isfile(fname):
-                    allindeps = self.allindeps[subgroup]
-                    allparams = self.allparams[subgroup]
-                    allcodes = self.allcodes[subgroup]
+                    if self.savestep:
+                        allindeps = self.allindeps[subgroup]
+                        allparams = self.allparams[subgroup]
+                        allcodes = self.allcodes[subgroup]
                     residual = []
                     for pix in range(aspcappix):
-                        indeps = allindeps[pix]
-                        params = allparams[pix]
-                        colcode = allcodes[pix]
-                        res = retryPixFunction(self.pixResidiual,[self.allPixFit],pix,indeps,params,colcode,match)
+                        if self.savestep:
+                            indeps = allindeps[pix]
+                            params = allparams[pix]
+                            colcode = allcodes[pix]
+                            res = retryPixFunction(self.pixResidiual,[self.allPixFit],pix,indeps,params,colcode,match)
+                        if not self.savestep:
+                            params,colcode,indeps = self.pixFit(pix,match)
+                            res = self.pixResidiual(pix,indeps,params,colcode,match)
                         residual.append(res)
                     residual = np.ma.masked_array(residual)
                     acs.pklwrite(fname,residual)
+                self.numstars = masterstars
                 self.residual[subgroup] = residual
 
 
@@ -824,7 +846,7 @@ class Sample:
                 sigma.data[s] = np.random.normal(loc = 0,scale = self.errs[match][:,pix][s])
         return sigma
 
-    def allRandomSigma(self):
+    def allRandomSigma_old(self):
         """
         Generates an uncertainty at each pixel for each star by selecting randomly from a Gaussian with 
         the standard deviation of the provided uncertainty.
@@ -858,6 +880,36 @@ class Sample:
                         sig = self.randomSigma(pix,match)
                         sigs.append(sig)
                     sigma = np.ma.masked_array(sigs)
+                    self.sigma[subgroup] = sigma
+                    acs.pklwrite(fname,sigma)
+
+
+    def allRandomSigma(self):
+        """
+        Generates an uncertainty at each pixel for each star by selecting randomly from a Gaussian with 
+        the standard deviation of the provided uncertainty.
+
+        subgroup: If not False, a string kwarg describing the stellar grouping to which this data belongs. Default False.    
+
+        Returns nothing, just updates the sigma attribute of Sample.
+        """
+        if not self.subgroup:
+            fname = self.outName('pkl',content='sigma',seed = self.seed,order=self.order)
+            if os.path.isfile(fname):
+                self.sigma = acs.pklread(fname)
+            elif not os.path.isfile(fname):
+                match = np.where(self.data)
+                self.sigma = self.errs*np.random.randn(self.errs.shape[0],self.errs.shape[1])
+                acs.pklwrite(fname,self.sigma)
+        elif self.subgroup != False:
+            self.sigma = {}
+            for subgroup in self.subgroups:
+                fname = self.outName('pkl',content='sigma',subgroup = subgroup,seed = self.seed,order=self.order)
+                if os.path.isfile(fname):
+                    self.sigma[subgroup] = acs.pklread(fname)
+                elif not os.path.isfile(fname):
+                    match = np.where(self.data[self.subgroup] == subgroup)
+                    sigma = self.errs[match]*np.random.randn(self.errs[match].shape[0],self.errs[match].shape[1])
                     self.sigma[subgroup] = sigma
                     acs.pklwrite(fname,sigma)
 

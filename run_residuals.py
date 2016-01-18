@@ -1,7 +1,7 @@
 """
 
 Usage:
-run_residuals [-hvpgx] [-i LABEL] [-u UPLIM] [-d LOWLIM] [-s SAMPTYPE] [-c CLUSTLIS] [-o ORDER]
+run_residuals [-hvpgxS] [-i LABEL] [-u UPLIM] [-d LOWLIM] [-s SAMPTYPE] [-c CLUSTLIS] [-o ORDER]
 
 starSample call:
 
@@ -13,6 +13,7 @@ Options:
     -p, --pixplot                       Option to turn on fit plots at each pixel.
     -g, --generate                      Option to run first sequence (generate everything from scratch)
     -x, --cross                         Option to include cross terms in the fit.
+    -S, --save                          Option to save intermediate steps in residual calculation
     -i LABEL, --indep LABEL             A string with a label in which to crop the starsample 
                                         [default: 0]
     -u UPLIM, --upper UPLIM             An upper limit for the starsample crop 
@@ -71,6 +72,7 @@ if __name__ == '__main__':
     pixplot = arguments['--pixplot']
     generate = arguments['--generate']
     crossterm = arguments['--cross']
+    savestep = arguments['--save']
 
     # Optional keyword arguments - convert to appropriate format
     label = arguments['--indep']
@@ -100,7 +102,7 @@ if __name__ == '__main__':
             os.system('rm ./{0}/pickles/*'.format(samptype))
 
     # Initialize the starsample
-    starsample,runtime = timeIt(Sample,samptype,order=order,cross=crossterm,label=label,up=up,low=low,subgroup_type=subgroup_info[0],subgroup_lis=subgroup_info[1:],fontsize=10)
+    starsample,runtime = timeIt(Sample,samptype,savestep=savestep,order=order,cross=crossterm,label=label,up=up,low=low,subgroup_type=subgroup_info[0],subgroup_lis=subgroup_info[1:],fontsize=10)
 
     if label != 0:
         statfilename = './{0}/run-statfile_order{1}_seed{2}_cross{3}_{4}_u{5}_d{6}.txt'.format(starsample.type, starsample.order,starsample.seed,starsample.cross,label,up,low)
@@ -156,17 +158,18 @@ if __name__ == '__main__':
         print 'Bitmask application runtime {0:.2f} s\n'.format(runtime)
     statfile.write('Bitmask application runtime {0:.2f} s\n\n'.format(runtime))
 
-    # Get independent variable arrays
-    noneholder,runtime = timeIt(starsample.allIndepVars)
-    if verbose:
-        print 'Independent variable array generation runtime {0:.2f} s\n'.format(runtime)
-    statfile.write('Independent variable array generation runtime {0:.2f} s\n\n'.format(runtime))
+    if savestep:
+        # Get independent variable arrays
+        noneholder,runtime = timeIt(starsample.allIndepVars)
+        if verbose:
+            print 'Independent variable array generation runtime {0:.2f} s\n'.format(runtime)
+        statfile.write('Independent variable array generation runtime {0:.2f} s\n\n'.format(runtime))
 
-    # Do pixel fitting
-    noneholder,runtime = timeIt(starsample.allPixFit)
-    if verbose:
-        print 'Pixel fitting runtime {0:.2f} s\n'.format(runtime)
-    statfile.write('Pixel fitting runtime {0:.2f} s\n\n'.format(runtime))
+        # Do pixel fitting
+        noneholder,runtime = timeIt(starsample.allPixFit)
+        if verbose:
+            print 'Pixel fitting runtime {0:.2f} s\n'.format(runtime)
+        statfile.write('Pixel fitting runtime {0:.2f} s\n\n'.format(runtime))
 
     # Do residual calculation
     noneholder,runtime = timeIt(starsample.allPixResiduals)
