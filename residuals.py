@@ -371,10 +371,12 @@ class Sample:
             self.goodinds = self.specs[1]
             self.data = self.data[self.goodinds]
             self.specs = self.specs[0][self.goodinds]
-        elif isinstance(self.specs,list) and self.specs[1] != False:
+        elif isinstance(self.specs,list) and not isinstance(self.specs[1],bool):
             self.goodinds = self.specs[1]
             self.specs = self.specs[0]
             self.data = self.data[self.goodinds]
+        elif isinstance(self.specs,list) and isinstance(self.specs[1],bool):
+            self.specs = self.specs[0]
 
         # Retrieve pixel flux uncertainties and bitmasks with new cropped data set.
         self.errs = getSpectra(self.data,self.errname,2,'asp')
@@ -691,7 +693,7 @@ class Sample:
 ################################################################################
 ################################ PLOT RESIDUALS ################################
 
-    def pixPlot(self,pix,savename,subgroup,errcut = 0.1):
+    def pixPlot(self,pix,match,savename,indeps=False,subgroup=False,errcut = 0.1):
         """
         Creates a plot of fit residuals for a specified pixel.
 
@@ -705,13 +707,14 @@ class Sample:
         Returns nothing, saves the plot.
         """
 
+        if not isinstance(indeps,tuple):
+            indeps = self.indepVars(pix,match)
+
         # Extract residuals and pixel uncertainties for given pixel.
         if not subgroup:
-            indeps = self.allindeps[pix]
             res = self.residual[pix]
             errs = self.errs[:,pix]
         elif subgroup != False:
-            indeps = self.allindeps[subgroup][pix]
             res = self.residual[subgroup][pix]
             errs = self.errs[np.where(self.data[self.subgroup] == subgroup)][:,pix]
         # Find masked and unmasked stars.
@@ -779,50 +782,65 @@ class Sample:
         Returns nothing, but generates plots in outdirs['fits'].
         """
         if whichplot == 'auto_broad':
-            for pix in np.where(window_all != 0)[0]:
-                if not self.subgroup:
+            if not self.subgroup:
+                match=np.where(self.data)
+                for pix in np.where(window_all != 0)[0]:
                     plotname = self.outName('fit',pixel=pix,order=self.order,cross=self.cross)
-                    retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup=subgroup)
-                elif self.subgroup != False:
-                    for subgroup in self.subgroups:
+                    self.pixPlot(pix,match,plotname)
+            elif self.subgroup != False:
+                for subgroup in self.subgroups:
+                    match=np.where(self.data[self.subgroup]==subgroup)
+                    for pix in np.where(window_all != 0)[0]:
                         plotname = self.outName('fit',subgroup=subgroup,pixel=pix,order=self.order,cross=self.cross)
-                        retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup)
+                        self.pixPlot(pix,match,plotname,subgroup=subgroup)
         elif whichplot == 'auto_narrow':
-            for pix in np.where(window_peak != 0)[0]:
-                if not self.subgroup:
+            if not self.subgroup:
+                match=np.where(self.data)
+                for pix in np.where(window_peak != 0)[0]:
                     plotname = self.outName('fit',pixel=pix,order=self.order,cross=self.cross)
-                    retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup=subgroup)
-                elif self.subgroup != False:
-                    for subgroup in self.subgroups:
+                    self.pixPlot(pix,match,plotname)
+            elif self.subgroup != False:
+                for subgroup in self.subgroups:
+                    match=np.where(self.data[self.subgroup]==subgroup)
+                    for pix in np.where(window_peak != 0)[0]:
                         plotname = self.outName('fit',subgroup=subgroup,pixel=pix,order=self.order,cross=self.cross)
-                        retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup)
+                        self.pixPlot(pix,match,plotname,subgroup=subgroup)
         elif whichplot == 'all':
-            for pix in range(aspcappix):
-                if not self.subgroup:
+            if not self.subgroup:
+                match=np.where(self.data)
+                for pix in range(aspcappix):
                     plotname = self.outName('fit',pixel=pix,order=self.order,cross=self.cross)
-                    retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup=subgroup)
-                elif self.subgroup != False:
-                    for subgroup in self.subgroups:
+                    self.pixPlot(pix,match,plotname)
+            elif self.subgroup != False:
+                for subgroup in self.subgroups:
+                    match=np.where(self.data[self.subgroup]==subgroup)
+                    for pix in range(aspcappix):
                         plotname = self.outName('fit',subgroup=subgroup,pixel=pix,order=self.order,cross=self.cross)
-                        retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup)
+                        self.pixPlot(pix,match,plotname,subgroup=subgroup)
         elif whichplot in windowPixels.keys():
-            for pix in windowPixels[whichplot]:
-                if not self.subgroup:
+            if not self.subgroup:
+                match=np.where(self.data)
+                for pix in windowPixels[whichplot]:
                     plotname = self.outName('fit',pixel=pix,order=self.order,cross=self.cross)
-                    retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup=subgroup)
-                elif self.subgroup != False:
-                    for subgroup in self.subgroups:
+                    self.pixPlot(pix,match,plotname)
+            elif self.subgroup != False:
+                for subgroup in self.subgroups:
+                    match=np.where(self.data[self.subgroup]==subgroup)
+                    for pix in windowPixels[whichplot]:
                         plotname = self.outName('fit',subgroup=subgroup,pixel=pix,order=self.order,cross=self.cross)
-                        retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup)
+                        self.pixPlot(pix,match,plotname,subgroup=subgroup)
         elif isinstance(whichplot,(list,np.ndarray)):
-            for pix in whichplot:
-                if not self.subgroup:
+            if not self.subgroup:
+                match=np.where(self.data)
+                for pix in whichplot:
                     plotname = self.outName('fit',pixel=pix,order=self.order,cross=self.cross)
-                    retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup=subgroup)
-                elif self.subgroup != False:
-                    for subgroup in self.subgroups:
+                    self.pixPlot(pix,match,plotname)
+            elif self.subgroup != False:
+                for subgroup in self.subgroups:
+                    match=np.where(self.data[self.subgroup]==subgroup)
+                    for pix in whichplot:
                         plotname = self.outName('fit',subgroup=subgroup,pixel=pix,order=self.order,cross=self.cross)
-                        retryPixFunction(self.pixPlot,[self.allPixResiduals],pix,plotname,subgroup)
+                        self.pixPlot(pix,match,plotname,subgroup=subgroup)
         else:
             warn('Unrecognized option choice for kwarg whichplot, please use "auto_narrow", "auto_broad" or "all", or provide a list of pixels to plot.')
 

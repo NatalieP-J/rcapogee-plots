@@ -272,7 +272,7 @@ def _solve(A, b, w):
     
 #-------------------------------------------------------------------------
 
-def empca(data, weights=None, niter=25, nvec=5, smooth=0, randseed=1, silent=False):
+def empca(data, weights=None, deltR2=0,niter=25, nvec=5, smooth=0, randseed=1, silent=False):
     """
     Iteratively solve data[i] = Sum_j: c[i,j] p[j] using weights
     
@@ -281,6 +281,7 @@ def empca(data, weights=None, niter=25, nvec=5, smooth=0, randseed=1, silent=Fal
       - weights[nobs, nvar]
       
     Optional:
+      - deltR2   : difference between consecutive R2 at which to halt iteration
       - niter    : maximum number of iterations
       - nvec     : number of model vectors
       - smooth   : smoothing length scale (0 for no smoothing)
@@ -315,13 +316,19 @@ def empca(data, weights=None, niter=25, nvec=5, smooth=0, randseed=1, silent=Fal
         # print "       iter    chi2/dof     drchi_E     drchi_M   drchi_tot       R2            rchi2"
         print "       iter        R2             rchi2"
     
+    R2_old = 0.
     for k in range(niter):
         model.solve_coeffs()
         model.solve_eigenvectors(smooth=smooth)
+        R2_new = model.R2()
+        R2diff = abs(R2_new-R2_old)
+        R2_old = R2_new
         if not silent:
             print 'EMPCA %2d/%2d  %15.8f %15.8f' % \
                 (k+1, niter, model.R2(), model.rchi2())
             sys.stdout.flush()
+        if R2diff < deltR2:
+            break
 
     #- One last time with latest coefficients
     model.solve_coeffs()
