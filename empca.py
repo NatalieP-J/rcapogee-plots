@@ -87,8 +87,8 @@ class Model(object):
         #- Cache variance of unmasked data
         self._unmasked = ii
         self._unmasked_data_var = N.var(self.data[ii])
-        self._unmasked_data_mad2 = N.sum(N.median(N.fabs(self.data[ii])\
-                                                      -N.median(self.data[ii]))**2.)
+        self._unmasked_data_mad2 = N.sum(N.median(N.fabs(self.data[ii]\
+                                                      -N.median(self.data[ii])))**2.)
                                          
         self.solve_coeffs()
         
@@ -216,6 +216,11 @@ class Model(object):
         #- Only consider R2 for unmasked data
         if mad:
             med= N.median(d[self._unmasked])
+            #print 'med',med
+            #print 'median',N.median(-self.data[self._unmasked])
+            #print 'num',N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)
+            #print 'den',self._unmasked_data_mad2 
+            #print 'max',N.amax(N.fabs(mx))
             return 1.0 - \
                 N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)/\
                 self._unmasked_data_mad2        
