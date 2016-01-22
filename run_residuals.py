@@ -3,7 +3,7 @@
 Usage:
 run_residuals [-hvpgxS] [-i LABEL] [-u UPLIM] [-d LOWLIM] [-s SAMPTYPE] [-c CLUSTLIS] [-o ORDER]
 
-starSample call:
+Sample call:
 
 run_residuals -glx -i FE_H -u -0.1 -d -0.105 -s red_clump -c False
 
@@ -23,7 +23,7 @@ Options:
     -s SAMPTYPE, --samptype SAMPTYPE    The type of starsample to run 
                                         [default: clusters]
     -c CLUSTLIS, --clusters CLUSTLIS    A list of subgroupings identified by a key given as the first element in the list
-                                        [default: CLUSTER,M67,N2158,N6791,N6819]
+                                        [default: CLUSTER,M67,N2158,N6791,N6819,M13]
     -o ORDER, --order ORDER             Order of polynomial fitting
                                         [default: 2]
 

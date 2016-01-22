@@ -18,7 +18,7 @@ def get_spectra_asp(data,ext = 1):
             goodind.append(i)
         except IOError as e:
             badind.append(i)
-            print i,e
+            print i,data['CLUSTER'][i],' File missing'
             continue
     if badind == []:
         return specs
@@ -42,7 +42,7 @@ def get_spectra_ap(data,ext = 1,indx = None):
             goodind.append(i)
         except IOError as e:
             badind.append(i)
-            print i,e
+            print i,data['CLUSTER'][i],' File missing'
             continue
     if badind == []:
         return specs

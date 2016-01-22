@@ -15,6 +15,8 @@ import window as wn
 from read_clusterdata import read_caldata
 
 # Import fitting and analysis packages
+import access_spectrum
+reload(access_spectrum)
 import access_spectrum as acs
 import reduce_dataset as rd
 import polyfit as pf
