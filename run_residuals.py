@@ -45,7 +45,7 @@ import access_spectrum as acs
 
 ################################################################################
 
-# Code used to test residuals.py and confirm all functions are in working order.
+# Code used to run residuals.py for an input sample.
 
 ################################################################################
 
