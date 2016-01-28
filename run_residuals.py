@@ -63,6 +63,29 @@ def timeIt(fn,*args,**kwargs):
     end = time.time()
     return output,end-start
 
+def weight_residuals(model,residual,sigma,subgroup,numstars):
+    weighted = np.ma.masked_array(np.zeros((len(elems),numstars)))
+    weightedsigs = np.ma.masked_array(np.zeros((len(elems),numstars)))
+    i=0
+    for elem in elems:
+        weightedr = model.weighting_stars(residual,elem,
+                                          model.outName('pkl','resids',elem=elem,
+                                                        order = model.order,
+                                                        subgroup=subgroup,
+                                                        cross=model.cross))
+        weighteds = model.weighting_stars(model.sigma.T,elem,
+                                          model.outName('pkl','sigma',elem=elem,
+                                                        order = model.order,
+                                                        subgroup=subgroup,
+                                                        seed = model.seed))
+        doubleResidualHistPlot(elem,weightedr,weighteds,
+                               model.outName('res','residhist',elem = elem,order = model.order,
+                                                  cross=model.cross,seed = model.seed,subgroup = subgroup),
+                               bins = 50)
+        weighted[i] = weightedr
+        weightedsigs[i] = weighteds
+        i+=1
+
 if __name__ == '__main__':
     # Read in command line arguments
     arguments = docopt.docopt(__doc__)
@@ -202,3 +225,10 @@ if __name__ == '__main__':
     statfile.write('Finding random sigma runtime {0:.2f} s\n\n'.format(runtime))
 
     starsample.saveFiles()
+    
+    statfile.close()
+
+    starsample.modelname = starsample.outName('pkl',content = 'model')
+    acs.pklwrite(starsample.modelname,starsample)
+
+
