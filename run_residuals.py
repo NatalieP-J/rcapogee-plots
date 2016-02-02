@@ -133,10 +133,16 @@ if __name__ == '__main__':
          statfilename = './{0}/run-statfile_order{1}_seed{2}_cross{3}.txt'.format(starsample.type, starsample.order,starsample.seed,starsample.cross)
     statfile = open(statfilename,'w+')
 
+    if not starsample.subgroup:
+        totalstars = starsample.numstars
+    elif starsample.subgroup != False:
+        totalstars = np.sum(starsample.numstars.values())
 
     if verbose:
         print '\nInitialization runtime {0:.2f} s'.format(runtime)
-        print 'Number of stars {0}\n'.format(starsample.numstars)
+        print 'Number of stars {0}\n'.format(totalstars)
+
+    assert totalstars > 0.
     
     if generate:
         statfile.write('################################################################################\n')
@@ -227,6 +233,17 @@ if __name__ == '__main__':
     starsample.saveFiles()
     
     statfile.close()
+
+    if not starsample.subgroup:
+        starsample.allresid = starsample.residual.T
+
+    elif starsample.subgroup != False:
+        totalstars = np.sum(starsample.numstars.values())
+        starsample.allresid = np.ma.masked_array(np.zeros(totalstars,aspcappix))
+        j = 0
+        for subgroup in starsample.subgroups:
+            starsample.allresids[j:j+starsample.numstars[subgroup]] = starsample.residual[subgroup].T
+            j+=starsample.numstars[subgroup]
 
     starsample.modelname = starsample.outName('pkl',content = 'model')
     acs.pklwrite(starsample.modelname,starsample)

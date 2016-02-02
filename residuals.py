@@ -384,21 +384,6 @@ class Sample:
         elif isinstance(self.specs,list) and isinstance(self.specs[1],bool):
             self.specs = self.specs[0]
 
-        if isinstance(self.plot,(list,np.ndarray)):
-            for i in self.plot:
-                if self.subgroup != False:
-                    subgroup = self.data[self.subgroup][i]
-                    match = np.where(self.data[self.subgroup]==subgroup)
-                    ind = i - match[0][0] 
-                elif not self.subgroup:
-                    subgroup = False
-                    ind = i
-                savename = self.outName('plt',content = 'unmaskedspectrum_{0}'.format(ind),subgroup=subgroup)
-                aplt.waveregions(self.specs[i],labelLines=False,fig_width=16.,fig_height=16.*0.3)
-                plt.title(r'$Unmasked\, spectrum$')
-                plt.savefig(savename)
-                plt.close()
-
         # Retrieve pixel flux uncertainties and bitmasks with new cropped data set.
         self.errs = getSpectra(self.data,self.errname,2,'asp')
         self.bitmask = getSpectra(self.data,self.bitmaskname,3,'ap')
