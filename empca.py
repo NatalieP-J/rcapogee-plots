@@ -326,7 +326,7 @@ def empca(data, weights=None, deltR2=0,niter=25, nvec=5, smooth=0, randseed=1, s
         model.solve_coeffs()
         model.solve_eigenvectors(smooth=smooth)
         R2_new = model.R2()
-        R2diff = abs(R2_new-R2_old)
+        R2diff = N.fabs(R2_new-R2_old)
         R2_old = R2_new
         if not silent:
             print 'EMPCA %2d/%2d  %15.8f %15.8f' % \

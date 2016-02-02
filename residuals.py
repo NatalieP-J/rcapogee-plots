@@ -5,7 +5,6 @@ from warnings import warn
 
 # Import plotting packages
 import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # Import APOGEE/sample packages
@@ -13,6 +12,7 @@ import apogee.tools.read as apread
 from apogee.tools import bitmask
 import window as wn
 from read_clusterdata import read_caldata
+import apogee.spec.plot as aplt
 
 # Import fitting and analysis packages
 import access_spectrum
@@ -53,12 +53,14 @@ elems = ['Al','Ca','C','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
 # Output directories for different file types
 outdirs = {'pkl':'pickles/',        # Directory to store data in pickled format
            'fit':'fitplots/',        # Directory to store plots from fitting for variables in fitvars
-           'res':'residual_plots/'    # Directory to store plots of residuals from fits 
+           'res':'residual_plots/',    # Directory to store plots of residuals from fits 
+           'plt':'methodplots/'
            }
 
 outfile = {'pkl':'.pkl',
            'fit':'.png',
-           'res':'.png'
+           'res':'.png',
+           'plt':'.png'
            }
 
 # Functions to access particular sample types
@@ -203,7 +205,7 @@ class Sample:
     A class object to hold information about a sample of stellar spectra, including properties of their fits in stellar parameters.
 
     """
-    def __init__(self,sampletype,savestep=True,seed=1,order=2,label=0,low=0,up=0,subgroup_type=False,subgroup_lis=False,cross=True,fontsize=18,verbose=False):
+    def __init__(self,sampletype,savestep=True,seed=1,order=2,label=0,low=0,up=0,subgroup_type=False,subgroup_lis=False,cross=True,fontsize=18,verbose=False,plot=False):
         """
         Initializes appropriate variables for sample class.
 
@@ -228,6 +230,8 @@ class Sample:
 
         self.verbose = verbose
         self.savestep=savestep
+        self.plot=plot
+        self.testdegen=False
 
         self.type = sampletype        
         self.overdir = './'+sampletype+'/'
@@ -379,6 +383,21 @@ class Sample:
             self.data = self.data[self.goodinds]
         elif isinstance(self.specs,list) and isinstance(self.specs[1],bool):
             self.specs = self.specs[0]
+
+        if isinstance(self.plot,(list,np.ndarray)):
+            for i in self.plot:
+                if self.subgroup != False:
+                    subgroup = self.data[self.subgroup][i]
+                    match = np.where(self.data[self.subgroup]==subgroup)
+                    ind = i - match[0][0] 
+                elif not self.subgroup:
+                    subgroup = False
+                    ind = i
+                savename = self.outName('plt',content = 'unmaskedspectrum_{0}'.format(ind),subgroup=subgroup)
+                aplt.waveregions(self.specs[i],labelLines=False,fig_width=16.,fig_height=16.*0.3)
+                plt.title(r'$Unmasked\, spectrum$')
+                plt.savefig(savename)
+                plt.close()
 
         # Retrieve pixel flux uncertainties and bitmasks with new cropped data set.
         self.errs = getSpectra(self.data,self.errname,2,'asp')
@@ -533,10 +552,11 @@ class Sample:
 
             # Check for potential degeneracy between terms, which leads to poor determination of fit parameters.
             imat = np.matrix(indepMatrix)
-            eigvals,eigvecs = np.linalg.eig(imat.T*np.linalg.inv(uncert)*imat)
-            if any(abs(eigvals) < 1e-10) and self.cross==True:
-                warn('With cross terms, there is too much degeneracy between terms. Reverting to no cross terms used for fit pix {0}'.format(pix))
-                indepMatrix,colcode = pf.makematrix(indeps,self.order,cross=False)
+            if self.testdegen:
+                eigvals,eigvecs = np.linalg.eig(imat.T*np.linalg.inv(uncert)*imat)
+                if any(abs(eigvals) < 1e-10) and self.cross==True:
+                    warn('With cross terms, there is too much degeneracy between terms. Reverting to no cross terms used for fit pix {0}'.format(pix))
+                    indepMatrix,colcode = pf.makematrix(indeps,self.order,cross=False)
 
             if all(self.specs[match][:,pix].mask==True):
                 raise np.linalg.linalg.LinAlgError('Data completely masked.')
