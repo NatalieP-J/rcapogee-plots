@@ -25,6 +25,7 @@ import matplotlib.pyplot as plt
 import apogee.spec.plot as aplt
 import access_spectrum as acs
 import polyfit as pf
+from residuals import windowPixels
 
 font = {'family' : 'serif',
         'weight' : 'normal',
@@ -102,7 +103,6 @@ def plot_res(model,plot,figsize=16.,alpha=0.5):
                 ind = i
             fitParam,colcode,indeps = model.pixFit(i,match,indeps=False)
             poly = pf.poly(fitParam,colcode,indeps,order = model.order)
-            savename = model.outName('plt',content = 'residual_{0}'.format(ind),subgroup=subgroup)
             pltres = model.allresid[:,i]
             pltres[pltres.mask] = np.nan
             plt.figure(figsize=(figsize,figsize))
@@ -128,6 +128,14 @@ def plot_res(model,plot,figsize=16.,alpha=0.5):
                     plt.ylabel('Residual')
                 plt.xlabel(fitvars[model.type][col])
                 col+=1
+            try:
+                ws = [item for item in windowPixels.values() if i in item[0]][0]
+                elem = [item for item in windowPixels.keys() if ws == windowPixels[item]][0]
+                savename = model.outName('plt',content = '{0}_residual_{1}'.format(elem,ind),subgroup=subgroup)
+                plt.suptitle(elem+' Pixel')
+            except IndexError as e:
+                plt.suptitle('Unassociated Pixel')
+                savename = model.outName('plt',content = 'residual_{0}'.format(ind),subgroup=subgroup)
             plt.savefig(savename)
             plt.close()
 
@@ -147,7 +155,10 @@ if __name__ == '__main__':
     speclist = np.array(specind.split(',')).astype(int)
 
     pix = arguments['--pixels']
-    pixlist = np.array(pix.split(',')).astype(int)
+    try:
+        pixlist = np.array(pix.split(',')).astype(int)
+    except ValueError:
+        pixlist = windowPixels[pix][0]
 
     modelname = arguments['--model']
 
