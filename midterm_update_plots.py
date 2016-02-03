@@ -34,6 +34,13 @@ matplotlib.rc('font', **font)
 
 aspcappix = 7214
 
+# Stellar properties to fit for different sample types
+fitvars = {'clusters':['TEFF'],                    # Fit clusters in effective temperature
+           'OCs':['TEFF'],                        # Fit open clusters in effective temperature
+           'GCs':['TEFF'],                        # Fit globular clusters in effective temperature
+           'red_clump':['TEFF','LOGG','[FE/H]']    # Fit red clump stars in effective temperature, surface gravity and iron abundance
+           }
+
 def plot_spec(model,plot,figsize=16.):
     if isinstance(plot,(int)):
         plot = [plot]
@@ -93,7 +100,7 @@ def plot_res(model,plot,figsize=16.,alpha=0.5):
                 subgroup = False
                 match = np.where(model.data)
                 ind = i
-            fitParam,colcode,indeps = model.pixFit(pix,match,indeps=False)
+            fitParam,colcode,indeps = model.pixFit(i,match,indeps=False)
             poly = pf.poly(fitParam,colcode,indeps,order = model.order)
             savename = model.outName('plt',content = 'residual_{0}'.format(ind),subgroup=subgroup)
             pltres = model.allresid[:,i]
@@ -102,16 +109,24 @@ def plot_res(model,plot,figsize=16.,alpha=0.5):
             col = 0
             for indep in indeps:
                 plt.subplot2grid((len(indeps),len(indeps)),(0,col),rowspan=2)
+                if col == 0:
+                    plt.ylabel('Normalized flux')
                 sortinds = indep.argsort()
                 sortedpoly = poly[sortinds]
                 sortedindep = indep[sortinds]
                 sortedspec = model.specs[match][:,i][sortinds]
-                plt.plot(sortedindep,sortedpoly,color='r')
+                plt.plot(sortedindep,sortedpoly,color='r',linewidth=3)
                 plt.plot(sortedindep,sortedspec,'.',alpha=alpha,color='b')
+                plt.xlim(min(indep),max(indep))
                 plt.subplot2grid((len(indeps),len(indeps)),(2,col))
                 plt.plot(indep,pltres,'.',alpha=alpha)
-                plt.axhline(0,color='k')
+                plt.axhline(0,color='k',linewidth=3)
                 plt.ylim(-0.1,0.1)
+                plt.xlim(min(indep),max(indep))
+                plt.ylabel('')
+                if col == 0:
+                    plt.ylabel('Residual')
+                plt.xlabel(fitvars[model.type][col])
                 col+=1
             plt.savefig(savename)
             plt.close()
@@ -129,10 +144,10 @@ if __name__ == '__main__':
 
     alpha = float(arguments['--alpha'])
     specind = arguments['--spectra']
-    speclist = np.array(specind.split(', ')).astype(int)
+    speclist = np.array(specind.split(',')).astype(int)
 
     pix = arguments['--pixels']
-    pixlist = np.array(pix.split(', ')).astype(int)
+    pixlist = np.array(pix.split(',')).astype(int)
 
     modelname = arguments['--model']
 
