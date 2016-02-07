@@ -973,10 +973,13 @@ class Sample:
         if os.path.isfile(name):
             return acs.pklread(name)
         elif not os.path.isfile(name):
-            weighted = np.ma.masked_array([])
+            weighted = np.ma.masked_array(-np.ones(arr.shape[1]))
             # Sum unmasked pixels weighted by element window for each star.
             for star in range(arr.shape[1]):
-                weighted = np.append(weighted,self.weighting(arr[:,star],elem))
+                if not all(arr[:,star].mask):
+                    weighted[star] = self.weighting(arr[:,star],elem)
+                elif all(arr[:,star].mask):
+                    weighted.mask[star] = True
             acs.pklwrite(name,weighted)
             return weighted
 

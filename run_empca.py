@@ -27,6 +27,7 @@ import access_spectrum as acs
 import os
 
 elems = ['Al','Ca','C','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
+elems = ['C','Fe','K','Mg','Ni','N','O','Si','S']
 aspcappix = 7214
 default_colors = {0:'b',1:'g',2:'r',3:'c'}
 default_markers = {0:'o',1:'s',2:'v',3:'D'}
@@ -76,12 +77,13 @@ def elem_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,del
     if os.path.isfile(empcaname) and not gen:
         empcamodel,empcamodel_weight,weights = acs.pklread(empcaname)
     elif not os.path.isfile(empcaname) or gen:
-        mask = np.ones(residual.T.shape)
-        print 'errs mask, ',np.where(errs.mask==True)
-        weights = 1./errs.T**2 
-        print 'w2 mask, ',np.where(weights.mask==True)
-        empcamodel,runtime1 = timeIt(empca,residual.T.data,weights = mask.astype(int),nvec=nvecs,deltR2=deltR2,mad=usemad)
-        empcamodel_weight,runtime2 = timeIt(empca,residual.T.data,weights = weights.data,nvec=nvecs,deltR2=deltR2,mad=usemad)
+        mask = (residual.T.mask==False)
+        weights = mask.astype(float)
+        print weights
+        empcamodel,runtime1 = timeIt(empca,residual.T.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad)
+        weights[mask] = 1./errs.T[mask]**2
+        print weights
+        empcamodel_weight,runtime2 = timeIt(empca,residual.T.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad)
         if verbose:
             print 'Element runtime (unweighted):\t', runtime1/60.,' min'
             print 'Element runtime (weighted):\t', runtime2/60.,' min'
@@ -145,7 +147,11 @@ def weight_residual(model,numstars,plot=False,subgroup=False):
                                                         order = model.order,
                                                         subgroup=subgroup,
                                                         seed = model.seed))
+        # *** TEMPORARY SOLUTION ***
+        mask = np.zeros(weightedr.shape)
+        mask[np.where(weighteds==0)] = 1
         print 'weighteds is zero for elem ',elem,' at ',np.where(weighteds==0)
+
         if plot:
             doubleResidualHistPlot(elem,weightedr,weighteds,
                                    model.outName('res','residhist',elem = elem,
@@ -154,7 +160,9 @@ def weight_residual(model,numstars,plot=False,subgroup=False):
                                                  subgroup = subgroup),
                                    bins = 50)
         weighted[i] = weightedr
+        weighted[i].mask = mask
         weightedsigs[i] = weighteds
+        weightedsigs[i].mask = mask
         i+=1
     return weighted,weightedsigs
 
@@ -303,7 +311,7 @@ if __name__=='__main__':
         labels = ['Unweighted EMPCA - proc','Weighted EMPCA - proc']
         savename = './{0}/empca/elem_empcaR2_order{1}_seed{2}_cross{3}_{4}_u{5}_d{6}_nvec{7}_MAD{8}.png'.format(model.type,model.order,model.seed,model.cross,model.label,model.up,model.low,nvecs,usemad)
         ptitle = 'R2 from element space'
-        plot_R2([m3,m4],w2,ptitle,savename,labels=None,nvecs=14,usemad=usemad,hide=hide)
+        plot_R2([m3,m4],w2,ptitle,savename,labels=None,nvecs=len(elems)-1,usemad=usemad,hide=hide)
 
         resize_pix_eigvecs(model.residual,m1,nstars=nstars)
         resize_pix_eigvecs(model.residual,m2,nstars=nstars)
@@ -315,7 +323,7 @@ if __name__=='__main__':
             savenames.append('./{0}/empca/empcaeig{1}_order{2}_seed{3}_cross{4}_{5}_u{6}_d{7}_nvec{8}.png'.format(model.type,vec,model.order,model.seed,model.cross,model.label,model.up,model.low,vec))
         labels = ['Unweighted EMPCA - raw','Weighted EMPCA - raw','Unweighted EMPCA - proc','Weighted EMPCA - proc']
         eigvecs = [newm1,newm2,m3.eigvec,m4.eigvec]
-        plot_element_eigvec(eigvecs,savenames,labels=labels,hidefigs=hide,nvecs=14)
+        plot_element_eigvec(eigvecs,savenames,labels=labels,hidefigs=hide,nvecs=len(elems)-1)
 
     if not hide:
         plt.show()
