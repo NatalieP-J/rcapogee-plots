@@ -150,7 +150,7 @@ def weight_residual(model,numstars,plot=False,subgroup=False):
         print 'weighteds is zero for elem ',elem,' at ',np.where(weighteds==0)
 
         if plot:
-            doubleResidualHistPlot(elem,weightedr,weighteds,
+            doubleResidualHistPlot(elem,weightedr[weightedr.mask==False],weighteds[weighteds.mask==False],
                                    model.outName('res','residhist',elem = elem,
                                                  order = model.order,
                                                  cross=model.cross,seed = model.seed,
