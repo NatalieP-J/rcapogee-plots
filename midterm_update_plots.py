@@ -26,6 +26,7 @@ import apogee.spec.plot as aplt
 import access_spectrum as acs
 import polyfit as pf
 from residuals import windowPixels
+from lowess import lowess
 
 font = {'family' : 'serif',
         'weight' : 'normal',
@@ -41,6 +42,7 @@ fitvars = {'clusters':['TEFF'],                    # Fit clusters in effective t
            'GCs':['TEFF'],                        # Fit globular clusters in effective temperature
            'red_clump':['TEFF','LOGG','[FE/H]']    # Fit red clump stars in effective temperature, surface gravity and iron abundance
            }
+
 
 def plot_spec(model,plot,figsize=16.):
     if isinstance(plot,(int)):
@@ -76,7 +78,7 @@ def plot_spec(model,plot,figsize=16.):
             plt.savefig(savename)
             plt.close()
 
-def plot_res(model,plot,figsize=16.,alpha=0.5):
+def plot_res(model,plot,figsize=16.,alpha=0.5,elem=False,fitdata=False,mockdata=False,median=True):
     if isinstance(plot,(int)):
         plot = [plot]
     if isinstance(plot,str):
@@ -115,7 +117,12 @@ def plot_res(model,plot,figsize=16.,alpha=0.5):
                 sortedpoly = poly[sortinds]
                 sortedindep = indep[sortinds]
                 sortedspec = model.specs[match][:,i][sortinds]
-                plt.plot(sortedindep,sortedpoly,color='r',linewidth=3)
+                if fitdata:
+                    plt.plot(sortedindep,sortedpoly,'.',color='r',alpha=alpha)
+                if median:
+                    smoothedfit = np.ma.masked_array(np.zeros(sortedpoly.shape))
+                    smoothedfit[sortedindep.mask==False] = lowess(sortedindep[sortedindep.mask == False], sortedpoly[sortedpoly.mask==False], f=2./3., iter=2)
+                    plt.plot(sortedindep,smoothedfit,color='r',linewidth=3)
                 plt.plot(sortedindep,sortedspec,'.',alpha=alpha,color='b')
                 plt.xlim(min(indep),max(indep))
                 plt.subplot2grid((len(indeps),len(indeps)),(2,col))
@@ -128,12 +135,10 @@ def plot_res(model,plot,figsize=16.,alpha=0.5):
                     plt.ylabel('Residual')
                 plt.xlabel(fitvars[model.type][col])
                 col+=1
-            try:
-                ws = [item for item in windowPixels.values() if i in item[0]][0]
-                elem = [item for item in windowPixels.keys() if ws == windowPixels[item]][0]
+            if elem != False:
                 savename = model.outName('plt',content = '{0}_residual_{1}'.format(elem,ind),subgroup=subgroup)
                 plt.suptitle(elem+' Pixel')
-            except IndexError as e:
+            if not elem:
                 plt.suptitle('Unassociated Pixel')
                 savename = model.outName('plt',content = 'residual_{0}'.format(ind),subgroup=subgroup)
             plt.savefig(savename)
@@ -142,6 +147,10 @@ def plot_res(model,plot,figsize=16.,alpha=0.5):
 if __name__ == '__main__':
     # Read in command line arguments
     arguments = docopt.docopt(__doc__)
+
+    modelname = arguments['--model']
+
+    model=acs.pklread(modelname)
 
     verbose = arguments['--verbose']
     hide = arguments['--hidefigs']
@@ -152,20 +161,22 @@ if __name__ == '__main__':
 
     alpha = float(arguments['--alpha'])
     specind = arguments['--spectra']
-    speclist = np.array(specind.split(',')).astype(int)
+    try:
+        speclist = np.array(specind.split(',')).astype(int)
+    except ValueError:
+        if specind == 'all':
+            speclist = np.arange(model.numstars) # red clump specific
 
     pix = arguments['--pixels']
     try:
+        elem = False
         pixlist = np.array(pix.split(',')).astype(int)
     except ValueError:
+        elem = pix
         pixlist = windowPixels[pix][0]
 
-    modelname = arguments['--model']
-
-    model=acs.pklread(modelname)
-
     plot_spec(model,speclist,figsize=12.)
-    plot_res(model,pixlist,figsize=12.,alpha=alpha)
+    plot_res(model,pixlist,figsize=12.,alpha=alpha,elem=elem,median=False,fitdata=True)
 
     
 
