@@ -27,7 +27,7 @@ import access_spectrum as acs
 import os
 
 elems = ['Al','Ca','C','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
-elems = ['C','Fe','K','Mg','Ni','N','O','Si','S']
+#elems = ['C','Fe','K','Mg','Ni','N','O','Si','S']
 aspcappix = 7214
 default_colors = {0:'b',1:'g',2:'r',3:'c'}
 default_markers = {0:'o',1:'s',2:'v',3:'D'}
@@ -147,9 +147,6 @@ def weight_residual(model,numstars,plot=False,subgroup=False):
                                                         order = model.order,
                                                         subgroup=subgroup,
                                                         seed = model.seed))
-        # *** TEMPORARY SOLUTION ***
-        mask = np.zeros(weightedr.shape)
-        mask[np.where(weighteds==0)] = 1
         print 'weighteds is zero for elem ',elem,' at ',np.where(weighteds==0)
 
         if plot:
@@ -160,9 +157,7 @@ def weight_residual(model,numstars,plot=False,subgroup=False):
                                                  subgroup = subgroup),
                                    bins = 50)
         weighted[i] = weightedr
-        weighted[i].mask = mask
         weightedsigs[i] = weighteds
-        weightedsigs[i].mask = mask
         i+=1
     return weighted,weightedsigs
 

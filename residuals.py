@@ -405,17 +405,18 @@ class Sample:
         toogood = np.where(SNR > cutoff)
         self.errs[toogood] = self.specs[toogood]/cutoff
 
-    def snrCut(self,cutoff = 50.):
+    def snrCut(self,low = 50.,up = 200.):
         """
         Masks pixels where the signal to noise ratio is too low.
 
-        cutoff:     Lower limit for signal to noise ratio
+        low:     Lower limit for signal to noise ratio
+        up:      Upper limit for signal to noise ratio
 
         Updates the mask and bitmask.
         """
         if self.updatemask:
             SNR = self.specs/self.errs
-            toobad = np.where(SNR < cutoff)
+            toobad = np.where((SNR < low) | (SNR > up))
             self.mask[toobad] = True 
             self.bitmask[toobad] += 2**15 # Set bit 15 in bitmask
             self.specs.mask = self.mask
