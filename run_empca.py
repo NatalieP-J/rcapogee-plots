@@ -79,10 +79,8 @@ def elem_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,del
     elif not os.path.isfile(empcaname) or gen:
         mask = (residual.T.mask==False)
         weights = mask.astype(float)
-        print weights
         empcamodel,runtime1 = timeIt(empca,residual.T.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad)
-        weights[mask] = 1./errs.T[mask]**2
-        print weights
+        weights[mask] = 1./errs.T[mask]
         empcamodel_weight,runtime2 = timeIt(empca,residual.T.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad)
         if verbose:
             print 'Element runtime (unweighted):\t', runtime1/60.,' min'
@@ -122,7 +120,7 @@ def weight_eigvec(model,nvecs,empcamodel):
             neweigvecs[vec][ind] = model.weighting(empcamodel.eigvec[vec],elems[ind])
     return neweigvecs
 
-def weight_residual(model,numstars,plot=False,subgroup=False):
+def weight_residual(model,numstars,plot=True,subgroup=False):
     # Create output arrays
     weighted = np.ma.masked_array(np.zeros((len(elems),numstars)))
     weightedsigs = np.ma.masked_array(np.zeros((len(elems),numstars)))
@@ -130,7 +128,7 @@ def weight_residual(model,numstars,plot=False,subgroup=False):
     # Cycle through elements
     for elem in elems:
         if subgroup != False:
-            match = np.where(model.data[subgroup]==subgroup)
+            match = np.where(model.data[model.subgroup]==subgroup)
             residual = model.residual[subgroup]
             sigma = model.errs[match].T
         elif not subgroup:
@@ -229,7 +227,6 @@ def plot_element_eigvec(eigvecs,savenames,mastercolors=default_colors,markers=de
         else:
             plt.savefig(savenames[vec])
             plt.legend(loc='best')
-        if hidefigs:
             plt.close()
 
 
