@@ -114,13 +114,13 @@ def plot_res(model,plot,figsize=16.,alpha=0.5,elem=False,fitdata=False,mockdata=
             if model.subgroup != False:
                 model.numstars = masternum
             pltres[pltres.mask] = np.nan
-            plt.figure(figsize=(figsize,figsize))
+            plt.figure(figsize=(10,5))
             col = 0
             for indep in indeps:
                 plt.subplot2grid((3,len(indeps)),(0,col),rowspan=2)
                 if col == 0:
-                    lab = '$\mathbf{{F_{{{0}}}(s)}}$'.format(i)
-                    plt.ylabel(r'normalized flux: {0}'.format(lab),fontsize = 20)
+                    lab = '$\mathbf{{F_{{{0}}}}}$'.format(i)
+                    plt.ylabel(r'{0}'.format(lab),fontsize=20)
                 sortinds = indep.argsort()
                 sortedpoly = poly[sortinds]
                 sortedindep = indep[sortinds]
@@ -145,8 +145,8 @@ def plot_res(model,plot,figsize=16.,alpha=0.5,elem=False,fitdata=False,mockdata=
                 plt.xlim(min(indep),max(indep))
                 plt.ylabel('')
                 if col == 0:
-                    lab = '$\mathbf{{\delta_{{{0}}}(s)}}$'.format(i)
-                    plt.ylabel(r'residual: {0}'.format(lab),fontsize=20)
+                    lab = '$\mathbf{{\delta_{{{0}}}}}$'.format(i)
+                    plt.ylabel(r'{0}'.format(lab),fontsize=20)
                 plt.xlabel(fitvars[model.type][col],fontsize=20)
                 col+=1
             if elem != False:
