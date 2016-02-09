@@ -136,7 +136,10 @@ if __name__ == '__main__':
     if not starsample.subgroup:
         totalstars = starsample.numstars
     elif starsample.subgroup != False:
-        totalstars = np.sum(starsample.numstars.values())
+        try:
+            totalstars = np.sum(starsample.numstars.values())
+        except AttributeError:
+            totalstars = starsample.numstars
 
     if verbose:
         print '\nInitialization runtime {0:.2f} s'.format(runtime)
@@ -239,10 +242,10 @@ if __name__ == '__main__':
 
     elif starsample.subgroup != False:
         totalstars = np.sum(starsample.numstars.values())
-        starsample.allresid = np.ma.masked_array(np.zeros(totalstars,aspcappix))
+        starsample.allresid = np.ma.masked_array(np.zeros((totalstars,aspcappix)))
         j = 0
         for subgroup in starsample.subgroups:
-            starsample.allresids[j:j+starsample.numstars[subgroup]] = starsample.residual[subgroup].T
+            starsample.allresid[j:j+starsample.numstars[subgroup]] = starsample.residual[subgroup].T
             j+=starsample.numstars[subgroup]
 
     starsample.modelname = starsample.outName('pkl',content = 'model')

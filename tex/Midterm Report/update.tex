@@ -34,7 +34,22 @@ This work analyzes the spectra of a sample of red clump stars from APOGEE's Data
  
 Starting with a sample of APOGEE spectra, I perform empirical fits to remove non-abundance stellar properties. I use spectra processed by the pipeline used to generate stellar parameters and chemical abundances, (ASPCAP - \citealt{ASPCAP}). These spectra are the combined results of all APOGEE spectra taken for a particular star. I begin by masking pixels in the spectra using the bitmask provided by the pipeline. Bits set in the bitmask indicate particular problems with individual pixels in that spectrum, including flags for the effects of cosmic rays, pixel saturation, atmospheric absorption, poor quality calibration files or inaccurate flux uncertainty estimations. I mask on all of the effects listed as well as on pixels with a signal to noise ratio (SNR) below 50.  The result is a masked set of spectra, and a set of associated measurement uncertainties to which the mask on the spectra is applied.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width = \linewidth]{examplespectrum.png}
+\caption{}
+\label{fig:spectra}
+\end{figure}
+
 After masking the spectra and making corrections to the uncertainties,  the spectra are split into a sample of red clump stars and a calibration sample of open clusters stars. The calibration sample is treated first: the unmasked flux values $(F_p(s))$ at a given pixel $p$  for a star $s$  are weighted by their uncertainties and fit with a second order polynomial in $T_{\rm eff}(s)$. Some function $f_p(s,T_{\rm eff})$ for flux is found  and residuals are calculated from this fit function at each star: $\delta_{p}(s) = F_p(s) - f_p(s,T_{\rm eff})$. The mask of the fitted spectra is then applied to these residuals.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width = \linewidth]{examplespectrum.png}
+\caption{}
+\label{fig:spectra}
+\end{figure}
+
 
 Open cluster stars are chemically homogeneous, and so have little scatter in abundance space \citep{openclusters} Any residuals from $f_p(s,T_{\mathrm{eff}})$ represent measurement uncertainty rather than intrinsic variation between pixels. This fact is used to calibrate the red clump sample uncertainties $\sigma_p(s)$. Elements of a covariance matrix $\mathrm{cov}_{p_i,p_j}$ are computed from the array $\delta_p(s)/\sigma_p(s)$ for each star in the open cluster sample. The red clump uncertainties are corrected by the diagonal elements of this covariance matrix: $\sigma_{p,\mathrm{corr}}(s) = \mathrm{cov}_{p,p}\cdot\sigma_{p}(s)$ .  
 

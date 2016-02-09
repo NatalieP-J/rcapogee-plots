@@ -1,7 +1,7 @@
 """
 
 Usage:
-midterm_update_plots [-hvx] [-m FNAME] [-s SPECS] [-p PIX] [-a ALPHA]
+midterm_update_plots [-hvx] [-m FNAME] [-s SPECS] [-p PIX] [-a ALPHA] [-S SUB]
 
 Options:
     -h, --help
@@ -15,6 +15,8 @@ Options:
                                     [default: 0]
     -m FNAME, --model FNAME         Provide a pickle file containing a Sample model (see residuals.py) 
                                     [default: clusters/pickles/model.pkl]
+    -S SUB, --sub SUB               Provide a subgroup
+                                    [default: False]
 
 """
 
@@ -37,7 +39,7 @@ matplotlib.rc('font', **font)
 aspcappix = 7214
 
 # Stellar properties to fit for different sample types
-fitvars = {'clusters':['TEFF'],                    # Fit clusters in effective temperature
+fitvars = {'clusters':[r'$\mathbf{T_{\mathrm{eff}}}$'],                    # Fit clusters in effective temperature
            'OCs':['TEFF'],                        # Fit open clusters in effective temperature
            'GCs':['TEFF'],                        # Fit globular clusters in effective temperature
            'red_clump':['TEFF','LOGG','[FE/H]']    # Fit red clump stars in effective temperature, surface gravity and iron abundance
@@ -78,7 +80,7 @@ def plot_spec(model,plot,figsize=16.):
             plt.savefig(savename)
             plt.close()
 
-def plot_res(model,plot,figsize=16.,alpha=0.5,elem=False,fitdata=False,mockdata=False,median=True):
+def plot_res(model,plot,figsize=16.,alpha=0.5,elem=False,fitdata=False,mockdata=False,median=True,subgroup=False):
     if isinstance(plot,(int)):
         plot = [plot]
     if isinstance(plot,str):
@@ -96,50 +98,68 @@ def plot_res(model,plot,figsize=16.,alpha=0.5,elem=False,fitdata=False,mockdata=
             plot = newplot
         for i in plot:
             if model.subgroup != False:
-                subgroup = model.data[model.subgroup][i]
                 match = np.where(model.data[model.subgroup]==subgroup)
-                ind = i - match[0][0] 
+                ind = i
+                pltres = model.residual[subgroup][i]
             elif not model.subgroup:
                 subgroup = False
                 match = np.where(model.data)
                 ind = i
+                pltres = model.allresid[:,i]
+            if model.subgroup != False:
+                masternum = model.numstars
+                model.numstars = model.numstars[subgroup]
             fitParam,colcode,indeps = model.pixFit(i,match,indeps=False)
             poly = pf.poly(fitParam,colcode,indeps,order = model.order)
-            pltres = model.allresid[:,i]
+            if model.subgroup != False:
+                model.numstars = masternum
             pltres[pltres.mask] = np.nan
             plt.figure(figsize=(figsize,figsize))
             col = 0
             for indep in indeps:
-                plt.subplot2grid((len(indeps),len(indeps)),(0,col),rowspan=2)
+                plt.subplot2grid((3,len(indeps)),(0,col),rowspan=2)
                 if col == 0:
-                    plt.ylabel('Normalized flux')
+                    lab = '$\mathbf{{F_{{{0}}}(s)}}$'.format(i)
+                    plt.ylabel(r'normalized flux: {0}'.format(lab),fontsize = 20)
                 sortinds = indep.argsort()
                 sortedpoly = poly[sortinds]
                 sortedindep = indep[sortinds]
                 sortedspec = model.specs[match][:,i][sortinds]
                 if fitdata:
-                    plt.plot(sortedindep,sortedpoly,'.',color='r',alpha=alpha)
+                    plt.plot(sortedindep,sortedpoly,'.-',color='g',alpha=alpha,label='fit data',markersize=10)
+                plt.plot(sortedindep,sortedspec,'D',alpha=alpha,label='spectra data',markersize=5,color='orange')
                 if median:
                     smoothedfit = np.ma.masked_array(np.zeros(sortedpoly.shape))
-                    smoothedfit[sortedindep.mask==False] = lowess(sortedindep[sortedindep.mask == False], sortedpoly[sortedpoly.mask==False], f=2./3., iter=2)
-                    plt.plot(sortedindep,smoothedfit,color='r',linewidth=3)
-                plt.plot(sortedindep,sortedspec,'.',alpha=alpha,color='b')
+                    smoothedfit[sortedindep.mask==False] = lowess(sortedindep[sortedindep.mask == False], sortedpoly[sortedpoly.mask==False], f=2./3., iter=3)
+                    plt.plot(sortedindep,smoothedfit,color='r',linewidth=3,label='fit median')
+                    smootheddat = np.ma.masked_array(np.zeros(sortedspec.shape))
+                    smootheddat[sortedindep.mask==False] = lowess(sortedindep[sortedindep.mask == False], sortedspec[sortedspec.mask==False], f=7./8., iter=2)
+                    plt.plot(sortedindep,smootheddat,'--',color='k',linewidth=3,label='data median')
                 plt.xlim(min(indep),max(indep))
-                plt.subplot2grid((len(indeps),len(indeps)),(2,col))
-                plt.plot(indep,pltres,'.',alpha=alpha)
+                if col == 0:
+                    plt.legend(loc='best')
+                plt.subplot2grid((3,len(indeps)),(2,col))
                 plt.axhline(0,color='k',linewidth=3)
+                plt.plot(indep,pltres,'D',alpha=alpha,markersize=5,color='orange')
                 plt.ylim(-0.1,0.1)
                 plt.xlim(min(indep),max(indep))
                 plt.ylabel('')
                 if col == 0:
-                    plt.ylabel('Residual')
-                plt.xlabel(fitvars[model.type][col])
+                    lab = '$\mathbf{{\delta_{{{0}}}(s)}}$'.format(i)
+                    plt.ylabel(r'residual: {0}'.format(lab),fontsize=20)
+                plt.xlabel(fitvars[model.type][col],fontsize=20)
                 col+=1
             if elem != False:
                 savename = model.outName('plt',content = '{0}_residual_{1}'.format(elem,ind),subgroup=subgroup)
-                plt.suptitle(elem+' Pixel')
+                title = elem+' pixel'
+                if subgroup != False:
+                    title += ' - '+subgroup
+                plt.suptitle(title)
             if not elem:
-                plt.suptitle('Unassociated Pixel')
+                title = 'unassociated pixel'
+                if subgroup != False:
+                    title += ' - '+subgroup
+                plt.suptitle(title)
                 savename = model.outName('plt',content = 'residual_{0}'.format(ind),subgroup=subgroup)
             plt.savefig(savename)
             plt.close()
@@ -175,8 +195,12 @@ if __name__ == '__main__':
         elem = pix
         pixlist = windowPixels[pix][0]
 
+    subgroup = arguments['--sub']
+    if subgroup == 'False':
+        subgroup = False
+
     plot_spec(model,speclist,figsize=12.)
-    plot_res(model,pixlist,figsize=12.,alpha=alpha,elem=elem,median=False,fitdata=True)
+    plot_res(model,pixlist,figsize=12.,alpha=alpha,elem=elem,median=False,fitdata=True,subgroup=subgroup)
 
     
 
