@@ -393,7 +393,7 @@ class Sample:
         acs.pklwrite(dataname,self.data)
 
 
-    def snrCorrect(self,cutoff = 200.,corr_fact = None):
+    def snrCorrect(self,corr_fact = None):
         """
         Corrects signal to noise ratio when it appears to have been underestimated by increasing the noise estimate.
 
@@ -410,9 +410,6 @@ class Sample:
             if corr_fact.shape != self.errs.shape:
                 corr_fact = np.tile(corr_fact,(self.errs.shape[0],1))
             self.errs = np.sqrt(corr_fact*self.errs**2)
-        if cutoff:
-            toogood = np.where(SNR > cutoff)
-            self.errs[toogood] = self.specs[toogood]/cutoff
 
     def snrCut(self,low = 50.,up = 200.):
         """

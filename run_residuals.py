@@ -118,8 +118,8 @@ if __name__ == '__main__':
             subgroup_info = False
     correction = arguments['--corr']
     if correction == 'False':
-        correction = False
-    elif correction != False:
+        correction = None
+    elif correction != 'False':
         try:
             correction = float(correction)
         except (TypeError,ValueError):
@@ -169,28 +169,27 @@ if __name__ == '__main__':
     statfile.write('Initialization runtime {0:.2f} s\n'.format(runtime))
     statfile.write('Number of stars {0}\n\n'.format(starsample.numstars))
 
-    # Correct high SNR
-    if verbose:
-        print 'Maximum SNR before correction {0:.2f}'.format(np.max(starsample.specs/starsample.errs))
-    statfile.write('Maximum SNR before correction {0:.2f}\n'.format(np.max(starsample.specs/starsample.errs)))
+    # Correct SNR if necessary
     noneholder,runtime = timeIt(starsample.snrCorrect,corr_fact=correction)
     if verbose:
-        print 'SNR correction runtime {0:.2f} s'.format(runtime)
-        print 'Maximum SNR before correction {0:.2f}\n'.format(np.max(starsample.specs/starsample.errs))
+        print 'SNR correction runtime {0:.2f} s\n'.format(runtime)
     statfile.write('SNR correction runtime {0:.2f} s\n'.format(runtime))
-    statfile.write('Maximum SNR before correction {0:.2f}\n\n'.format(np.max(starsample.specs/starsample.errs)))
 
     # Mask low SNR
     SNRtemp = starsample.specs/starsample.errs
     if verbose:
         print 'Nonzero Minimum SNR before mask {0:.4f}'.format(np.min(SNRtemp[np.where(SNRtemp > 1e-5)]))
+        print 'Maximum SNR before correction {0:.2f}'.format(np.max(starsample.specs/starsample.errs))
+    statfile.write('Maximum SNR before correction {0:.2f}\n'.format(np.max(starsample.specs/starsample.errs)))
     statfile.write('Nonzero Minimum SNR before mask {0:.4f}\n'.format(np.min(SNRtemp[np.where(SNRtemp > 1e-5)])))
-    noneholder,runtime = timeIt(starsample.snrCut)
+    noneholder,runtime = timeIt(starsample.snrCut,low=50.,up=np.max(SNRtemp))
     if verbose:
         print 'SNR cut runtime {0:.2f} s'.format(runtime)
-        print 'Minimum SNR after mask {0:.4f}\n'.format(np.min(starsample.specs/starsample.errs))
+        print 'Minimum SNR after mask {0:.4f}'.format(np.min(starsample.specs/starsample.errs))
+        print 'Maximum SNR after correction {0:.2f}\n'.format(np.max(starsample.specs/starsample.errs))
     statfile.write('SNR cut runtime {0:.2f} s\n'.format(runtime))
-    statfile.write('Minimum SNR after mask {0:.4f}\n\n'.format(np.min(starsample.specs/starsample.errs)))
+    statfile.write('Minimum SNR after mask {0:.4f}\n'.format(np.min(starsample.specs/starsample.errs)))
+    statfile.write('Maximum SNR after correction {0:.2f}\n\n'.format(np.max(starsample.specs/starsample.errs)))
 
     # Apply bitmask
     maskbits = bitmask.bits_set(badcombpixmask+2**15)
