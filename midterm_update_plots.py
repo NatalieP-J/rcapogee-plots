@@ -27,8 +27,9 @@ import matplotlib.pyplot as plt
 import apogee.spec.plot as aplt
 import access_spectrum as acs
 import polyfit as pf
-from residuals import windowPixels
+from residuals import windowPixels,windowPeaks
 from lowess import lowess
+import matplotlib.patheffects as path_effects
 
 font = {'family' : 'serif',
         'weight' : 'normal',
@@ -42,7 +43,7 @@ aspcappix = 7214
 fitvars = {'clusters':[r'$\mathbf{T_{\mathrm{eff}}}$'],                    # Fit clusters in effective temperature
            'OCs':['TEFF'],                        # Fit open clusters in effective temperature
            'GCs':['TEFF'],                        # Fit globular clusters in effective temperature
-           'red_clump':['TEFF','LOGG','[FE/H]']    # Fit red clump stars in effective temperature, surface gravity and iron abundance
+           'red_clump':[r'$\mathbf{T_{\mathrm{eff}}}$',r'$\mathrm{\log g}$',r'$\mathbf{[\mathrm{Fe}/\mathrm{H}]}$']    # Fit red clump stars in effective temperature, surface gravity and iron abundance
            }
 
 
@@ -80,6 +81,23 @@ def plot_spec(model,plot,figsize=16.):
             plt.savefig(savename)
             plt.close()
 
+def plot_elem_spec(model,figsize=10.):
+    for elem in elems:
+        w = elemwindows[elem]
+        elemregions = np.tile(w,(model.numstars,1))
+        shapeinds = np.where(elemregions != 0)
+        elemregions[model.mask!=0] = np.nan
+        hidewindow = np.unique(np.where(elemregions==0)[1])
+        window = [i for i in range(aspcappix) if i not in hidewindow]
+        elemregions = elemregions.T[window].T
+        plt.figure(figsize=(10,8))
+        plt.imshow(elemregions,aspect = float(elemregions.shape[1])/model.numstars,interpolation='nearest')
+        plt.title('Masked window for {0}'.format(elem))
+        splitval = len(window)/10
+        plt.xticks(range(elemregions.shape[1])[::splitval],window[::splitval])
+        plt.colorbar()
+        plt.savefig('temp{0}.png'.format(elem))
+
 def plot_res(model,plot,figsize=16.,alpha=0.5,elem=False,fitdata=False,mockdata=False,median=True,subgroup=False):
     if isinstance(plot,(int)):
         plot = [plot]
@@ -114,7 +132,7 @@ def plot_res(model,plot,figsize=16.,alpha=0.5,elem=False,fitdata=False,mockdata=
             if model.subgroup != False:
                 model.numstars = masternum
             pltres[pltres.mask] = np.nan
-            plt.figure(figsize=(10,5))
+            plt.figure(figsize=(10,6))
             col = 0
             for indep in indeps:
                 plt.subplot2grid((3,len(indeps)),(0,col),rowspan=2)
@@ -127,20 +145,20 @@ def plot_res(model,plot,figsize=16.,alpha=0.5,elem=False,fitdata=False,mockdata=
                 sortedspec = model.specs[match][:,i][sortinds]
                 if fitdata:
                     plt.plot(sortedindep,sortedpoly,'.-',color='g',alpha=alpha,label='fit data',markersize=10)
-                plt.plot(sortedindep,sortedspec,'D',alpha=alpha,label='spectra data',markersize=5,color='orange')
+                plt.plot(sortedindep,sortedspec,'.',alpha=alpha,label='spectra data',color='b')
                 if median:
                     smoothedfit = np.ma.masked_array(np.zeros(sortedpoly.shape))
                     smoothedfit[sortedindep.mask==False] = lowess(sortedindep[sortedindep.mask == False], sortedpoly[sortedpoly.mask==False], f=2./3., iter=3)
-                    plt.plot(sortedindep,smoothedfit,color='r',linewidth=3,label='fit median')
+                    plt.plot(sortedindep,smoothedfit,'w-',linewidth=3,label='fit median',path_effects=[path_effects.withStroke(linewidth=5, foreground="k")])
                     smootheddat = np.ma.masked_array(np.zeros(sortedspec.shape))
                     smootheddat[sortedindep.mask==False] = lowess(sortedindep[sortedindep.mask == False], sortedspec[sortedspec.mask==False], f=7./8., iter=2)
-                    plt.plot(sortedindep,smootheddat,'--',color='k',linewidth=3,label='data median')
+                    plt.plot(sortedindep,smootheddat,'k--',linewidth=3,label='data median',path_effects=[path_effects.withStroke(linewidth=5, foreground="w")])
                 plt.xlim(min(indep),max(indep))
                 if col == 0:
                     plt.legend(loc='best')
                 plt.subplot2grid((3,len(indeps)),(2,col))
-                plt.axhline(0,color='k',linewidth=3)
-                plt.plot(indep,pltres,'D',alpha=alpha,markersize=5,color='orange')
+                plt.plot(indep,pltres,'.',alpha=alpha,color='b')
+                plt.axhline(0,color='orange',linewidth=2,path_effects=[path_effects.withStroke(linewidth=3, foreground="k")])
                 plt.ylim(-0.1,0.1)
                 plt.xlim(min(indep),max(indep))
                 plt.ylabel('')
@@ -193,14 +211,14 @@ if __name__ == '__main__':
         pixlist = np.array(pix.split(',')).astype(int)
     except ValueError:
         elem = pix
-        pixlist = windowPixels[pix][0]
+        pixlist = windowPeaks[pix][0]
 
     subgroup = arguments['--sub']
     if subgroup == 'False':
         subgroup = False
 
     plot_spec(model,speclist,figsize=12.)
-    plot_res(model,pixlist,figsize=12.,alpha=alpha,elem=elem,median=False,fitdata=True,subgroup=subgroup)
+    plot_res(model,pixlist,figsize=12.,alpha=alpha,elem=elem,median=True,fitdata=False,subgroup=subgroup)
 
     
 

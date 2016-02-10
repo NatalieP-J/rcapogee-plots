@@ -393,7 +393,7 @@ class Sample:
         acs.pklwrite(dataname,self.data)
 
 
-    def snrCorrect(self,cutoff = 200.):
+    def snrCorrect(self,cutoff = 200.,corr_fact = None):
         """
         Corrects signal to noise ratio when it appears to have been underestimated by increasing the noise estimate.
 
@@ -402,8 +402,17 @@ class Sample:
         Updates pixel flux uncertainty in Sample object.
         """
         SNR = self.specs/self.errs
-        toogood = np.where(SNR > cutoff)
-        self.errs[toogood] = self.specs[toogood]/cutoff
+        if isinstance(corr_fact,(float,int)):
+            self.errs *= corr_fact
+        elif isinstance(corr_fact,(list)):
+            corr_fact = np.array(corr_fact)
+        if isinstance(corr_fact,(np.ndarray)):
+            if corr_fact.shape != self.errs.shape:
+                corr_fact = np.tile(corr_fact,(self.errs.shape[0],1))
+            self.errs *= corr_fact
+        if cutoff:
+            toogood = np.where(SNR > cutoff)
+            self.errs[toogood] = self.specs[toogood]/cutoff
 
     def snrCut(self,low = 50.,up = 200.):
         """
