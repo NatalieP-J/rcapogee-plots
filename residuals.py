@@ -409,7 +409,7 @@ class Sample:
         if isinstance(corr_fact,(np.ndarray)):
             if corr_fact.shape != self.errs.shape:
                 corr_fact = np.tile(corr_fact,(self.errs.shape[0],1))
-            self.errs *= corr_fact
+            self.errs = np.sqrt(corr_fact*self.errs**2)
         if cutoff:
             toogood = np.where(SNR > cutoff)
             self.errs[toogood] = self.specs[toogood]/cutoff

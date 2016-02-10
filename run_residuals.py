@@ -1,7 +1,7 @@
 """
 
 Usage:
-run_residuals [-hvpgxS] [-i LABEL] [-u UPLIM] [-d LOWLIM] [-s SAMPTYPE] [-c CLUSTLIS] [-o ORDER]
+run_residuals [-hvpgxS] [-i LABEL] [-u UPLIM] [-d LOWLIM] [-s SAMPTYPE] [-c CLUSTLIS] [-o ORDER] [-C CORRECT]
 
 Sample call:
 
@@ -26,6 +26,7 @@ Options:
                                         [default: CLUSTER,M67,N2158,N6791,N6819,M13]
     -o ORDER, --order ORDER             Order of polynomial fitting
                                         [default: 2]
+    -C CORRECT, --corr CORRECT          File containing correction factor [default: False]
 
 """
 
@@ -115,6 +116,14 @@ if __name__ == '__main__':
                 print 'Minimum two elements required: a key to identify the type of subgroup, and a possible entry for the subgroup.'
             warn('Defaulting subgrouping to False')
             subgroup_info = False
+    correction = arguments['--corr']
+    if correction == 'False':
+        correction = False
+    elif correction != False:
+        try:
+            correction = float(correction)
+        except (TypeError,ValueError):
+            correction = acs.pklread(correction)
     
     if generate:
 
@@ -164,7 +173,7 @@ if __name__ == '__main__':
     if verbose:
         print 'Maximum SNR before correction {0:.2f}'.format(np.max(starsample.specs/starsample.errs))
     statfile.write('Maximum SNR before correction {0:.2f}\n'.format(np.max(starsample.specs/starsample.errs)))
-    noneholder,runtime = timeIt(starsample.snrCorrect)
+    noneholder,runtime = timeIt(starsample.snrCorrect,corr_fact=correction)
     if verbose:
         print 'SNR correction runtime {0:.2f} s'.format(runtime)
         print 'Maximum SNR before correction {0:.2f}\n'.format(np.max(starsample.specs/starsample.errs))
