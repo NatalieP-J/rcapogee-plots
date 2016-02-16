@@ -131,9 +131,11 @@ if __name__ == '__main__':
     if generate:
         # Remove possible cached data.
         if label != 0:
-            os.system('rm {0}/pickles/*{1}*{2}*{3}*'.format(samptype,label,up,low))
+            print 'rm {0}/pickles/*{1}*{2}*{3}*.pkl'.format(samptype,label,up,low)
+            os.system('rm {0}/pickles/*{1}*{2}*{3}*.pkl'.format(samptype,label,up,low))
         elif label == 0:
-            os.system('rm {0}/pickes/*'.format(samptype))
+            print 'rm {0}/pickes/*.pkl'.format(samptype)
+            os.system('rm {0}/pickes/*.pkl'.format(samptype))
 
     # Initialize the starsample
     starsample,runtime = timeIt(Sample,samptype,savestep=savestep,order=order,cross=crossterm,label=label,up=up,low=low,subgroup_type=subgroup_info[0],subgroup_lis=subgroup_info[1:],fontsize=10,plot=[4])
@@ -171,12 +173,7 @@ if __name__ == '__main__':
     statfile.write('Initialization runtime {0:.2f} s\n'.format(runtime))
     statfile.write('Number of stars {0}\n\n'.format(starsample.numstars))
 
-    # Correct SNR if necessary
-    noneholder,runtime = timeIt(starsample.snrCorrect,corr_fact=correction)
-    if verbose:
-        print 'SNR correction runtime {0:.2f} s\n'.format(runtime)
-    statfile.write('SNR correction runtime {0:.2f} s\n'.format(runtime))
-
+    # SNR
     lims = arguments['--lims']
     lims = lims.split(',')
     if len(lims) == 1:
@@ -205,7 +202,7 @@ if __name__ == '__main__':
                 upSNR = float(lims[1])
 
 
-    # Mask low SNR
+    # Mask SNR
     SNRtemp = starsample.specs/starsample.errs
     if verbose:
         print 'Nonzero Minimum SNR before mask {0:.4f}'.format(np.min(SNRtemp[np.where(SNRtemp > 1e-5)]))
@@ -221,6 +218,12 @@ if __name__ == '__main__':
     statfile.write('SNR cut runtime {0:.2f} s\n'.format(runtime))
     statfile.write('Minimum SNR after mask {0:.4f}\n'.format(np.min(starsample.specs/starsample.errs)))
     statfile.write('Maximum SNR after correction {0:.2f}\n\n'.format(np.max(starsample.specs/starsample.errs)))
+
+    # Correct SNR if necessary
+    noneholder,runtime = timeIt(starsample.snrCorrect,corr_fact=correction)
+    if verbose:
+        print 'SNR correction runtime {0:.2f} s\n'.format(runtime)
+    statfile.write('SNR correction runtime {0:.2f} s\n'.format(runtime))
 
     # Apply bitmask
     maskbits = bitmask.bits_set(badcombpixmask+2**15)
