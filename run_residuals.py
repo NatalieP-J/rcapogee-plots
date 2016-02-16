@@ -126,7 +126,7 @@ if __name__ == '__main__':
             correct='_SNRcorrected'
     elif correction == 'None':
         correction = None
-        correct=''
+        correct=False
     
     if generate:
         # Remove possible cached data.
@@ -138,7 +138,7 @@ if __name__ == '__main__':
             os.system('rm {0}/pickes/*.pkl'.format(samptype))
 
     # Initialize the starsample
-    starsample,runtime = timeIt(Sample,samptype,savestep=savestep,order=order,cross=crossterm,label=label,up=up,low=low,subgroup_type=subgroup_info[0],subgroup_lis=subgroup_info[1:],fontsize=10,plot=[4])
+    starsample,runtime = timeIt(Sample,samptype,savestep=savestep,order=order,cross=crossterm,label=label,up=up,low=low,subgroup_type=subgroup_info[0],subgroup_lis=subgroup_info[1:],fontsize=10,plot=[4],correct=correct)
 
     if label != 0:
         statfilename = './{0}/run-statfile_order{1}_seed{2}_cross{3}_{4}_u{5}_d{6}.txt'.format(starsample.type, starsample.order,starsample.seed,starsample.cross,label,up,low)
@@ -290,7 +290,7 @@ if __name__ == '__main__':
             starsample.allresid[j:j+starsample.numstars[subgroup]] = starsample.residual[subgroup].T
             j+=starsample.numstars[subgroup]
 
-    starsample.modelname = starsample.outName('pkl',content = '/models/model{0}'.format(correct))
+    starsample.modelname = starsample.outName('pkl',content = '/models/model')
     acs.pklwrite(starsample.modelname,starsample)
 
 

@@ -205,7 +205,7 @@ class Sample:
     A class object to hold information about a sample of stellar spectra, including properties of their fits in stellar parameters.
 
     """
-    def __init__(self,sampletype,savestep=True,seed=1,order=2,label=0,low=0,up=0,subgroup_type=False,subgroup_lis=False,cross=True,fontsize=18,verbose=False,plot=False):
+    def __init__(self,sampletype,savestep=True,seed=1,order=2,label=0,low=0,up=0,subgroup_type=False,subgroup_lis=False,cross=True,fontsize=18,verbose=False,plot=False,correct=False):
         """
         Initializes appropriate variables for sample class.
 
@@ -232,6 +232,7 @@ class Sample:
         self.savestep=savestep
         self.plot=plot
         self.testdegen=False
+        self.correct=correct
 
         self.type = sampletype        
         self.overdir = './'+sampletype+'/'
@@ -296,33 +297,34 @@ class Sample:
         Returns a filepath.
 
         """
-        prefix = ''
+        suffix = ''
         if subgroup != False:
-            prefix += subgroup+'_'
+            suffix += '_'+subgroup
         if elem != False:
-            prefix += elem+'_'
+            suffix += '_'+elem
         if pixel != False:
-            prefix += 'pix'+str(pixel)+'fit_'
+            suffix += '_pix'+str(pixel)+'fit'
         if order != False:
-            prefix += 'order'+str(order)+'_'
+            suffix += '_order'+str(order)
         if cross != False:
             if cross == True:
-                prefix += 'allcross_'
+                suffix += '_allcross'
             elif isinstance(cross,tuple):
-                prefix += 'cross'
+                suffix += '_cross'
                 for iset in cross:
-                    prefix += '['
+                    suffix += '['
                     for ind in iset:
-                        prefix += fitvars[ind]+','
-                    prefix += ']'
+                        suffix += fitvars[ind]+','
+                    suffix += ']'
         if seed != False:
-            prefix += 'seed'+str(seed)+'_'
-
+            suffix += '_seed'+str(seed)
+        if self.correct != False:
+            suffix += '_snrCorrect'
         # If data set was cropped, incorporate this in the file name.
         if self.label != 0:
-            return self.overdir+outdirs[filetype]+prefix+content+'_{0}_u{1}_d{2}'.format(self.label,self.up,self.low)+outfile[filetype]
+            return self.overdir+outdirs[filetype]+content+suffix+'_{0}_u{1}_d{2}'.format(self.label,self.up,self.low)+outfile[filetype]
         elif self.label == 0:
-            return self.overdir+outdirs[filetype]+prefix+content+outfile[filetype]
+            return self.overdir+outdirs[filetype]+content+suffix+outfile[filetype]
 
     def makeDirec(self):
         """
