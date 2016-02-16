@@ -22,9 +22,10 @@ from empca import empca
 import numpy as np
 import matplotlib.pyplot as plt
 from run_residuals import timeIt,weight_residuals
-from residuals import doubleResidualHistPlot
+from residuals import doubleResidualHistPlot,elemwindows
 import access_spectrum as acs
 import os
+import polyfit as pf
 
 elems = ['Al','Ca','C','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
 #elems = ['C','Fe','K','Mg','Ni','N','O','Si','S']
@@ -140,11 +141,12 @@ def weight_residual(model,numstars,plot=True,subgroup=False):
                                                         order = model.order,
                                                         subgroup=subgroup,
                                                         cross=model.cross))
-        weighteds = model.weighting_stars(sigma,elem,
-                                          model.outName('pkl','sigma',elem=elem,
-                                                        order = model.order,
-                                                        subgroup=subgroup,
-                                                        seed = model.seed))
+        weighteds = np.sqrt(np.ma.sum(sigma**2*np.tile(pf.normweights(elemwindows[elem])**2,(sigma.shape[1],1)).T,axis=1))
+        #model.weighting_stars(sigma,elem,
+        #                                  model.outName('pkl','sigma',elem=elem,
+         #                                               order = model.order,
+         #                                               subgroup=subgroup,
+         #                                               seed = model.seed))
         print 'weighteds is zero for elem ',elem,' at ',np.where(weighteds==0)
 
         if plot:

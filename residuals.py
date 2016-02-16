@@ -108,7 +108,7 @@ def retryPixFunction(fn,dependencies,*args,**kwargs):
             print e
             warn('Missing Sample information')
 
-windowinfo = 'windowinfo.pkl'
+windowinfo = 'pickles/windowinfo.pkl'
 def readElementWindow(fname):
     """
     Retrieves information about which pixels correspond to particular element windows.

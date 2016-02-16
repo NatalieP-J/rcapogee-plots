@@ -1,11 +1,7 @@
 """
 
 Usage:
-run_residuals [-hvpgxS] [-i LABEL] [-u UPLIM] [-d LOWLIM] [-s SAMPTYPE] [-c CLUSTLIS] [-o ORDER] [-C CORRECT]
-
-Sample call:
-
-run_residuals -glx -i FE_H -u -0.1 -d -0.105 -s red_clump -c False
+run_residuals [-hvpgxSL] [-i LABEL] [-u UPLIM] [-d LOWLIM] [-s SAMPTYPE] [-c CLUSTLIS] [-o ORDER] [-C CORRECT] [-l LIMS]
 
 Options:
     -h, --help
@@ -14,6 +10,7 @@ Options:
     -g, --generate                      Option to run first sequence (generate everything from scratch)
     -x, --cross                         Option to include cross terms in the fit.
     -S, --save                          Option to save intermediate steps in residual calculation
+    -L, --load                          Option to load the model file.
     -i LABEL, --indep LABEL             A string with a label in which to crop the starsample 
                                         [default: 0]
     -u UPLIM, --upper UPLIM             An upper limit for the starsample crop 
@@ -26,7 +23,8 @@ Options:
                                         [default: CLUSTER,M67,N2158,N6791,N6819,M13]
     -o ORDER, --order ORDER             Order of polynomial fitting
                                         [default: 2]
-    -C CORRECT, --corr CORRECT          File containing correction factor [default: False]
+    -C CORRECT, --corr CORRECT          File containing correction factor [default: None]
+    -l LIMS, --lims LIMS                Signal to noise ratio cutoffs [default: None]
 
 """
 
@@ -106,32 +104,36 @@ if __name__ == '__main__':
     low = float(arguments['--lower'])
     order = int(arguments['--order'])
     samptype = arguments['--samptype']
+    
     subgroup_info = arguments['--clusters']
-    if subgroup_info == 'False':
-        subgroup_info = [False,False]
-    elif subgroup_info != 'False':
+    if subgroup_info != 'None':
         subgroup_info = subgroup_info.split(',')
         if len(subgroup_info) == 1:
             if verbose:
                 print 'Minimum two elements required: a key to identify the type of subgroup, and a possible entry for the subgroup.'
-            warn('Defaulting subgrouping to False')
+            print 'Defaulting subgrouping to False'
             subgroup_info = False
+    elif subgroup_info == 'None':
+        subgroup_info = [False,False]
+    
     correction = arguments['--corr']
-    if correction == 'False':
-        correction = None
-    elif correction != 'False':
+    if correction != 'None':
         try:
             correction = float(correction)
+            correct='_SNRcorrected'
         except (TypeError,ValueError):
             correction = acs.pklread(correction)
+            correct='_SNRcorrected'
+    elif correction == 'None':
+        correction = None
+        correct=''
     
     if generate:
-
         # Remove possible cached data.
         if label != 0:
-            os.system('rm ./{0}/pickles/*{1}*{2}*{3}*'.format(samptype,label,up,low))
+            os.system('rm {0}/pickles/*{1}*{2}*{3}*'.format(samptype,label,up,low))
         elif label == 0:
-            os.system('rm ./{0}/pickles/*'.format(samptype))
+            os.system('rm {0}/pickes/*'.format(samptype))
 
     # Initialize the starsample
     starsample,runtime = timeIt(Sample,samptype,savestep=savestep,order=order,cross=crossterm,label=label,up=up,low=low,subgroup_type=subgroup_info[0],subgroup_lis=subgroup_info[1:],fontsize=10,plot=[4])
@@ -175,6 +177,34 @@ if __name__ == '__main__':
         print 'SNR correction runtime {0:.2f} s\n'.format(runtime)
     statfile.write('SNR correction runtime {0:.2f} s\n'.format(runtime))
 
+    lims = arguments['--lims']
+    lims = lims.split(',')
+    if len(lims) == 1:
+        if lims[0] == 'None':
+            lowSNR = np.min(starsample.specs/starsample.errs)
+            upSNR = np.max(starsample.specs/starsample.errs)
+        elif lims[0] != 'None':
+            lowSNR = float(lims[0])
+            upSNR = np.max(starsample.specs/starsample.errs)
+    elif len(lims) > 1:
+        if len(lims) != 2:
+            if verbose:
+                print 'Too many SNR cuts specified, only first two used'
+            statfile.write('Too many SNR cuts specified, only first two used')
+        if lims[0] == 'None':
+            lowSNR = np.min(starsample.specs/starsample.errs)
+            if lims[1] == 'None':
+                upSNR = np.max(starsample.specs/starsample.errs)
+            elif lims[1] != 'None':
+                upSNR = float(lims[1])
+        elif lims[0] != 'None':
+            lowSNR = float(lims[0])
+            if lims[1] == 'None':
+                upSNR = np.max(starsample.specs/starsample.errs)
+            elif lims[1] != 'None':
+                upSNR = float(lims[1])
+
+
     # Mask low SNR
     SNRtemp = starsample.specs/starsample.errs
     if verbose:
@@ -182,7 +212,8 @@ if __name__ == '__main__':
         print 'Maximum SNR before correction {0:.2f}'.format(np.max(starsample.specs/starsample.errs))
     statfile.write('Maximum SNR before correction {0:.2f}\n'.format(np.max(starsample.specs/starsample.errs)))
     statfile.write('Nonzero Minimum SNR before mask {0:.4f}\n'.format(np.min(SNRtemp[np.where(SNRtemp > 1e-5)])))
-    noneholder,runtime = timeIt(starsample.snrCut,low=50.,up=np.max(SNRtemp))
+    
+    noneholder,runtime = timeIt(starsample.snrCut,low=lowSNR,up=upSNR)
     if verbose:
         print 'SNR cut runtime {0:.2f} s'.format(runtime)
         print 'Minimum SNR after mask {0:.4f}'.format(np.min(starsample.specs/starsample.errs))
@@ -256,7 +287,7 @@ if __name__ == '__main__':
             starsample.allresid[j:j+starsample.numstars[subgroup]] = starsample.residual[subgroup].T
             j+=starsample.numstars[subgroup]
 
-    starsample.modelname = starsample.outName('pkl',content = 'model')
+    starsample.modelname = starsample.outName('pkl',content = '/models/model{0}'.format(correct))
     acs.pklwrite(starsample.modelname,starsample)
 
 
