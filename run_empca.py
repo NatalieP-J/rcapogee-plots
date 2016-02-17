@@ -82,7 +82,7 @@ def elem_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,del
         mask = (residual.T.mask==False)
         weights = mask.astype(float)
         empcamodel,runtime1 = timeIt(empca,residual.T.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad)
-        weights[mask] = 1./errs.T[mask]
+        weights[mask] = 1./errs.T[mask]**2
         print 'nan ',np.where(np.isnan(weights)==True)
         empcamodel_weight,runtime2 = timeIt(empca,residual.T.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad)
         if verbose:
