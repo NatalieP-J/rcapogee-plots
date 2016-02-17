@@ -43,7 +43,7 @@ def pix_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,nsta
     elif not os.path.isfile(empcaname) or gen:
         # Identify pixels at which there are more than nstars stars
         goodpix = ([i for i in range(aspcappix) if np.sum(residual[i].mask) < residual.shape[1]-nstars],)
-        print 'badpix, ',[i for i in range(aspcappix) if i not in goodpix[0]]
+        print 'badpix, ',len([i for i in range(aspcappix) if i not in goodpix[0]])
         # Create new array to feed to EMPCA with only good pixels
         empca_res = residual[goodpix].T
         # Create a set of weights for EMPCA, setting weight to zero if value is masked
@@ -53,6 +53,7 @@ def pix_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,nsta
         # Change weights to incorporate flux uncertainties
         sigmas = errs.T[goodpix].T
         weights[mask] = 1./sigmas[mask]**2
+        print 'nans ',np.where(np.isnan(weights)==True)
         empcamodel_weight,runtime2 = timeIt(empca,empca_res.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad)
         if verbose:
             print 'Pixel runtime (unweighted):\t', runtime1/60.,' min'
@@ -82,6 +83,7 @@ def elem_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,del
         weights = mask.astype(float)
         empcamodel,runtime1 = timeIt(empca,residual.T.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad)
         weights[mask] = 1./errs.T[mask]
+        print 'nan ',np.where(np.isnan(weights)==True)
         empcamodel_weight,runtime2 = timeIt(empca,residual.T.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad)
         if verbose:
             print 'Element runtime (unweighted):\t', runtime1/60.,' min'
@@ -141,14 +143,7 @@ def weight_residual(model,numstars,plot=True,subgroup=False):
                                                         order = model.order,
                                                         subgroup=subgroup,
                                                         cross=model.cross))
-        weighteds = np.sqrt(np.ma.sum(sigma**2*np.tile(pf.normweights(elemwindows[elem])**2,(sigma.shape[1],1)).T,axis=1))
-        #model.weighting_stars(sigma,elem,
-        #                                  model.outName('pkl','sigma',elem=elem,
-         #                                               order = model.order,
-         #                                               subgroup=subgroup,
-         #                                               seed = model.seed))
-        print 'weighteds is zero for elem ',elem,' at ',np.where(weighteds==0)
-
+        weighteds = np.sqrt(np.ma.sum(sigma**2*np.tile(pf.normweights(elemwindows[elem])**2,(sigma.shape[1],1)).T,axis=0))
         if plot:
             doubleResidualHistPlot(elem,weightedr[weightedr.mask==False],weighteds[weighteds.mask==False],
                                    model.outName('res','residhist',elem = elem,
@@ -169,9 +164,9 @@ def plot_R2(empcamodels,weights,ptitle,savename,labels=None,nvecs=5,usemad=True,
     plt.ylim(0,1)
     plt.fill_between(vec_vals,R2noiseval,1,color='r',alpha=0.2)
     if R2noiseval > 0:
-        plt.text(nvecs-(nvecs/5.),R2noiseval+0.1,'R2_noise = {0:2f}'.format(R2noiseval))
+        plt.text(1,0.9,'R2_noise = {0:2f}'.format(R2noiseval))
     elif R2noiseval <= 0:
-        plt.text(nvecs-(nvecs/5.),0.1,'R2_noise = {0:2f}'.format(R2noiseval))
+        plt.text(1,0.9,'R2_noise = {0:2f}'.format(R2noiseval))
     plt.axhline(R2noiseval,linestyle='--',color='k',label='Noise Threshold')
     plt.xlabel('Number of eigenvectors')
     plt.ylabel('Variance explained')
@@ -204,6 +199,7 @@ def plot_element_eigvec(eigvecs,savenames,mastercolors=default_colors,markers=de
         plt.xticks(range(len(elems)),elems)
         plt.axhline(0,color='k')
         plt.xlim(-1,len(elems))
+        plt.ylim(-1,1)
         plt.xlabel('Elements')
         plt.ylabel('Eigenvector')
         plt.title('{0} eigenvector, weighted by element'.format(vec))
@@ -224,8 +220,11 @@ def plot_element_eigvec(eigvecs,savenames,mastercolors=default_colors,markers=de
             order = sorted(order,key = abs)[::-1]
             for val in order:
                 plt.plot([i,i],[0,val],color=colors[val],linewidth=3)
+        for v in range(len(vectors)):
+            plt.axhline(max(vectors[v],key=abs),color=mastercolors[v],linestyle='--',linewidth=3)
         if not labels:
             plt.savefig(savename)
+            plt.close()
         else:
             plt.savefig(savenames[vec])
             plt.legend(loc='best')
@@ -284,7 +283,7 @@ if __name__=='__main__':
                 savenames.append('./{0}/empca/{1}empcaeig{2}_order{3}_seed{4}_cross{5}_nvec{6}.png'.format(model.type,subgroup,vec, model.order,model.seed,model.cross,nvecs))
             labels = ['Unweighted EMPCA - raw','Weighted EMPCA - raw','Unweighted EMPCA - proc','Weighted EMPCA - proc']
             eigvecs = [newm1,newm2,m3.eigvec,m4.eigvec]
-            plot_element_eigvec(eigvecs,savenames,labels=labels,hidefigs=hide)
+            plot_element_eigvec(eigvecs,savenames,labels=labels,hidefigs=hide,nvecs=nvecs)
 
     elif model.subgroups[0] == False:
         
@@ -296,7 +295,7 @@ if __name__=='__main__':
         empcaname = model.outName('pkl',content = 'empca_element',order = model.order,
                                        seed = model.seed,cross=model.cross)
         empcaname = empcaname.split('.pkl')[0]+'_nvec{0}'.format(nvecs)+'.pkl'
-        m3,m4,w2 = elem_empca(model,residual,errs,empcaname,nvecs=14,gen=gen,verbose=verbose,deltR2=deltR2,usemad=usemad)
+        m3,m4,w2 = elem_empca(model,residual,errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,deltR2=deltR2,usemad=usemad)
         
         labels = ['Unweighted EMPCA - raw','Weighted EMPCA - raw']
         savename = './{0}/empca/pix_empcaR2_order{1}_seed{2}_cross{3}_{4}_u{5}_d{6}_nvec{7}_MAD{8}.png'.format(model.type,model.order,model.seed,model.cross,model.label,model.up,model.low,nvecs,usemad)
@@ -305,7 +304,7 @@ if __name__=='__main__':
         labels = ['Unweighted EMPCA - proc','Weighted EMPCA - proc']
         savename = './{0}/empca/elem_empcaR2_order{1}_seed{2}_cross{3}_{4}_u{5}_d{6}_nvec{7}_MAD{8}.png'.format(model.type,model.order,model.seed,model.cross,model.label,model.up,model.low,nvecs,usemad)
         ptitle = 'R2 from element space'
-        plot_R2([m3,m4],w2,ptitle,savename,labels=None,nvecs=len(elems)-1,usemad=usemad,hide=hide)
+        plot_R2([m3,m4],w2,ptitle,savename,labels=None,nvecs=nvecs,usemad=usemad,hide=hide)
 
         resize_pix_eigvecs(model.residual,m1,nstars=nstars)
         resize_pix_eigvecs(model.residual,m2,nstars=nstars)
@@ -317,10 +316,7 @@ if __name__=='__main__':
             savenames.append('./{0}/empca/empcaeig{1}_order{2}_seed{3}_cross{4}_{5}_u{6}_d{7}_nvec{8}.png'.format(model.type,vec,model.order,model.seed,model.cross,model.label,model.up,model.low,vec))
         labels = ['Unweighted EMPCA - raw','Weighted EMPCA - raw','Unweighted EMPCA - proc','Weighted EMPCA - proc']
         eigvecs = [newm1,newm2,m3.eigvec,m4.eigvec]
-        plot_element_eigvec(eigvecs,savenames,labels=labels,hidefigs=hide,nvecs=len(elems)-1)
-
-    if not hide:
-        plt.show()
+        plot_element_eigvec(eigvecs,savenames,labels=labels,hidefigs=hide,nvecs=nvecs)
 
 
 

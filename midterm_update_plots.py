@@ -27,8 +27,8 @@ import matplotlib.pyplot as plt
 import apogee.spec.plot as aplt
 import access_spectrum as acs
 import polyfit as pf
+import statsmodels.nonparametric.smoothers_lowess as sm
 from residuals import windowPixels,windowPeaks
-from lowess import lowess
 import matplotlib.patheffects as path_effects
 
 font = {'family' : 'serif',
@@ -148,10 +148,10 @@ def plot_res(model,plot,figsize=16.,alpha=0.5,elem=False,fitdata=False,mockdata=
                 plt.plot(sortedindep,sortedspec,'.',alpha=alpha,label='spectra data',color='b')
                 if median:
                     smoothedfit = np.ma.masked_array(np.zeros(sortedpoly.shape))
-                    smoothedfit[sortedindep.mask==False] = lowess(sortedindep[sortedindep.mask == False], sortedpoly[sortedpoly.mask==False], f=2./3., iter=3)
+                    smoothedfit[sortedindep.mask==False] = sm.lowess(sortedindep[sortedindep.mask == False], sortedpoly[sortedpoly.mask==False], frac=2./3., it=3,return_sorted=False)
                     plt.plot(sortedindep,smoothedfit,'w-',linewidth=3,label='fit median',path_effects=[path_effects.withStroke(linewidth=5, foreground="k")])
                     smootheddat = np.ma.masked_array(np.zeros(sortedspec.shape))
-                    smootheddat[sortedindep.mask==False] = lowess(sortedindep[sortedindep.mask == False], sortedspec[sortedspec.mask==False], f=7./8., iter=2)
+                    smootheddat[sortedindep.mask==False] = sm.lowess(sortedindep[sortedindep.mask == False], sortedspec[sortedspec.mask==False], frac=7./8., it=2,return_sorted=False)
                     plt.plot(sortedindep,smootheddat,'k--',linewidth=3,label='data median',path_effects=[path_effects.withStroke(linewidth=5, foreground="w")])
                 plt.xlim(min(indep),max(indep))
                 if col == 0:
