@@ -277,7 +277,7 @@ def _solve(A, b, w):
     
 #-------------------------------------------------------------------------
 
-def empca(data, weights=None, deltR2=0,niter=25, nvec=5, smooth=0, randseed=1, silent=False, mad=True):
+def empca(data, weights=None, deltR2=0,niter=25, nvec=5, smooth=0, randseed=1, silent=True, mad=True):
     """
     Iteratively solve data[i] = Sum_j: c[i,j] p[j] using weights
     

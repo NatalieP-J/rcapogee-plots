@@ -1,11 +1,12 @@
 """
 
 Usage:
-run_empca [-hvgxup] [-m FNAME] [-d DELTR] [-n NVECS]
+run_empca [-hvgxups] [-m FNAME] [-d DELTR] [-n NVECS]
 
 Options:
     -h, --help
     -v, --verbose
+    -s, --silent
     -g, --generate                  Option to generate everything from scratch.
     -u, --usemad                    Option to use M.A.D. instead of variance.
     -p, --plot                      Option to generate plots
@@ -55,10 +56,8 @@ def pix_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,nsta
         sigmas = errs.T[goodpix].T
         weights=basicweights
         weights[mask] = 1./sigmas[mask]**2
-        silent=True
         if verbose:
             print 'nans ',np.where(np.isnan(weights)==True)
-            silent=False
         empcamodel_weight,runtime2 = timeIt(empca,empca_res.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad,silent=silent)
         if verbose:
             print 'Pixel runtime (unweighted):\t', runtime1/60.,' min'
@@ -89,10 +88,8 @@ def elem_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,del
         empcamodel,runtime1 = timeIt(empca,residual.T.data,weights = basicweights,nvec=nvecs,deltR2=deltR2,mad=usemad)
         weights=basicweights
         weights[mask] = 1./errs.T[mask]**2
-        silent=True
         if verbose:
             print 'nan ',np.where(np.isnan(weights)==True)
-            silent=False
         empcamodel_weight,runtime2 = timeIt(empca,residual.T.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad,silent=silent)
         if verbose:
             print 'Element runtime (unweighted):\t', runtime1/60.,' min'
@@ -251,6 +248,7 @@ if __name__=='__main__':
     arguments = docopt.docopt(__doc__)
 
     verbose = arguments['--verbose']
+    silent = arguments['--silent']
     gen = arguments['--generate']
     usemad = arguments['--usemad']
     doplot = arguments['--plot']
@@ -283,13 +281,13 @@ if __name__=='__main__':
             R2vals2 = R2(m2,usemad=usemad)
             
             try:
-                nvecs_required1 = np.where(abs(R2vals1-R2noiseval1)<1e-5)[0][0]
+                nvecs_required1 = np.where(R2vals1 > R2noiseval1)[0][0]
                 if nvecs_required1 > 0:
                     nvecs_required1 -= 1
             except IndexError:
                 nvecs_required1 = 'more than '+str(nvecs)
             try:
-                nvecs_required2 = np.where(abs(R2vals2-R2noiseval2)<1e-5)[0][0]
+                nvecs_required2 = np.where(R2vals2 > R2noiseval2)[0][0]
                 if nvecs_required2 > 0:
                     nvecs_required2 -= 1
             except IndexError:
@@ -308,13 +306,13 @@ if __name__=='__main__':
             R2vals4 = R2(m4,usemad=usemad)
             
             try:
-                nvecs_required3 = np.where(abs(R2vals3-R2noiseval3)<1e-5)[0][0]
+                nvecs_required3 = np.where(R2vals3 > R2noiseval3)[0][0]
                 if nvecs_required3 > 0:
                     nvecs_required3 -= 1
             except IndexError:
                 nvecs_required3 = 'more than '+str(nvecs)
             try:
-                nvecs_required4 = np.where(abs(R2vals4-R2noiseval4)<1e-5)[0][0]
+                nvecs_required4 = np.where(R2vals4 > R2noiseval4)[0][0]
                 if nvecs_required4 > 0:
                     nvecs_required4 -= 1
             except IndexError:
@@ -361,6 +359,21 @@ if __name__=='__main__':
         R2noiseval1 = R2noise(w1,m1,usemad=usemad)
         R2noiseval2 = R2noise(w2,m2,usemad=usemad)
 
+        R2vals1 = R2(m1,usemad=usemad)
+        R2vals2 = R2(m2,usemad=usemad)
+    
+        try:
+            nvecs_required1 = np.where(R2vals1 > R2noiseval1)[0][0]
+            if nvecs_required1 > 0:
+                nvecs_required1 -= 1
+        except IndexError:
+            nvecs_required1 = 'more than '+str(nvecs)
+        try:
+            nvecs_required2 = np.where(R2vals2 > R2noiseval2)[0][0]
+            if nvecs_required2 > 0:
+                nvecs_required2 -= 1
+        except IndexError:
+            nvecs_required2 = 'more than '+str(nvecs)
 
         if verbose:
             print 'ELEMENT SPACE'
@@ -370,6 +383,30 @@ if __name__=='__main__':
         
         R2noiseval3 = R2noise(w3,m3,usemad=usemad)
         R2noiseval4 = R2noise(w4,m4,usemad=usemad)
+
+        R2vals3 = R2(m3,usemad=usemad)
+        R2vals4 = R2(m4,usemad=usemad)
+        
+        try:
+            nvecs_required3 = np.where(R2vals3 > R2noiseval3)[0][0]
+            if nvecs_required3 > 0:
+                nvecs_required3 -= 1
+        except IndexError:
+            nvecs_required3 = 'more than '+str(nvecs)
+        try:
+            nvecs_required4 = np.where(R2vals4 > R2noiseval4)[0][0]
+            if nvecs_required4 > 0:
+                nvecs_required4 -= 1
+        except IndexError:
+            nvecs_required4 = 'more than '+str(nvecs)
+            
+        if verbose:
+            print 'space \t weight type \t R2_noise \t number of vectors'
+            print 'pixel \t basic weight \t ',R2noiseval1,' \t ',nvecs_required1
+            print 'pixel \t error weight \t ',R2noiseval2,' \t ',nvecs_required2
+            print 'elem \t basic weight \t ',R2noiseval3,' \t ',nvecs_required3
+            print 'elem \t error weight \t ',R2noiseval4,' \t ',nvecs_required4
+
 
         if doplot:
             labels = ['Unweighted EMPCA - raw','Weighted EMPCA - raw']
