@@ -283,13 +283,13 @@ if __name__=='__main__':
             R2vals2 = R2(m2,usemad=usemad)
             
             try:
-                nvecs_required1 = np.where(R2vals1>R2noiseval1)[0][0]
+                nvecs_required1 = np.where(abs(R2vals1-R2noiseval1)<1e-5)[0][0]
                 if nvecs_required1 > 0:
                     nvecs_required1 -= 1
             except IndexError:
                 nvecs_required1 = 'more than '+str(nvecs)
             try:
-                nvecs_required2 = np.where(R2vals2>R2noiseval2)[0][0]
+                nvecs_required2 = np.where(abs(R2vals2-R2noiseval2)<1e-5)[0][0]
                 if nvecs_required2 > 0:
                     nvecs_required2 -= 1
             except IndexError:
@@ -308,13 +308,13 @@ if __name__=='__main__':
             R2vals4 = R2(m4,usemad=usemad)
             
             try:
-                nvecs_required3 = np.where(R2vals3>R2noiseval3)[0][0]
+                nvecs_required3 = np.where(abs(R2vals3-R2noiseval3)<1e-5)[0][0]
                 if nvecs_required3 > 0:
                     nvecs_required3 -= 1
             except IndexError:
                 nvecs_required3 = 'more than '+str(nvecs)
             try:
-                nvecs_required4 = np.where(R2vals4>R2noiseval4)[0][0]
+                nvecs_required4 = np.where(abs(R2vals4-R2noiseval4)<1e-5)[0][0]
                 if nvecs_required4 > 0:
                     nvecs_required4 -= 1
             except IndexError:
