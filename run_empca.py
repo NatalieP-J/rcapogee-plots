@@ -29,7 +29,6 @@ import os
 import polyfit as pf
 
 elems = ['Al','Ca','C','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
-#elems = ['C','Fe','K','Mg','Ni','N','O','Si','S']
 aspcappix = 7214
 default_colors = {0:'b',1:'g',2:'r',3:'c'}
 default_markers = {0:'o',1:'s',2:'v',3:'D'}
@@ -40,7 +39,7 @@ def pix_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,nsta
     Runs EMPCA on a set of residuals with dimension of aspcappix.
     """
     if os.path.isfile(empcaname) and not gen:
-        empcamodel,empcamodel_weight,weights = acs.pklread(empcaname)
+        empcamodel,empcamodel_weight,basicweights = acs.pklread(empcaname)
     elif not os.path.isfile(empcaname) or gen:
         # Identify pixels at which there are more than nstars stars
         goodpix = ([i for i in range(aspcappix) if np.sum(residual[i].mask) < residual.shape[1]-nstars],)
@@ -50,8 +49,8 @@ def pix_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,nsta
         empca_res = residual[goodpix].T
         # Create a set of weights for EMPCA, setting weight to zero if value is masked
         mask = (empca_res.mask==False)
-        weights = mask.astype(float)
-        empcamodel,runtime1 = timeIt(empca,empca_res.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad)
+        basicweights = mask.astype(float)
+        empcamodel,runtime1 = timeIt(empca,empca_res.data,weights = basicweights,nvec=nvecs,deltR2=deltR2,mad=usemad)
         # Change weights to incorporate flux uncertainties
         sigmas = errs.T[goodpix].T
         weights[mask] = 1./sigmas[mask]**2
@@ -63,8 +62,8 @@ def pix_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,nsta
         if verbose:
             print 'Pixel runtime (unweighted):\t', runtime1/60.,' min'
             print 'Pixel runtime (weighted):\t', runtime2/60.,' min'
-        acs.pklwrite(empcaname,[empcamodel,empcamodel_weight,weights])
-    return empcamodel,empcamodel_weight,weights
+        acs.pklwrite(empcaname,[empcamodel,empcamodel_weight,basicweights,weights])
+    return empcamodel,empcamodel_weight,basicweights,weights
 
 def resize_pix_eigvecs(residual,empcamodel,nstars=5):
     goodpix = ([i for i in range(aspcappix) if np.sum(residual[i].mask) < residual.shape[1]-nstars],)
@@ -82,11 +81,11 @@ def elem_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,del
     if nvecs > len(elems):
         nvecs = len(elems) - 1
     if os.path.isfile(empcaname) and not gen:
-        empcamodel,empcamodel_weight,weights = acs.pklread(empcaname)
+        empcamodel,empcamodel_weight,basicweights,weights = acs.pklread(empcaname)
     elif not os.path.isfile(empcaname) or gen:
         mask = (residual.T.mask==False)
-        weights = mask.astype(float)
-        empcamodel,runtime1 = timeIt(empca,residual.T.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad)
+        basicweights = mask.astype(float)
+        empcamodel,runtime1 = timeIt(empca,residual.T.data,weights = basicweights,nvec=nvecs,deltR2=deltR2,mad=usemad)
         weights[mask] = 1./errs.T[mask]**2
         silent=True
         if verbose:
@@ -96,8 +95,8 @@ def elem_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,del
         if verbose:
             print 'Element runtime (unweighted):\t', runtime1/60.,' min'
             print 'Element runtime (weighted):\t', runtime2/60.,' min'
-        acs.pklwrite(empcaname,[empcamodel,empcamodel_weight,weights])
-    return empcamodel,empcamodel_weight,weights
+        acs.pklwrite(empcaname,[empcamodel,empcamodel_weight,basicweights,weights])
+    return empcamodel,empcamodel_weight,basicweights,weights
 
 def R2noise(weights,empcamodel,usemad=True):
     """
@@ -169,7 +168,7 @@ def weight_residual(model,numstars,plot=True,subgroup=False):
     return weighted,weightedsigs
 
 def plot_R2(empcamodels,weights,ptitle,savename,labels=None,nvecs=5,usemad=True,hide=True):
-    R2noiseval = R2noise(weights,empcamodels[0],usemad=usemad)
+    R2noiseval = R2noise(weights,empcamodels[1],usemad=usemad)
     vec_vals = range(0,nvecs+1)
     plt.figure(figsize=(12,10))
     plt.xlim(0,nvecs)
@@ -273,23 +272,48 @@ if __name__=='__main__':
             if verbose:
                 print 'PIXEL SPACE'
             empcaname = model.outName('pkl',content = 'empca',subgroup=subgroup,order = model.order,seed = model.seed,cross=model.cross,nvecs=nvecs)
-            m1,m2,w1 = pix_empca(model,model.residual[subgroup],model.errs[match],empcaname,nvecs=nvecs,gen=gen,verbose=verbose,nstars=nstars,deltR2=deltR2,usemad=usemad)
+            m1,m2,w1,w2 = pix_empca(model,model.residual[subgroup],model.errs[match],empcaname,nvecs=nvecs,gen=gen,verbose=verbose,nstars=nstars,deltR2=deltR2,usemad=usemad)
             
+            R2noiseval1 = R2noise(w1,m1,usemad=usemad)
+            R2noiseval2 = R2noise(w2,m2,usemad=usemad)
+
+            R2vals1 = R2(m1,usemad=usemad)
+            R2vals2 = R2(m2,usemad=usemad)
+
+            nvecs_required1 = np.where(R2vals1>R2noiseval1)[0][0]-1.
+            nvecs_required2 = np.where(R2vals2>R2noiseval2)[0][0]-1.
+
             if verbose:
                 print 'ELEMENT SPACE'
             residual,errs = weight_residual(model,model.numstars[subgroup],plot=True,subgroup=subgroup)
             empcaname = model.outName('pkl',content = 'empca_element',order = model.order,seed = model.seed,cross=model.cross,subgroup=subgroup,nvecs=nvecs)
-            m3,m4,w2 = elem_empca(model,residual,errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,deltR2=deltR2,usemad=usemad)
+            m3,m4,w3,w4 = elem_empca(model,residual,errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,deltR2=deltR2,usemad=usemad)
             
+            R2noiseval3 = R2noise(w3,m3,usemad=usemad)
+            R2noiseval4 = R2noise(w4,m4,usemad=usemad)
+
+            R2vals3 = R2(m3,usemad=usemad)
+            R2vals4 = R2(m4,usemad=usemad)
+
+            nvecs_required3 = np.where(R2vals3>R2noiseval3)[0][0]-1.
+            nvecs_required4 = np.where(R2vals4>R2noiseval4)[0][0]-1.
+
+            if verbose:
+                print 'space \t weight type \t R2_noise \t number of vectors'
+                print 'pixel \t basic weight \t ',R2noiseval1,' \t ',nvecs_required1
+                print 'pixel \t error weight \t ',R2noiseval2,' \t ',nvecs_required2
+                print 'element \t basic weight \t ',R2noiseval3,' \t ',nvecs_required3
+                print 'element \t error weight \t ',R2noiseval4,' \t ',nvecs_required4
+
             if doplot:
                 labels = ['Unweighted EMPCA - raw','Weighted EMPCA - raw']
                 savename = model.outName('pca',content='pix_empcaR2',subgroup=subgroup,order=model.order,seed=model.seed,cross=model.cross,nvecs=nvecs,mad=usemad)
                 ptitle = 'R2 for {0} from pixel space'.format(subgroup)
-                plot_R2([m1,m2],w1,ptitle,savename,labels=None,nvecs=nvecs,usemad=usemad,hide=hide)
+                plot_R2([m1,m2],w2,ptitle,savename,labels=None,nvecs=nvecs,usemad=usemad,hide=hide)
                 labels = ['Unweighted EMPCA - proc','Weighted EMPCA - proc']
                 savename = model.outName('pca',content='elem_empcaR2',subgroup=subgroup,order=model.order,seed=model.seed,cross=model.cross,nvecs=nvecs,mad=usemad)
                 ptitle = 'R2 for {0} from element space'.format(subgroup)
-                plot_R2([m3,m4],w2,ptitle,savename,labels=None,nvecs=nvecs,usemad=usemad,hide=hide)
+                plot_R2([m3,m4],w4,ptitle,savename,labels=None,nvecs=nvecs,usemad=usemad,hide=hide)
 
             resize_pix_eigvecs(model.residual[subgroup],m1,nstars=nstars)
             resize_pix_eigvecs(model.residual[subgroup],m2,nstars=nstars)
@@ -310,14 +334,21 @@ if __name__=='__main__':
         if verbose:
             print 'PIXEL SPACE'
         empcaname = model.outName('pkl',content = 'empca',order = model.order,seed = model.seed,cross=model.cross,nvecs=nvecs)
-        m1,m2,w1 = pix_empca(model,model.residual,model.errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,nstars=nstars,deltR2=deltR2,usemad=usemad)
+        m1,m2,w1,w2 = pix_empca(model,model.residual,model.errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,nstars=nstars,deltR2=deltR2,usemad=usemad)
         
+        R2noiseval1 = R2noise(w1,m1,usemad=usemad)
+        R2noiseval2 = R2noise(w2,m2,usemad=usemad)
+
+
         if verbose:
             print 'ELEMENT SPACE'
         residual,errs = weight_residual(model,model.numstars,plot=True)
         empcaname = model.outName('pkl',content = 'empca_element',order = model.order,seed = model.seed,cross=model.cross,nvecs=nvecs)
-        m3,m4,w2 = elem_empca(model,residual,errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,deltR2=deltR2,usemad=usemad)
+        m3,m4,w3,w4 = elem_empca(model,residual,errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,deltR2=deltR2,usemad=usemad)
         
+        R2noiseval3 = R2noise(w3,m3,usemad=usemad)
+        R2noiseval4 = R2noise(w4,m4,usemad=usemad)
+
         if doplot:
             labels = ['Unweighted EMPCA - raw','Weighted EMPCA - raw']
             savename = model.outName('pca',content='pix_empcaR2',order=model.order,seed=model.seed,cross=model.cross,nvecs=nvecs,mad=usemad)
