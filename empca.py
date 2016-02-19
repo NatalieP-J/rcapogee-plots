@@ -340,7 +340,7 @@ def empca(data, weights=None, deltR2=0,niter=25, nvec=5, smooth=0, randseed=1, s
     model.solve_coeffs()
 
     if not silent:
-        print "R2:", model.R2()
+        print "R2:", model.R2(mad=mad)
     
     return model
 

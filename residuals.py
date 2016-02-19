@@ -55,12 +55,15 @@ outdirs = {'pkl':'pickles/',        # Directory to store data in pickled format
            'fit':'fitplots/',        # Directory to store plots from fitting for variables in fitvars
            'res':'residual_plots/',    # Directory to store plots of residuals from fits 
            'plt':'methodplots/'
+           'pca':'empca/'
            }
+
 
 outfile = {'pkl':'.pkl',
            'fit':'.png',
            'res':'.png',
-           'plt':'.png'
+           'plt':'.png',
+           'pca':'.png'
            }
 
 # Functions to access particular sample types
@@ -281,7 +284,7 @@ class Sample:
         matplotlib.rc('font', **font)
 
 
-    def outName(self,filetype,content = '',subgroup = False,order = False,elem = False,pixel = False,seed = False,cross=False):
+    def outName(self,filetype,content = '',subgroup = False,order = False,elem = False,pixel = False,seed = False,cross=False,nvecs=False,eigvec=False,mad=None):
         """
         A function to generate output file names.
 
@@ -318,6 +321,12 @@ class Sample:
                     suffix += ']'
         if seed != False:
             suffix += '_seed'+str(seed)
+        if nvecs != False:
+            suffix += '_nvecs'+str(nvecs)
+        if eigvec != False:
+            suffix += '_eigvec'+str(eigvec)
+        if mad != None:
+            suffix += '_MAD'+mad
         if self.correct != False:
             suffix += '_snrCorrect'
         # If data set was cropped, incorporate this in the file name.

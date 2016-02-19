@@ -134,8 +134,8 @@ if __name__ == '__main__':
             print 'rm {0}/pickles/*{1}*{2}*{3}*.pkl'.format(samptype,label,up,low)
             os.system('rm {0}/pickles/*{1}*{2}*{3}*.pkl'.format(samptype,label,up,low))
         elif label == 0:
-            print 'rm {0}/pickes/*.pkl'.format(samptype)
-            os.system('rm {0}/pickes/*.pkl'.format(samptype))
+            print 'rm {0}/pickles/*.pkl'.format(samptype)
+            os.system('rm {0}/pickles/*.pkl'.format(samptype))
 
     # Initialize the starsample
     starsample,runtime = timeIt(Sample,samptype,savestep=savestep,order=order,cross=crossterm,label=label,up=up,low=low,subgroup_type=subgroup_info[0],subgroup_lis=subgroup_info[1:],fontsize=10,plot=[4],correct=correct)
