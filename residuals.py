@@ -54,7 +54,7 @@ elems = ['Al','Ca','C','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
 outdirs = {'pkl':'pickles/',        # Directory to store data in pickled format
            'fit':'fitplots/',        # Directory to store plots from fitting for variables in fitvars
            'res':'residual_plots/',    # Directory to store plots of residuals from fits 
-           'plt':'methodplots/'
+           'plt':'methodplots/',
            'pca':'empca/'
            }
 
@@ -326,7 +326,7 @@ class Sample:
         if eigvec != False:
             suffix += '_eigvec'+str(eigvec)
         if mad != None:
-            suffix += '_MAD'+mad
+            suffix += '_MAD'+str(mad)
         if self.correct != False:
             suffix += '_snrCorrect'
         # If data set was cropped, incorporate this in the file name.

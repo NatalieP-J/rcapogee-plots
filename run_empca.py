@@ -44,7 +44,8 @@ def pix_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,nsta
     elif not os.path.isfile(empcaname) or gen:
         # Identify pixels at which there are more than nstars stars
         goodpix = ([i for i in range(aspcappix) if np.sum(residual[i].mask) < residual.shape[1]-nstars],)
-        print 'badpix, ',len([i for i in range(aspcappix) if i not in goodpix[0]])
+        if verbose:
+            print 'number of unusable pixels, ',len([i for i in range(aspcappix) if i not in goodpix[0]])
         # Create new array to feed to EMPCA with only good pixels
         empca_res = residual[goodpix].T
         # Create a set of weights for EMPCA, setting weight to zero if value is masked
@@ -54,8 +55,11 @@ def pix_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,nsta
         # Change weights to incorporate flux uncertainties
         sigmas = errs.T[goodpix].T
         weights[mask] = 1./sigmas[mask]**2
-        print 'nans ',np.where(np.isnan(weights)==True)
-        empcamodel_weight,runtime2 = timeIt(empca,empca_res.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad)
+        silent=True
+        if verbose:
+            print 'nans ',np.where(np.isnan(weights)==True)
+            silent=False
+        empcamodel_weight,runtime2 = timeIt(empca,empca_res.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad,silent=silent)
         if verbose:
             print 'Pixel runtime (unweighted):\t', runtime1/60.,' min'
             print 'Pixel runtime (weighted):\t', runtime2/60.,' min'
@@ -84,8 +88,11 @@ def elem_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,del
         weights = mask.astype(float)
         empcamodel,runtime1 = timeIt(empca,residual.T.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad)
         weights[mask] = 1./errs.T[mask]**2
-        print 'nan ',np.where(np.isnan(weights)==True)
-        empcamodel_weight,runtime2 = timeIt(empca,residual.T.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad)
+        silent=True
+        if verbose:
+            print 'nan ',np.where(np.isnan(weights)==True)
+            silent=False
+        empcamodel_weight,runtime2 = timeIt(empca,residual.T.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad,silent=silent)
         if verbose:
             print 'Element runtime (unweighted):\t', runtime1/60.,' min'
             print 'Element runtime (weighted):\t', runtime2/60.,' min'
@@ -101,7 +108,8 @@ def R2noise(weights,empcamodel,usemad=True):
     elif not usemad:
         var = empcamodel._unmasked_data_var
     Vnoise = np.mean(1./(weights[weights!=0]))
-    print 'var, Vnoise ',var,Vnoise
+    if verbose:
+        print 'var, Vnoise ',var,Vnoise
     return 1-(Vnoise/var)
 
 def R2(empcamodel,usemad=True):
@@ -145,7 +153,8 @@ def weight_residual(model,numstars,plot=True,subgroup=False):
                                                         subgroup=subgroup,
                                                         cross=model.cross))
         weighteds = np.sqrt(np.ma.sum(sigma**2*np.tile(pf.normweights(elemwindows[elem])**2,(sigma.shape[1],1)).T,axis=0))
-        savename = model.outName('pkl','sigma',elem=elem,order=model.order,subgroup,cross=model.cross)
+        weighteds = np.ma.masked_array(weighteds,mask=weightedr.mask)
+        savename = model.outName('pkl',content='sigma',elem=elem,order=model.order,subgroup=subgroup,cross=model.cross)
         acs.pklwrite(savename,weighteds)
         if plot:
             doubleResidualHistPlot(elem,weightedr[weightedr.mask==False],weighteds[weighteds.mask==False],
@@ -256,11 +265,18 @@ if __name__=='__main__':
     if model.subgroups[0] != False:
         for subgroup in model.subgroups:
             
+            if verbose:
+                print subgroup
+            
             match = np.where(model.data[model.subgroup]==subgroup)
             
+            if verbose:
+                print 'PIXEL SPACE'
             empcaname = model.outName('pkl',content = 'empca',subgroup=subgroup,order = model.order,seed = model.seed,cross=model.cross,nvecs=nvecs)
             m1,m2,w1 = pix_empca(model,model.residual[subgroup],model.errs[match],empcaname,nvecs=nvecs,gen=gen,verbose=verbose,nstars=nstars,deltR2=deltR2,usemad=usemad)
             
+            if verbose:
+                print 'ELEMENT SPACE'
             residual,errs = weight_residual(model,model.numstars[subgroup],plot=True,subgroup=subgroup)
             empcaname = model.outName('pkl',content = 'empca_element',order = model.order,seed = model.seed,cross=model.cross,subgroup=subgroup,nvecs=nvecs)
             m3,m4,w2 = elem_empca(model,residual,errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,deltR2=deltR2,usemad=usemad)
@@ -291,9 +307,13 @@ if __name__=='__main__':
 
     elif model.subgroups[0] == False:
         
+        if verbose:
+            print 'PIXEL SPACE'
         empcaname = model.outName('pkl',content = 'empca',order = model.order,seed = model.seed,cross=model.cross,nvecs=nvecs)
         m1,m2,w1 = pix_empca(model,model.residual,model.errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,nstars=nstars,deltR2=deltR2,usemad=usemad)
         
+        if verbose:
+            print 'ELEMENT SPACE'
         residual,errs = weight_residual(model,model.numstars,plot=True)
         empcaname = model.outName('pkl',content = 'empca_element',order = model.order,seed = model.seed,cross=model.cross,nvecs=nvecs)
         m3,m4,w2 = elem_empca(model,residual,errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,deltR2=deltR2,usemad=usemad)
