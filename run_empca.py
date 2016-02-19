@@ -53,6 +53,7 @@ def pix_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,nsta
         empcamodel,runtime1 = timeIt(empca,empca_res.data,weights = basicweights,nvec=nvecs,deltR2=deltR2,mad=usemad)
         # Change weights to incorporate flux uncertainties
         sigmas = errs.T[goodpix].T
+        weights=basicweights
         weights[mask] = 1./sigmas[mask]**2
         silent=True
         if verbose:
@@ -86,6 +87,7 @@ def elem_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,del
         mask = (residual.T.mask==False)
         basicweights = mask.astype(float)
         empcamodel,runtime1 = timeIt(empca,residual.T.data,weights = basicweights,nvec=nvecs,deltR2=deltR2,mad=usemad)
+        weights=basicweights
         weights[mask] = 1./errs.T[mask]**2
         silent=True
         if verbose:
@@ -115,9 +117,9 @@ def R2(empcamodel,usemad=True):
     """
     For a given EMPCA model object, fill an array with R2 values for a set number of eigenvectors
     """
-    nvecs = len(empcamodel.eigvec)
-    R2_arr = np.zeros(nvecs+1)
-    for vec in range(nvecs+1):
+    vecs = len(empcamodel.eigvec)
+    R2_arr = np.zeros(vecs+1)
+    for vec in range(vecs+1):
         R2_arr[vec] = empcamodel.R2(vec,mad=usemad)
     return R2_arr
 
@@ -279,9 +281,19 @@ if __name__=='__main__':
 
             R2vals1 = R2(m1,usemad=usemad)
             R2vals2 = R2(m2,usemad=usemad)
-
-            nvecs_required1 = np.where(R2vals1>R2noiseval1)[0][0]-1.
-            nvecs_required2 = np.where(R2vals2>R2noiseval2)[0][0]-1.
+            
+            try:
+                nvecs_required1 = np.where(R2vals1>R2noiseval1)[0][0]
+                if nvecs_required1 > 0:
+                    nvecs_required1 -= 1
+            except IndexError:
+                nvecs_required1 = 'more than '+str(nvecs)
+            try:
+                nvecs_required2 = np.where(R2vals2>R2noiseval2)[0][0]
+                if nvecs_required2 > 0:
+                    nvecs_required2 -= 1
+            except IndexError:
+                nvecs_required2 = 'more than '+str(nvecs)
 
             if verbose:
                 print 'ELEMENT SPACE'
@@ -294,16 +306,26 @@ if __name__=='__main__':
 
             R2vals3 = R2(m3,usemad=usemad)
             R2vals4 = R2(m4,usemad=usemad)
-
-            nvecs_required3 = np.where(R2vals3>R2noiseval3)[0][0]-1.
-            nvecs_required4 = np.where(R2vals4>R2noiseval4)[0][0]-1.
+            
+            try:
+                nvecs_required3 = np.where(R2vals3>R2noiseval3)[0][0]
+                if nvecs_required3 > 0:
+                    nvecs_required3 -= 1
+            except IndexError:
+                nvecs_required3 = 'more than '+str(nvecs)
+            try:
+                nvecs_required4 = np.where(R2vals4>R2noiseval4)[0][0]
+                if nvecs_required4 > 0:
+                    nvecs_required4 -= 1
+            except IndexError:
+                nvecs_required4 = 'more than '+str(nvecs)
 
             if verbose:
                 print 'space \t weight type \t R2_noise \t number of vectors'
                 print 'pixel \t basic weight \t ',R2noiseval1,' \t ',nvecs_required1
                 print 'pixel \t error weight \t ',R2noiseval2,' \t ',nvecs_required2
-                print 'element \t basic weight \t ',R2noiseval3,' \t ',nvecs_required3
-                print 'element \t error weight \t ',R2noiseval4,' \t ',nvecs_required4
+                print 'elem \t basic weight \t ',R2noiseval3,' \t ',nvecs_required3
+                print 'elem \t error weight \t ',R2noiseval4,' \t ',nvecs_required4
 
             if doplot:
                 labels = ['Unweighted EMPCA - raw','Weighted EMPCA - raw']
