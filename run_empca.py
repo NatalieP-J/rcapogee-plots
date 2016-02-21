@@ -29,6 +29,7 @@ import access_spectrum as acs
 import os
 import polyfit as pf
 
+verbose=False
 elems = ['Al','Ca','C','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
 aspcappix = 7214
 default_colors = {0:'b',1:'g',2:'r',3:'c'}
@@ -271,7 +272,7 @@ if __name__=='__main__':
             
             if verbose:
                 print 'PIXEL SPACE'
-            empcaname = model.outName('pkl',content = 'empca',subgroup=subgroup,order = model.order,seed = model.seed,cross=model.cross,nvecs=nvecs)
+            empcaname = model.outName('pkl',content = 'empca',subgroup=subgroup,order = model.order,seed = model.seed,cross=model.cross,nvecs=nvecs,mad=usemad)
             m1,m2,w1,w2 = pix_empca(model,model.residual[subgroup],model.errs[match],empcaname,nvecs=nvecs,gen=gen,verbose=verbose,nstars=nstars,deltR2=deltR2,usemad=usemad)
             
             R2noiseval1 = R2noise(w1,m1,usemad=usemad)
@@ -296,7 +297,7 @@ if __name__=='__main__':
             if verbose:
                 print 'ELEMENT SPACE'
             residual,errs = weight_residual(model,model.numstars[subgroup],plot=True,subgroup=subgroup)
-            empcaname = model.outName('pkl',content = 'empca_element',order = model.order,seed = model.seed,cross=model.cross,subgroup=subgroup,nvecs=nvecs)
+            empcaname = model.outName('pkl',content = 'empca_element',order = model.order,seed = model.seed,cross=model.cross,subgroup=subgroup,nvecs=nvecs,mad=usemad)
             m3,m4,w3,w4 = elem_empca(model,residual,errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,deltR2=deltR2,usemad=usemad)
             
             R2noiseval3 = R2noise(w3,m3,usemad=usemad)
@@ -353,7 +354,7 @@ if __name__=='__main__':
         
         if verbose:
             print 'PIXEL SPACE'
-        empcaname = model.outName('pkl',content = 'empca',order = model.order,seed = model.seed,cross=model.cross,nvecs=nvecs)
+        empcaname = model.outName('pkl',content = 'empca',order = model.order,seed = model.seed,cross=model.cross,nvecs=nvecs,mad=usemad)
         m1,m2,w1,w2 = pix_empca(model,model.residual,model.errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,nstars=nstars,deltR2=deltR2,usemad=usemad)
         
         R2noiseval1 = R2noise(w1,m1,usemad=usemad)
@@ -378,7 +379,7 @@ if __name__=='__main__':
         if verbose:
             print 'ELEMENT SPACE'
         residual,errs = weight_residual(model,model.numstars,plot=True)
-        empcaname = model.outName('pkl',content = 'empca_element',order = model.order,seed = model.seed,cross=model.cross,nvecs=nvecs)
+        empcaname = model.outName('pkl',content = 'empca_element',order = model.order,seed = model.seed,cross=model.cross,nvecs=nvecs,mad=usemad)
         m3,m4,w3,w4 = elem_empca(model,residual,errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,deltR2=deltR2,usemad=usemad)
         
         R2noiseval3 = R2noise(w3,m3,usemad=usemad)
