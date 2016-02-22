@@ -29,7 +29,8 @@ import access_spectrum as acs
 import os
 import polyfit as pf
 
-verbose=False
+silent=False
+verbose=True
 elems = ['Al','Ca','C','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
 aspcappix = 7214
 default_colors = {0:'b',1:'g',2:'r',3:'c'}
@@ -66,17 +67,19 @@ def pix_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,nsta
         acs.pklwrite(empcaname,[empcamodel,empcamodel_weight,basicweights,weights])
     return empcamodel,empcamodel_weight,basicweights,weights
 
-def resize_pix_eigvecs(residual,empcamodel,nstars=5):
+def resize_pix_eigvecs(residual,empcamodel,nstars=5,nvecs=5):
     goodpix = ([i for i in range(aspcappix) if np.sum(residual[i].mask) < residual.shape[1]-nstars],)
-    badpix = ([i for i in range(aspcappix) if i not in goodpix],)
     # Resize eigenvectors appropriately and mask missing elements
-    empcamodel.eigvec.resize((nvecs,aspcappix))
+    #empcamodel.eigvec.resize((nvecs,aspcappix))
+    empcamodel.neweigvec = np.ma.masked_array(np.zeros((nvecs,aspcappix)))
     for ind in range(len(elems)):
         for vec in range(nvecs):
-            newvec = np.ma.masked_array(np.zeros((aspcappix)),mask = np.zeros((aspcappix)))
+            newvec = np.ma.masked_array(np.zeros((aspcappix)),mask = np.ones((aspcappix)))
             newvec[goodpix] = empcamodel.eigvec[vec][:len(goodpix[0])]
-            newvec.mask[badpix] = 1
-            empcamodel.eigvec[vec] = newvec
+            newvec.mask[goodpix] = 0
+            empcamodel.neweigvec[vec] = newvec
+    empcamodel.eigvec=empcamodel.neweigvec
+    plt.show()
 
 def elem_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,deltR2=0,usemad=True):
     if nvecs > len(elems):
@@ -336,8 +339,8 @@ if __name__=='__main__':
                 ptitle = 'R2 for {0} from element space'.format(subgroup)
                 plot_R2([m3,m4],w4,ptitle,savename,labels=None,nvecs=nvecs,usemad=usemad,hide=hide)
 
-            resize_pix_eigvecs(model.residual[subgroup],m1,nstars=nstars)
-            resize_pix_eigvecs(model.residual[subgroup],m2,nstars=nstars)
+            resize_pix_eigvecs(model.residual[subgroup],m1,nstars=nstars,nvecs=nvecs)
+            resize_pix_eigvecs(model.residual[subgroup],m2,nstars=nstars,nvecs=nvecs)
 
             newm1 = weight_eigvec(model,nvecs,m1)
             newm2 = weight_eigvec(model,nvecs,m2)
@@ -419,8 +422,8 @@ if __name__=='__main__':
             ptitle = 'R2 from element space'
             plot_R2([m3,m4],w2,ptitle,savename,labels=None,nvecs=nvecs,usemad=usemad,hide=hide)
 
-        resize_pix_eigvecs(model.residual,m1,nstars=nstars)
-        resize_pix_eigvecs(model.residual,m2,nstars=nstars)
+        resize_pix_eigvecs(model.residual,m1,nstars=nstars,nvecs=nvecs)
+        resize_pix_eigvecs(model.residual,m2,nstars=nstars,nvecs=nvecs)
 
         newm1 = weight_eigvec(model,nvecs,m1)
         newm2 = weight_eigvec(model,nvecs,m2)

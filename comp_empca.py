@@ -47,9 +47,6 @@ if __name__=='__main__':
 
     pcolours = gen_colours(len(pixinds)*2)
 
-    nvecs = len(models[0][0].eigvec)
-    vec_vals = range(0,nvecs+1)
-
     plt.figure(1,figsize=(16,9))
 
     cind = 0
@@ -62,12 +59,15 @@ if __name__=='__main__':
         if 'MADTrue' in filelist[p]:
             label += ' M.A.D.'
             mad = True
+        nvecs = len(models[p][0].eigvec)
+        vec_vals = range(0,nvecs+1)
         R2vals1 = R2(models[p][0],usemad=mad)
         R2vals2 = R2(models[p][1],usemad=mad)
         R2n = R2noise(models[p][-1],models[p][1],usemad=mad)
         plt.figure(1)
         plt.subplot2grid((2,4),(0,sind))
         plt.ylim(0,1)
+        plt.xlim(0,nvecs)
         plt.ylabel('R2')
         plt.xlabel('Number of EMPCA vectors')
         plt.axhline(R2n,linestyle='--',color = 'k')
@@ -76,6 +76,7 @@ if __name__=='__main__':
         plt.legend(loc='best',fontsize=10,title='R2_noise = {0:2f}'.format(R2n))
         plt.subplot2grid((2,4),(1,sind))
         plt.ylim(0,1)
+        plt.xlim(0,nvecs)
         plt.ylabel('R2')
         plt.xlabel('Number of EMPCA vectors')
         plt.axhline(R2n,linestyle='--',color = 'k')
