@@ -68,35 +68,36 @@ def pix_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,nsta
     return empcamodel,empcamodel_weight,basicweights,weights
 
 def resize_pix_eigvecs(residual,empcamodel,dim2=aspcappix,nstars=5,nvecs=5):
-    goodd = ([i for i in range(dim2) if np.sum(residual[i].mask) < residual.shape[1]-nstars],)
+    good = ([i for i in range(dim2) if np.sum(residual[i].mask) < residual.shape[1]-nstars],)
     # Resize eigenvectors appropriately and mask missing elements
     #empcamodel.eigvec.resize((nvecs,aspcappix))
     empcamodel.neweigvec = np.ma.masked_array(np.zeros((nvecs,dim2)))
     for ind in range(len(elems)):
         for vec in range(nvecs):
             newvec = np.ma.masked_array(np.zeros((dim2)),mask = np.ones((dim2)))
-            newvec[goodpix] = empcamodel.eigvec[vec][:len(good[0])]
-            newvec.mask[goodpix] = 0
+            newvec[good] = empcamodel.eigvec[vec][:len(good[0])]
+            newvec.mask[good] = 0
             empcamodel.neweigvec[vec] = newvec
     empcamodel.eigvec=empcamodel.neweigvec
     plt.show()
 
-def elem_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,deltR2=0,usemad=True):
+def elem_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,deltR2=0,usemad=True,nstars=5):
     if nvecs > len(elems):
         nvecs = len(elems) - 1
     if os.path.isfile(empcaname) and not gen:
         empcamodel,empcamodel_weight,basicweights,weights = acs.pklread(empcaname)
     elif not os.path.isfile(empcaname) or gen:
-        goodelem = ([i for i in range(len(elems)) if np.sum(residual[i].mask) < residual.shape[1]-nstar])
+        goodelem = ([i for i in range(len(elems)) if np.sum(residual[i].mask) < residual.shape[1]-nstars])
         empca_res = residual[goodelem].T
-        mask = (residual.T.mask==False)
+        noise = errs[goodelem].T
+        mask = (empca_res.mask==False)
         basicweights = mask.astype(float)
-        empcamodel,runtime1 = timeIt(empca,residual.T.data,weights = basicweights,nvec=nvecs,deltR2=deltR2,mad=usemad)
+        empcamodel,runtime1 = timeIt(empca,empca_res,weights = basicweights,nvec=nvecs,deltR2=deltR2,mad=usemad)
         weights=basicweights
-        weights[mask] = 1./errs.T[mask]**2
+        weights[mask] = 1./noise[mask]**2
         if verbose:
             print 'nan ',np.where(np.isnan(weights)==True)
-        empcamodel_weight,runtime2 = timeIt(empca,residual.T.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad,silent=silent)
+        empcamodel_weight,runtime2 = timeIt(empca,empca_res,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad,silent=silent)
         if verbose:
             print 'Element runtime (unweighted):\t', runtime1/60.,' min'
             print 'Element runtime (weighted):\t', runtime2/60.,' min'
