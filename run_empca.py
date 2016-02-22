@@ -67,15 +67,15 @@ def pix_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,nsta
         acs.pklwrite(empcaname,[empcamodel,empcamodel_weight,basicweights,weights])
     return empcamodel,empcamodel_weight,basicweights,weights
 
-def resize_pix_eigvecs(residual,empcamodel,nstars=5,nvecs=5):
-    goodpix = ([i for i in range(aspcappix) if np.sum(residual[i].mask) < residual.shape[1]-nstars],)
+def resize_pix_eigvecs(residual,empcamodel,dim2=aspcappix,nstars=5,nvecs=5):
+    goodd = ([i for i in range(dim2) if np.sum(residual[i].mask) < residual.shape[1]-nstars],)
     # Resize eigenvectors appropriately and mask missing elements
     #empcamodel.eigvec.resize((nvecs,aspcappix))
-    empcamodel.neweigvec = np.ma.masked_array(np.zeros((nvecs,aspcappix)))
+    empcamodel.neweigvec = np.ma.masked_array(np.zeros((nvecs,dim2)))
     for ind in range(len(elems)):
         for vec in range(nvecs):
-            newvec = np.ma.masked_array(np.zeros((aspcappix)),mask = np.ones((aspcappix)))
-            newvec[goodpix] = empcamodel.eigvec[vec][:len(goodpix[0])]
+            newvec = np.ma.masked_array(np.zeros((dim2)),mask = np.ones((dim2)))
+            newvec[goodpix] = empcamodel.eigvec[vec][:len(good[0])]
             newvec.mask[goodpix] = 0
             empcamodel.neweigvec[vec] = newvec
     empcamodel.eigvec=empcamodel.neweigvec
@@ -87,6 +87,8 @@ def elem_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,del
     if os.path.isfile(empcaname) and not gen:
         empcamodel,empcamodel_weight,basicweights,weights = acs.pklread(empcaname)
     elif not os.path.isfile(empcaname) or gen:
+        goodelem = ([i for i in range(len(elems)) if np.sum(residual[i].mask) < residual.shape[1]-nstar])
+        empca_res = residual[goodelem].T
         mask = (residual.T.mask==False)
         basicweights = mask.astype(float)
         empcamodel,runtime1 = timeIt(empca,residual.T.data,weights = basicweights,nvec=nvecs,deltR2=deltR2,mad=usemad)
