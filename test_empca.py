@@ -212,7 +212,7 @@ if __name__=='__main__':
     elemlist = elemlist.split(',')
     seeds = arguments['--seed']
     seeds = seeds.split(',')
-    if len(seeds) = 1:
+    if len(seeds) == 1:
         seeds = [seeds[0]]*iters
     else:
         seeds = np.array(seeds).astype(int)
