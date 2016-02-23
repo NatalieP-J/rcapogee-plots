@@ -54,7 +54,7 @@ def arr_weight(elem,arr):
     nws = np.tile(nw,(arr.shape[0],1))
     return np.ma.sum(nws*arr,axis=1)
     
-def test_run(specs,noise,deltR2=2e-3,nvecs=5,mad=True,maxvec=5,seed=seed):
+def test_run(specs,noise,deltR2=2e-3,nvecs=5,mad=True,maxvec=5,seed=1):
     m1,m2,w1,w2 = pix_empca(None,specs.T,noise,'test.pkl',nvecs=nvecs,deltR2=2e-3,gen=True,usemad=mad,randseed=seed)
     R2_1 = R2(m1) #must be here (and not below resize) to avoid error
     R2_2 = R2(m2)
@@ -102,7 +102,7 @@ def test_run(specs,noise,deltR2=2e-3,nvecs=5,mad=True,maxvec=5,seed=seed):
     plt.fill_between(range(nvecs+1),R2_noise4,1,color='r',alpha=0.2)
     plt.legend(loc='best',fontsize=10)
     
-def test_run_comp(specs,noise,iteration,axs,colours,seed=seed,deltR2=2e-3,nvecs=5,mad=True,maxvec=5):
+def test_run_comp(specs,noise,iteration,axs,colours,seed=1,deltR2=2e-3,nvecs=5,mad=True,maxvec=5):
     m1,m2,w1,w2 = pix_empca(None,specs.T,noise,'test.pkl',nvecs=nvecs,deltR2=2e-3,gen=True,usemad=mad,randseed=seed)
     R2_1 = R2(m1) #must be here (and not below resize) to avoid error
     R2_2 = R2(m2)
