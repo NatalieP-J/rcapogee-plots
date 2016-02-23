@@ -130,14 +130,8 @@ def test_run_comp(specs,noise,iteration,axs,colours,seed=1,deltR2=2e-3,nvecs=5,m
     ax1,ax2,ax3,ax4,ax5,ax6,ax7,ax8 = axs
     for n in range(maxvec):
     
-        ax1.axhline(0,linestyle='--',color='k',linewidth=3)
         ax1.plot(norm_eigvec(m1elem[n]),'o',color=colours[iteration],markersize=8,label=iteration)
-        ax1.set_title('Pixel unweighted')
-        ax1.set_xticks(range(len(elems)),elems)
-        ax1.legend(loc='best',fontsize=10)
-        ax1.set_ylabel('Eigenvenctor {0}'.format(n+1))
-        ax1.set_xlim(-1,len(elems)+1)
-        ax1.set_ylim(-1,1)
+
     
         ax2.axhline(0,linestyle='--',color='k',linewidth=3)
         ax2.plot(norm_eigvec(m2elem[n]),'o',color=colours[iteration],markersize=8,label=iteration)
@@ -233,12 +227,16 @@ if __name__=='__main__':
     elif iters != 1:
         f1 = plt.figure(1,figsize=(12,3))
         ax1 = f1.gca()
+        ax1.axhline(0,linestyle='--',color='k',linewidth=3)
         f2 = plt.figure(2,figsize=(12,3))
         ax2 = f2.gca()
+        ax2.axhline(0,linestyle='--',color='k',linewidth=3)
         f3 = plt.figure(3,figsize=(12,3))
         ax3 = f3.gca()
+        ax3.axhline(0,linestyle='--',color='k',linewidth=3)
         f4 = plt.figure(4,figsize=(12,3))
         ax4 = f4.gca()
+        ax4.axhline(0,linestyle='--',color='k',linewidth=3)
         f5 = plt.figure(5,figsize=(12,3))
         ax5 = f5.gca()
         f6 = plt.figure(6,figsize=(12,3))
@@ -255,6 +253,33 @@ if __name__=='__main__':
                 print 'All masked'
             elif not np.sum(falsespecs.mask)==falsespecs.shape[0]*falsespecs.shape[1]:
                 axs = test_run_comp(falsespecs,noise,i,axs,colours,maxvec=maxvec,nvecs=nvecs,seed=seeds[i])
+        ax1.legend(loc='best',fontsize=10)
+        ax1.set_ylabel('Eigenvenctor {0}'.format(n+1))
+        ax1.set_xlim(-1,len(elems)+1)
+        ax1.set_ylim(-1,1)
+        ax1.set_title('Pixel unweighted')
+        ax1.set_xticks(range(len(elems)),elems)
+
+        ax2.legend(loc='best',fontsize=10)
+        ax2.set_ylabel('Eigenvenctor {0}'.format(n+1))
+        ax2.set_xlim(-1,len(elems)+1)
+        ax2.set_ylim(-1,1)
+        ax2.set_title('Pixel weighted')
+        ax2.set_xticks(range(len(elems)),elems)
+
+        ax3.legend(loc='best',fontsize=10)
+        ax3.set_ylabel('Eigenvenctor {0}'.format(n+1))
+        ax3.set_xlim(-1,len(elems)+1)
+        ax3.set_ylim(-1,1)
+        ax3.set_title('Element unweighted')
+        ax3.set_xticks(range(len(elems)),elems)
+
+        ax4.legend(loc='best',fontsize=10)
+        ax4.set_ylabel('Eigenvenctor {0}'.format(n+1))
+        ax4.set_xlim(-1,len(elems)+1)
+        ax4.set_ylim(-1,1)
+        ax4.set_title('Element weighted')
+        ax4.set_xticks(range(len(elems)),elems)
     plt.ioff()
     if hide:
         plt.close('all')
