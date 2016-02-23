@@ -54,8 +54,8 @@ def arr_weight(elem,arr):
     nws = np.tile(nw,(arr.shape[0],1))
     return np.ma.sum(nws*arr,axis=1)
     
-def test_run(specs,noise,deltR2=2e-3,nvecs=5,mad=True,maxvec=5):
-    m1,m2,w1,w2 = pix_empca(None,specs.T,noise,'test.pkl',nvecs=nvecs,deltR2=2e-3,gen=True,usemad=mad)
+def test_run(specs,noise,deltR2=2e-3,nvecs=5,mad=True,maxvec=5,seed=seed):
+    m1,m2,w1,w2 = pix_empca(None,specs.T,noise,'test.pkl',nvecs=nvecs,deltR2=2e-3,gen=True,usemad=mad,randseed=seed)
     R2_1 = R2(m1) #must be here (and not below resize) to avoid error
     R2_2 = R2(m2)
     R2_noise2 = R2noise(w2,m2,usemad=mad)
@@ -73,7 +73,7 @@ def test_run(specs,noise,deltR2=2e-3,nvecs=5,mad=True,maxvec=5):
             m2elem[vec][ind] = vec_weight(elems[ind],m2.eigvec[vec])
     specs_weight.mask[np.where(noise_weight<1e-10)] = True
     noise_weight.mask[np.where(noise_weight<1e-10)] = True
-    m3,m4,w3,w4 = elem_empca(None,specs_weight,noise_weight,'test2.pkl',nvecs=nvecs,gen=True,deltR2=2e-3,usemad=mad)        
+    m3,m4,w3,w4 = elem_empca(None,specs_weight,noise_weight,'test2.pkl',nvecs=nvecs,gen=True,deltR2=2e-3,usemad=mad,randseed=seed)        
     R2_3 = R2(m3)
     R2_4 = R2(m4)
     R2_noise4 = R2noise(w4,m4,usemad=mad)
@@ -102,8 +102,8 @@ def test_run(specs,noise,deltR2=2e-3,nvecs=5,mad=True,maxvec=5):
     plt.fill_between(range(nvecs+1),R2_noise4,1,color='r',alpha=0.2)
     plt.legend(loc='best',fontsize=10)
     
-def test_run_comp(specs,noise,iteration,axs,colours,deltR2=2e-3,nvecs=5,mad=True,maxvec=5):
-    m1,m2,w1,w2 = pix_empca(None,specs.T,noise,'test.pkl',nvecs=nvecs,deltR2=2e-3,gen=True,usemad=mad)
+def test_run_comp(specs,noise,iteration,axs,colours,seed=seed,deltR2=2e-3,nvecs=5,mad=True,maxvec=5):
+    m1,m2,w1,w2 = pix_empca(None,specs.T,noise,'test.pkl',nvecs=nvecs,deltR2=2e-3,gen=True,usemad=mad,randseed=seed)
     R2_1 = R2(m1) #must be here (and not below resize) to avoid error
     R2_2 = R2(m2)
     R2_noise2 = R2noise(w2,m2,usemad=mad)
@@ -121,7 +121,7 @@ def test_run_comp(specs,noise,iteration,axs,colours,deltR2=2e-3,nvecs=5,mad=True
             m2elem[vec][ind] = vec_weight(elems[ind],m2.eigvec[vec])
     specs_weight.mask[np.where(noise_weight<1e-10)] = True
     noise_weight.mask[np.where(noise_weight<1e-10)] = True
-    m3,m4,w3,w4 = elem_empca(None,specs_weight,noise_weight,'test2.pkl',nvecs=nvecs,gen=True,deltR2=2e-3,usemad=mad)        
+    m3,m4,w3,w4 = elem_empca(None,specs_weight,noise_weight,'test2.pkl',nvecs=nvecs,gen=True,deltR2=2e-3,usemad=mad,randseed=seed)        
     R2_3 = R2(m3)
     R2_4 = R2(m4)
     R2_noise4 = R2noise(w4,m4,usemad=mad)
@@ -206,11 +206,16 @@ if __name__=='__main__':
     verbose = arguments['--verbose']
     hide = arguments['--hidefigs']
     iters = int(arguments['--iter'])
-    seed = int(arguments['--seed'])
     nvecs = int(arguments['--nvecs'])
     maxvec = int(arguments['--maxvec'])
     elemlist = arguments['--elems']
     elemlist = elemlist.split(',')
+    seeds = arguments['--seed']
+    seeds = seeds.split(',')
+    if len(seeds) = 1:
+        seeds = [seeds[0]]*iters
+    else:
+        seeds = np.array(seeds).astype(int)
     
     plt.ion()
 
@@ -223,7 +228,7 @@ if __name__=='__main__':
         if np.sum(falsespecs.mask)==falsespecs.shape[0]*falsespecs.shape[1]:
             print 'All masked'
         elif not np.sum(falsespecs.mask)==falsespecs.shape[0]*falsespecs.shape[1]:
-            test_run(falsespecs,noise,maxvec=maxvec,nvecs=nvecs)
+            test_run(falsespecs,noise,maxvec=maxvec,nvecs=nvecs,seed=seeds[0])
 
     elif iters != 1:
         f1 = plt.figure(1,figsize=(12,3))
@@ -249,7 +254,7 @@ if __name__=='__main__':
             if np.sum(falsespecs.mask)==falsespecs.shape[0]*falsespecs.shape[1]:
                 print 'All masked'
             elif not np.sum(falsespecs.mask)==falsespecs.shape[0]*falsespecs.shape[1]:
-                axs = test_run_comp(falsespecs,noise,i,axs,colours,maxvec=maxvec,nvecs=nvecs)
+                axs = test_run_comp(falsespecs,noise,i,axs,colours,maxvec=maxvec,nvecs=nvecs,seed=seeds[i])
     plt.ioff()
     if hide:
         plt.close('all')

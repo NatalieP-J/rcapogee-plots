@@ -53,14 +53,14 @@ def pix_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,nsta
         # Create a set of weights for EMPCA, setting weight to zero if value is masked
         mask = (empca_res.mask==False)
         basicweights = mask.astype(float)
-        empcamodel,runtime1 = timeIt(empca,empca_res.data,weights = basicweights,nvec=nvecs,deltR2=deltR2,mad=usemad,randseed=1)
+        empcamodel,runtime1 = timeIt(empca,empca_res.data,weights = basicweights,nvec=nvecs,deltR2=deltR2,mad=usemad,randseed=randseed)
         # Change weights to incorporate flux uncertainties
         sigmas = errs.T[goodpix].T
         weights=basicweights
         weights[mask] = 1./sigmas[mask]**2
         if verbose:
             print 'nans ',np.where(np.isnan(weights)==True)
-        empcamodel_weight,runtime2 = timeIt(empca,empca_res.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad,randseed=1)
+        empcamodel_weight,runtime2 = timeIt(empca,empca_res.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad,randseed=randseed)
         if verbose:
             print 'Pixel runtime (unweighted):\t', runtime1/60.,' min'
             print 'Pixel runtime (weighted):\t', runtime2/60.,' min'
