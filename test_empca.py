@@ -1,17 +1,17 @@
 """
 
 Usage:
-comp_empca [-hvx] [-i ITER] [-s SEED] [-e ELEMS] [-m MAXVEC] [-n NVECS]
+test_empca [-hvx] [-i ITER] [-s SEED] [-e ELEMS] [-m MAXVEC] [-n NVECS]
 
 Options:
     -h, --help
     -v, --verbose
     -x, --hidefigs                      Option to hide figures
-    -i ITER, --iter ITER                Number of iterations to perform [default:1]
-    -s SEED, --seed SEED                Random seed initializer [default:1]
-    -e ELEMS, --elems ELEMS             List of elements to construct false residuals [default:C]
-    -n NVECS, --nvecs NVECS             Number of eigenvectors to use
-    -m MAXVEC, --maxvec MAXVEC          Maximum number of vectors to display
+    -i ITER, --iter ITER                Number of iterations to perform [default: 1]
+    -s SEED, --seed SEED                Random seed initializer [default: 1]
+    -e ELEMS, --elems ELEMS             List of elements to construct false residuals [default: C]
+    -n NVECS, --nvecs NVECS             Number of eigenvectors to use [default: 5]
+    -m MAXVEC, --maxvec MAXVEC          Maximum number of vectors to display [default: 1]
 """
 
 import matplotlib.pyplot as plt
@@ -19,6 +19,9 @@ import numpy as np
 import access_spectrum as acs
 import polyfit as pf
 import os
+import run_empca
+reload(run_empca)
+from run_empca import *
 
 windowinfo = 'pickles/windowinfo.pkl'
 elemwindows,window_all,window_peak,windowPeaks,windowPixels,tophats = acs.pklread(windowinfo)
@@ -98,7 +101,7 @@ def test_run(specs,noise,deltR2=2e-3,nvecs=5,mad=True,maxvec=5):
     plt.fill_between(range(nvecs+1),R2_noise4,1,color='r',alpha=0.2)
     plt.legend(loc='best',fontsize=10)
     
-def test_run_comp(specs,noise,deltR2=2e-3,nvecs=5,mad=True,maxvec=5):
+def test_run_comp(specs,noise,iteration,deltR2=2e-3,nvecs=5,mad=True,maxvec=5):
     m1,m2,w1,w2 = pix_empca(None,specs.T,noise,'test.pkl',nvecs=nvecs,deltR2=2e-3,gen=True,usemad=mad)
     R2_1 = R2(m1) #must be here (and not below resize) to avoid error
     R2_2 = R2(m2)
@@ -124,70 +127,70 @@ def test_run_comp(specs,noise,deltR2=2e-3,nvecs=5,mad=True,maxvec=5):
     resize_pix_eigvecs(specs_weight,m3,nstars=5,dim2=len(elems),nvecs=nvecs)
     resize_pix_eigvecs(specs_weight,m4,nstars=5,dim2=len(elems),nvecs=nvecs)
     for n in range(maxvec):
-        plt.figure(1,figsize=(12,3))
+        plt.figure(1)
         plt.axhline(0,linestyle='--',color='k',linewidth=3)
-        plt.plot(norm_eigvec(m1elem[n]),'o',markersize=8)
+        plt.plot(norm_eigvec(m1elem[n]),'o',markersize=8,label=iteration)
         plt.title('Pixel unweighted')
         plt.xticks(range(len(elems)),elems)
         plt.legend(loc='best',fontsize=10)
         plt.ylabel('Eigenvenctor {0}'.format(n+1))
         plt.xlim(-1,len(elems)+1)
         plt.ylim(-1,1)
-        plt.figure(2,figsize=(12,3))
+        plt.figure(2)
         plt.axhline(0,linestyle='--',color='k',linewidth=3)
-        plt.plot(norm_eigvec(m2elem[n]),'o',markersize=8)
+        plt.plot(norm_eigvec(m2elem[n]),'o',markersize=8,label=iteration)
         plt.title('Pixel weighted')
         plt.xticks(range(len(elems)),elems)
         plt.legend(loc='best',fontsize=10)
         plt.ylabel('Eigenvenctor {0}'.format(n+1))
         plt.xlim(-1,len(elems)+1)
         plt.ylim(-1,1)
-        plt.figure(3,figsize=(12,3))
+        plt.figure(3)
         plt.axhline(0,linestyle='--',color='k',linewidth=3)
-        plt.plot(norm_eigvec(m3.eigvec[n]),'o',markersize=8)
+        plt.plot(norm_eigvec(m3.eigvec[n]),'o',markersize=8,label=iteration)
         plt.title('Element unweighted')
         plt.xticks(range(len(elems)),elems)
         plt.legend(loc='best',fontsize=10)
         plt.ylabel('Eigenvenctor {0}'.format(n+1))
         plt.xlim(-1,len(elems)+1)
         plt.ylim(-1,1)
-        plt.figure(4,figsize=(12,3))
+        plt.figure(4)
         plt.axhline(0,linestyle='--',color='k',linewidth=3)
-        plt.plot(norm_eigvec(m4.eigvec[n]),'o',markersize=8)
+        plt.plot(norm_eigvec(m4.eigvec[n]),'o',markersize=8,label=iteration)
         plt.title('Element weighted')
         plt.xticks(range(len(elems)),elems)
         plt.legend(loc='best',fontsize=10)
         plt.ylabel('Eigenvenctor {0}'.format(n+1))
         plt.xlim(-1,len(elems)+1)
         plt.ylim(-1,1)
-    plt.figure(5,figsize=(12,3))
+    plt.figure(5)
     plt.title('Pixel unweighted')
     plt.plot(R2_1,marker='o',linewidth = 3,markersize=8)
-    plt.axhline(R2_noise2,linestyle='--',color='b',linewidth=3,label='R2n_pix = {0:2f}'.format(R2_noise2))
+    plt.axhline(R2_noise2,linestyle='--',color='b',linewidth=3,label='i {0} R2n_pix = {1:2f}'.format(iteration,R2_noise2))
     plt.fill_between(range(nvecs+1),R2_noise2,1,color='b',alpha=0.2)
     plt.ylabel('R2')
     plt.xlabel('Number of EMPCA vectors')
     plt.legend(loc='best',fontsize=10)
-    plt.figure(6,figsize=(12,3))
+    plt.figure(6)
     plt.title('Pixel weighted')
     plt.plot(R2_2,marker='o',linewidth = 3,markersize=8)
-    plt.axhline(R2_noise2,linestyle='--',color='b',linewidth=3,label='R2n_pix = {0:2f}'.format(R2_noise2))
+    plt.axhline(R2_noise2,linestyle='--',color='b',linewidth=3,label='i {0} R2n_pix = {1:2f}'.format(iteration,R2_noise2))
     plt.fill_between(range(nvecs+1),R2_noise2,1,color='b',alpha=0.2)
     plt.ylabel('R2')
     plt.xlabel('Number of EMPCA vectors')
     plt.legend(loc='best',fontsize=10)
-    plt.figure(7,figsize=(12,3))
+    plt.figure(7)
     plt.title('Element unweighted')
-    plt.plot(R2_3,marker='o',linewidth = 3,markersize=8,label='Element unweighted')
-    plt.axhline(R2_noise4,linestyle='--',color='r',linewidth=3,label='R2n_elem = {0:2f}'.format(R2_noise4))
+    plt.plot(R2_3,marker='o',linewidth = 3,markersize=8)
+    plt.axhline(R2_noise4,linestyle='--',color='r',linewidth=3,label='i {0} R2n_elem = {1:2f}'.format(iteration,R2_noise4))
     plt.fill_between(range(nvecs+1),R2_noise4,1,color='r',alpha=0.2)
     plt.ylabel('R2')
     plt.xlabel('Number of EMPCA vectors')
     plt.legend(loc='best',fontsize=10)
-    plt.figure(8,figsize=(12,3))
+    plt.figure(8)
     plt.title('Element weighted')
-    plt.plot(R2_4,marker='o',linewidth = 3,markersize=8,label='Element weighted')
-    plt.axhline(R2_noise4,linestyle='--',color='r',linewidth=3,label='R2n_elem = {0:2f}'.format(R2_noise4))
+    plt.plot(R2_4,marker='o',linewidth = 3,markersize=8)
+    plt.axhline(R2_noise4,linestyle='--',color='r',linewidth=3,label='i {0} R2n_elem = {1:2f}'.format(iteration,R2_noise4))
     plt.fill_between(range(nvecs+1),R2_noise4,1,color='r',alpha=0.2)
     plt.ylabel('R2')
     plt.xlabel('Number of EMPCA vectors')
@@ -200,10 +203,10 @@ if __name__=='__main__':
 
     verbose = arguments['--verbose']
     hide = arguments['--hidefigs']
-    iters = arguments['--iter']
-    seed = arguments['--seed']
-    nvecs = arguments['--nvecs']
-    maxvec = arguments['--maxvec']
+    iters = int(arguments['--iter'])
+    seed = int(arguments['--seed'])
+    nvecs = int(arguments['--nvecs'])
+    maxvec = int(arguments['--maxvec'])
     elemlist = arguments['--elems']
     elemlist = elemlist.split(',')
 
@@ -212,16 +215,39 @@ if __name__=='__main__':
 
     if iters==1:
         falsespecs,noise = make_specs(specs,errs,elemlist)
-        if all(falsespecs.mask==True):
+        # switched from all statement because it wasn't working - why?
+        if np.sum(falsespecs.mask)==falsespecs.shape[0]*falsespecs.shape[1]:
             print 'All masked'
-        elif not all(falsespecs.mask==True):
+        elif not np.sum(falsespecs.mask)==falsespecs.shape[0]*falsespecs.shape[1]:
             test_run(falsespecs,noise,maxvec=maxvec,nvecs=nvecs)
 
     elif iters != 1:
+        f1 = plt.figure(1,figsize=(12,3))
+        ax1 = f1.gca()
+        f2 = plt.figure(2,figsize=(12,3))
+        ax2 = f2.gca()
+        f3 = plt.figure(3,figsize=(12,3))
+        ax3 = f3.gca()
+        f4 = plt.figure(4,figsize=(12,3))
+        ax4 = f4.gca()
+        f5 = plt.figure(5,figsize=(12,3))
+        ax5 = f5.gca()
+        f6 = plt.figure(6,figsize=(12,3))
+        ax6 = f6.gca()
+        f7 = plt.figure(7,figsize=(12,3))
+        ax7 = f7.gca()
+        f8 = plt.figure(8,figsize=(12,3))
+        ax8 = f8.gca()
+        axs = [ax1,ax2,ax3,ax4,ax5,ax6,ax7,ax8]
         for i in range(iters):
             falsespecs,noise = make_specs(specs,errs,elemlist)
-        if all(falsespecs.mask==True):
-            print 'All masked'
-        elif not all(falsespecs.mask==True):
-            test_run_comp(falsespecs,noise,maxvec=maxvec,nvecs=nvecs)
+            if np.sum(falsespecs.mask)==falsespecs.shape[0]*falsespecs.shape[1]:
+                print 'All masked'
+            elif not np.sum(falsespecs.mask)==falsespecs.shape[0]*falsespecs.shape[1]:
+                test_run_comp(falsespecs,noise,i,maxvec=maxvec,nvecs=nvecs)
+
+    if not hide:
+        plt.show()
+    elif hide:
+        plt.close('all')
 
