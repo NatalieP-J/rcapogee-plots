@@ -22,6 +22,7 @@ import os
 import run_empca
 reload(run_empca)
 from run_empca import *
+from comp_empca import gen_colours
 
 windowinfo = 'pickles/windowinfo.pkl'
 elemwindows,window_all,window_peak,windowPeaks,windowPixels,tophats = acs.pklread(windowinfo)
@@ -101,7 +102,7 @@ def test_run(specs,noise,deltR2=2e-3,nvecs=5,mad=True,maxvec=5):
     plt.fill_between(range(nvecs+1),R2_noise4,1,color='r',alpha=0.2)
     plt.legend(loc='best',fontsize=10)
     
-def test_run_comp(specs,noise,iteration,axs,deltR2=2e-3,nvecs=5,mad=True,maxvec=5):
+def test_run_comp(specs,noise,iteration,axs,colours,deltR2=2e-3,nvecs=5,mad=True,maxvec=5):
     m1,m2,w1,w2 = pix_empca(None,specs.T,noise,'test.pkl',nvecs=nvecs,deltR2=2e-3,gen=True,usemad=mad)
     R2_1 = R2(m1) #must be here (and not below resize) to avoid error
     R2_2 = R2(m2)
@@ -130,7 +131,7 @@ def test_run_comp(specs,noise,iteration,axs,deltR2=2e-3,nvecs=5,mad=True,maxvec=
     for n in range(maxvec):
     
         ax1.axhline(0,linestyle='--',color='k',linewidth=3)
-        ax1.plot(norm_eigvec(m1elem[n]),'o',markersize=8,label=iteration)
+        ax1.plot(norm_eigvec(m1elem[n]),'o',color=colours[iteration],markersize=8,label=iteration)
         ax1.set_title('Pixel unweighted')
         ax1.set_xticks(range(len(elems)),elems)
         ax1.legend(loc='best',fontsize=10)
@@ -139,7 +140,7 @@ def test_run_comp(specs,noise,iteration,axs,deltR2=2e-3,nvecs=5,mad=True,maxvec=
         ax1.set_ylim(-1,1)
     
         ax2.axhline(0,linestyle='--',color='k',linewidth=3)
-        ax2.plot(norm_eigvec(m2elem[n]),'o',markersize=8,label=iteration)
+        ax2.plot(norm_eigvec(m2elem[n]),'o',color=colours[iteration],markersize=8,label=iteration)
         ax2.set_title('Pixel weighted')
         ax2.set_xticks(range(len(elems)),elems)
         ax2.legend(loc='best',fontsize=10)
@@ -148,7 +149,7 @@ def test_run_comp(specs,noise,iteration,axs,deltR2=2e-3,nvecs=5,mad=True,maxvec=
         ax2.set_ylim(-1,1)
     
         ax3.axhline(0,linestyle='--',color='k',linewidth=3)
-        ax3.plot(norm_eigvec(m3.eigvec[n]),'o',markersize=8,label=iteration)
+        ax3.plot(norm_eigvec(m3.eigvec[n]),'o',color=colours[iteration],markersize=8,label=iteration)
         ax3.set_title('Element unweighted')
         ax3.set_xticks(range(len(elems)),elems)
         ax3.legend(loc='best',fontsize=10)
@@ -157,7 +158,7 @@ def test_run_comp(specs,noise,iteration,axs,deltR2=2e-3,nvecs=5,mad=True,maxvec=
         ax3.set_ylim(-1,1)
     
         ax4.axhline(0,linestyle='--',color='k',linewidth=3)
-        ax4.plot(norm_eigvec(m4.eigvec[n]),'o',markersize=8,label=iteration)
+        ax4.plot(norm_eigvec(m4.eigvec[n]),'o',color=colours[iteration],markersize=8,label=iteration)
         ax4.set_title('Element weighted')
         ax4.set_xticks(range(len(elems)),elems)
         ax4.legend(loc='best',fontsize=10)
@@ -166,7 +167,7 @@ def test_run_comp(specs,noise,iteration,axs,deltR2=2e-3,nvecs=5,mad=True,maxvec=
         ax4.set_ylim(-1,1)
 
     ax5.set_title('Pixel unweighted')
-    ax5.plot(R2_1,marker='o',linewidth = 3,markersize=8)
+    ax5.plot(R2_1,marker='o',color=colours[iteration],linewidth = 3,markersize=8)
     ax5.axhline(R2_noise2,linestyle='--',color='b',linewidth=3,label='i {0} R2n_pix = {1:2f}'.format(iteration,R2_noise2))
     ax5.fill_between(range(nvecs+1),R2_noise2,1,color='b',alpha=0.2)
     ax5.set_ylabel('R2')
@@ -174,7 +175,7 @@ def test_run_comp(specs,noise,iteration,axs,deltR2=2e-3,nvecs=5,mad=True,maxvec=
     ax5.legend(loc='best',fontsize=10)
 
     ax6.set_title('Pixel weighted')
-    ax6.plot(R2_2,marker='o',linewidth = 3,markersize=8)
+    ax6.plot(R2_2,marker='o',color=colours[iteration],linewidth = 3,markersize=8)
     ax6.axhline(R2_noise2,linestyle='--',color='b',linewidth=3,label='i {0} R2n_pix = {1:2f}'.format(iteration,R2_noise2))
     ax6.fill_between(range(nvecs+1),R2_noise2,1,color='b',alpha=0.2)
     ax6.set_ylabel('R2')
@@ -182,7 +183,7 @@ def test_run_comp(specs,noise,iteration,axs,deltR2=2e-3,nvecs=5,mad=True,maxvec=
     ax6.legend(loc='best',fontsize=10)
 
     ax7.set_title('Element unweighted')
-    ax7.plot(R2_3,marker='o',linewidth = 3,markersize=8)
+    ax7.plot(R2_3,marker='o',color=colours[iteration],linewidth = 3,markersize=8)
     ax7.axhline(R2_noise4,linestyle='--',color='r',linewidth=3,label='i {0} R2n_elem = {1:2f}'.format(iteration,R2_noise4))
     ax7.fill_between(range(nvecs+1),R2_noise4,1,color='r',alpha=0.2)
     ax7.set_ylabel('R2')
@@ -190,13 +191,13 @@ def test_run_comp(specs,noise,iteration,axs,deltR2=2e-3,nvecs=5,mad=True,maxvec=
     ax7.legend(loc='best',fontsize=10)
 
     ax8.set_title('Element weighted')
-    ax8.plot(R2_4,marker='o',linewidth = 3,markersize=8)
+    ax8.plot(R2_4,marker='o',color=colours[iteration],linewidth = 3,markersize=8)
     ax8.axhline(R2_noise4,linestyle='--',color='r',linewidth=3,label='i {0} R2n_elem = {1:2f}'.format(iteration,R2_noise4))
     ax8.fill_between(range(nvecs+1),R2_noise4,1,color='r',alpha=0.2)
     ax8.set_ylabel('R2')
     ax8.set_xlabel('Number of EMPCA vectors')
     ax8.legend(loc='best',fontsize=10)
-    
+    return ax1,ax2,ax3,ax4,ax5,ax6,ax7,ax8
 
 if __name__=='__main__':
 
@@ -210,6 +211,8 @@ if __name__=='__main__':
     maxvec = int(arguments['--maxvec'])
     elemlist = arguments['--elems']
     elemlist = elemlist.split(',')
+    
+    plt.ion()
 
     specs = acs.pklread('red_clump/pickles/spectra_FE_H_u-0.4_d-0.5.pkl')[0]
     errs = acs.pklread('red_clump/pickles/errs_FE_H_u-0.4_d-0.5.pkl')
@@ -240,15 +243,14 @@ if __name__=='__main__':
         f8 = plt.figure(8,figsize=(12,3))
         ax8 = f8.gca()
         axs = [ax1,ax2,ax3,ax4,ax5,ax6,ax7,ax8]
+        colours = gen_colours(iters)
         for i in range(iters):
             falsespecs,noise = make_specs(specs,errs,elemlist)
             if np.sum(falsespecs.mask)==falsespecs.shape[0]*falsespecs.shape[1]:
                 print 'All masked'
             elif not np.sum(falsespecs.mask)==falsespecs.shape[0]*falsespecs.shape[1]:
-                test_run_comp(falsespecs,noise,i,axs,maxvec=maxvec,nvecs=nvecs)
-
-    if not hide:
-        plt.show()
-    elif hide:
+                axs = test_run_comp(falsespecs,noise,i,axs,colours,maxvec=maxvec,nvecs=nvecs)
+    plt.ioff()
+    if hide:
         plt.close('all')
 
