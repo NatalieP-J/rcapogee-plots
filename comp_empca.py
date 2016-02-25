@@ -96,6 +96,7 @@ if __name__=='__main__':
     plt.figure(2,figsize=(16,9))
 
     for p in eleminds:
+        print 'file = ',filelist[p]
         label = ''
         mad = False
         if 'Correct' in filelist[p]:
