@@ -54,7 +54,7 @@ def arr_weight(elem,arr):
     nws = np.tile(nw,(arr.shape[0],1))
     return np.ma.sum(nws*arr,axis=1)
     
-def test_run(specs,noise,deltR2=2e-3,nvecs=5,mad=True,maxvec=5,seed=1):
+def test_run(specs,noise,deltR2=2e-3,nvecs=5,mad=False,maxvec=5,seed=1):
     m1,m2,w1,w2 = pix_empca(None,specs.T,noise,'test.pkl',nvecs=nvecs,deltR2=2e-3,gen=True,usemad=mad,randseed=seed)
     R2_1 = R2(m1) #must be here (and not below resize) to avoid error
     R2_2 = R2(m2)
@@ -207,7 +207,7 @@ if __name__=='__main__':
     seeds = arguments['--seed']
     seeds = seeds.split(',')
     if len(seeds) == 1:
-        seeds = [seeds[0]]*iters
+        seeds = [int(seeds[0])]*iters
     else:
         seeds = np.array(seeds).astype(int)
     
@@ -218,6 +218,7 @@ if __name__=='__main__':
 
     if iters==1:
         falsespecs,noise = make_specs(specs,errs,elemlist)
+        falsespecs -= np.mean(falsespecs,axis=0)
         # switched from all statement because it wasn't working - why?
         if np.sum(falsespecs.mask)==falsespecs.shape[0]*falsespecs.shape[1]:
             print 'All masked'
