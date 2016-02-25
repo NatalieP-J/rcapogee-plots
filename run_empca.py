@@ -303,6 +303,7 @@ if __name__=='__main__':
             if verbose:
                 print 'ELEMENT SPACE'
             residual,errs = weight_residual(model,model.numstars[subgroup],plot=True,subgroup=subgroup)
+            residual -= np.tile(np.ma.mean(residual,axis=0),(residual.shape[0],1))
             empcaname = model.outName('pkl',content = 'empca_element',order = model.order,seed = model.seed,cross=model.cross,subgroup=subgroup,nvecs=nvecs,mad=usemad)
             m3,m4,w3,w4 = elem_empca(model,residual,errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,deltR2=deltR2,usemad=usemad)
             

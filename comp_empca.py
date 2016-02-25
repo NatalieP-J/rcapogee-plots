@@ -52,6 +52,7 @@ if __name__=='__main__':
     cind = 0
     sind = 0
     for p in pixinds:
+        print 'file = ',filelist[p]
         label = ''
         mad = False
         if 'Correct' in filelist[p]:
@@ -83,7 +84,7 @@ if __name__=='__main__':
         plt.fill_between(vec_vals,R2n,1,color=pcolours[cind+1],alpha=0.1)
         plt.plot(vec_vals,R2vals2,marker='o',linewidth = 3,markersize=8,label=label+' weighted',color = pcolours[cind+1])
         plt.legend(loc='best',fontsize=10,title='R2_noise = {0:2f}'.format(R2n))
-        plt.sup_title('Pixel Space')
+        plt.suptitle('Pixel Space')
         sind+=1
         cind+=2
 
@@ -126,7 +127,7 @@ if __name__=='__main__':
         plt.fill_between(vec_vals,R2n,1,color=pcolours[cind+1],alpha=0.1)
         plt.plot(vec_vals,R2vals2,marker='o',linewidth = 3,markersize=8,label=label+' weighted',color = pcolours[cind+1])
         plt.legend(loc='best',fontsize=10,title='R2_noise = {0:2f}'.format(R2n))
-        plt.sup_title('Element Space')
+        plt.suptitle('Element Space')
         sind+=1
         cind+=2
     plt.show()
