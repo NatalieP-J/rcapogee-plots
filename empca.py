@@ -89,9 +89,9 @@ class Model(object):
         self._unmasked_data_var = N.var(self.data[ii])
         self._unmasked_data_mad2 = N.sum(N.median(N.fabs(self.data[ii]\
                                                       -N.median(self.data[ii])))**2.)
-        self._masked_data_var = N.var(self.data*weights)
-        self._masked_data_mad2 = N.sum(N.median(N.fabs(self.data*weights\
-                                                      -N.median(self.data*weights)))**2.)
+        self._masked_data_var = N.var(self.data[ii]*np.sqrt(1./weights[ii]))
+        self._masked_data_mad2 = N.sum(N.median(N.fabs(self.data[ii]*np.sqrt(1./weights[ii])\
+                                                      -N.median(self.data[ii]*np.sqrt(1./weights[ii]))))**2.)
                                          
         self.solve_coeffs()
         
