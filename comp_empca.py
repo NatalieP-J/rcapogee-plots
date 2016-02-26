@@ -68,8 +68,8 @@ if __name__=='__main__':
         vec_vals = range(0,nvecs+1)
         R2vals1 = R2(models[p][0],usemad=mad)
         R2vals2 = R2(models[p][1],usemad=mad)
-        R2n = R2noise(models[p][-1],models[p][1],usemad=mad)
-        var = 
+        R2n1,var1,vnoise1 = R2noise(models[p][2],models[p][0],usemad=mad) 
+        R2n2,var2,vnoise2 = R2noise(models[p][3],models[p][1],usemad=mad) 
         plt.figure(1)
         plt.subplot2grid((2,len(pixinds)),(0,sind))
         plt.ylim(0,1)
@@ -79,7 +79,7 @@ if __name__=='__main__':
         plt.axhline(R2n,linestyle='--',color = 'k')
         plt.fill_between(vec_vals,R2n,1,color=pcolours[cind],alpha=0.1)
         plt.plot(vec_vals,R2vals1,marker='o',linewidth = 3,markersize=8,label=label+' unweighted',color = pcolours[cind])
-        plt.legend(loc='best',fontsize=10,title='R2_noise = {0:2f}\n var = {1:2f}\n Vnoise = {2:2f}'.format(R2n,var,vnoise))
+        plt.legend(loc='best',fontsize=10,title='R2_noise = {0:2f}\n var = {1:2f}\n Vnoise = {2:2f}'.format(R2n1,var1,vnoise1))
         plt.subplot2grid((2,len(pixinds)),(1,sind))
         plt.ylim(0,1)
         plt.xlim(0,nvecs)
@@ -88,7 +88,7 @@ if __name__=='__main__':
         plt.axhline(R2n,linestyle='--',color = 'k')
         plt.fill_between(vec_vals,R2n,1,color=pcolours[cind+1],alpha=0.1)
         plt.plot(vec_vals,R2vals2,marker='o',linewidth = 3,markersize=8,label=label+' weighted',color = pcolours[cind+1])
-        plt.legend(loc='best',fontsize=10,title='R2_noise = {0:2f}\n var = {1:2f}\n Vnoise = {2:2f}'.format(R2n,var,vnoise))
+        plt.legend(loc='best',fontsize=10,title='R2_noise = {0:2f}\n var = {1:2f}\n Vnoise = {2:2f}'.format(R2n2,var2,vnoise2))
         plt.suptitle('Pixel Space')
         sind+=1
         cind+=2
@@ -117,7 +117,8 @@ if __name__=='__main__':
         vec_vals = range(0,nvecs+1)
         R2vals1 = R2(models[p][0],usemad=mad)
         R2vals2 = R2(models[p][1],usemad=mad)
-        R2n = R2noise(models[p][-1],models[p][1],usemad=mad)
+        R2n1,var1,vnoise1 = R2noise(models[p][2],models[p][0],usemad=mad) 
+        R2n2,var2,vnoise2 = R2noise(models[p][3],models[p][1],usemad=mad) 
         plt.figure(2)
         plt.subplot2grid((2,len(eleminds)),(0,sind))
         plt.ylim(0,1)
@@ -127,7 +128,7 @@ if __name__=='__main__':
         plt.axhline(R2n,linestyle='--',color = 'k')
         plt.fill_between(vec_vals,R2n,1,color=pcolours[cind],alpha=0.1)
         plt.plot(vec_vals,R2vals1,marker='o',linewidth = 3,markersize=8,label=label+' unweighted',color = pcolours[cind])
-        plt.legend(loc='best',fontsize=10,title='R2_noise = {0:2f}'.format(R2n))
+        plt.legend(loc='best',fontsize=10,title='R2_noise = {0:2f}\n var = {1:2f}\n Vnoise = {2:2f}'.format(R2n1,var1,vnoise1))
         plt.subplot2grid((2,len(eleminds)),(1,sind))
         plt.ylim(0,1)
         plt.xlim(0,nvecs)
@@ -136,7 +137,7 @@ if __name__=='__main__':
         plt.axhline(R2n,linestyle='--',color = 'k')
         plt.fill_between(vec_vals,R2n,1,color=pcolours[cind+1],alpha=0.1)
         plt.plot(vec_vals,R2vals2,marker='o',linewidth = 3,markersize=8,label=label+' weighted',color = pcolours[cind+1])
-        plt.legend(loc='best',fontsize=10,title='R2_noise = {0:2f}'.format(R2n))
+        plt.legend(loc='best',fontsize=10,title='R2_noise = {0:2f}\n var = {1:2f}\n Vnoise = {2:2f}'.format(R2n2,var2,vnoise2))
         plt.suptitle('Element Space')
         sind+=1
         cind+=2

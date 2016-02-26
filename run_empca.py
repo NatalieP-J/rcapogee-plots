@@ -109,13 +109,13 @@ def R2noise(weights,empcamodel,usemad=True):
     Calculate the fraction of variance due to noise.
     """
     if usemad:
-        var = empcamodel._unmasked_data_mad2*1.4826**2.
+        var = empcamodel._masked_data_mad2*1.4826**2.
     elif not usemad:
-        var = empcamodel._unmasked_data_var
+        var = empcamodel._masked_data_var
     Vnoise = np.mean(1./(weights[weights!=0]))
     if verbose:
         print 'var, Vnoise ',var,Vnoise
-    return 1-(Vnoise/var)
+    return 1-(Vnoise/var),Vnoise,var
 
 def R2(empcamodel,usemad=True):
     """
@@ -174,7 +174,7 @@ def weight_residual(model,numstars,plot=True,subgroup=False):
     return weighted,weightedsigs
 
 def plot_R2(empcamodels,weights,ptitle,savename,labels=None,nvecs=5,usemad=True,hide=True):
-    R2noiseval = R2noise(weights,empcamodels[1],usemad=usemad)
+    R2noiseval = R2noise(weights,empcamodels[1],usemad=usemad)[0]
     vec_vals = range(0,nvecs+1)
     plt.figure(figsize=(12,10))
     plt.xlim(0,nvecs)
@@ -281,8 +281,8 @@ if __name__=='__main__':
             empcaname = model.outName('pkl',content = 'empca',subgroup=subgroup,order = model.order,seed = model.seed,cross=model.cross,nvecs=nvecs,mad=usemad)
             m1,m2,w1,w2 = pix_empca(model,model.residual[subgroup],model.errs[match],empcaname,nvecs=nvecs,gen=gen,verbose=verbose,nstars=nstars,deltR2=deltR2,usemad=usemad)
             
-            R2noiseval1 = R2noise(w1,m1,usemad=usemad)
-            R2noiseval2 = R2noise(w2,m2,usemad=usemad)
+            R2noiseval1 = R2noise(w1,m1,usemad=usemad)[0]
+            R2noiseval2 = R2noise(w2,m2,usemad=usemad)[0]
 
             R2vals1 = R2(m1,usemad=usemad)
             R2vals2 = R2(m2,usemad=usemad)
@@ -306,8 +306,8 @@ if __name__=='__main__':
             empcaname = model.outName('pkl',content = 'empca_element',order = model.order,seed = model.seed,cross=model.cross,subgroup=subgroup,nvecs=nvecs,mad=usemad)
             m3,m4,w3,w4 = elem_empca(model,residual,errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,deltR2=deltR2,usemad=usemad)
             
-            R2noiseval3 = R2noise(w3,m3,usemad=usemad)
-            R2noiseval4 = R2noise(w4,m4,usemad=usemad)
+            R2noiseval3 = R2noise(w3,m3,usemad=usemad)[0]
+            R2noiseval4 = R2noise(w4,m4,usemad=usemad)[0]
 
             R2vals3 = R2(m3,usemad=usemad)
             R2vals4 = R2(m4,usemad=usemad)
@@ -363,8 +363,8 @@ if __name__=='__main__':
         empcaname = model.outName('pkl',content = 'empca',order = model.order,seed = model.seed,cross=model.cross,nvecs=nvecs,mad=usemad)
         m1,m2,w1,w2 = pix_empca(model,model.residual,model.errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,nstars=nstars,deltR2=deltR2,usemad=usemad)
         
-        R2noiseval1 = R2noise(w1,m1,usemad=usemad)
-        R2noiseval2 = R2noise(w2,m2,usemad=usemad)
+        R2noiseval1 = R2noise(w1,m1,usemad=usemad)[0]
+        R2noiseval2 = R2noise(w2,m2,usemad=usemad)[0]
 
         R2vals1 = R2(m1,usemad=usemad)
         R2vals2 = R2(m2,usemad=usemad)
@@ -388,8 +388,8 @@ if __name__=='__main__':
         empcaname = model.outName('pkl',content = 'empca_element',order = model.order,seed = model.seed,cross=model.cross,nvecs=nvecs,mad=usemad)
         m3,m4,w3,w4 = elem_empca(model,residual,errs,empcaname,nvecs=nvecs,gen=gen,verbose=verbose,deltR2=deltR2,usemad=usemad)
         
-        R2noiseval3 = R2noise(w3,m3,usemad=usemad)
-        R2noiseval4 = R2noise(w4,m4,usemad=usemad)
+        R2noiseval3 = R2noise(w3,m3,usemad=usemad)[0]
+        R2noiseval4 = R2noise(w4,m4,usemad=usemad)[0]
 
         R2vals3 = R2(m3,usemad=usemad)
         R2vals4 = R2(m4,usemad=usemad)
