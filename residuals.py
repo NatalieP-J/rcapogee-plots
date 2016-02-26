@@ -328,7 +328,7 @@ class Sample:
         if mad != None:
             suffix += '_MAD'+str(mad)
         if self.correct != False:
-            suffix += '_snrCorrect'
+            suffix += self.correct
         # If data set was cropped, incorporate this in the file name.
         if self.label != 0:
             return self.overdir+outdirs[filetype]+content+suffix+'_{0}_u{1}_d{2}'.format(self.label,self.up,self.low)+outfile[filetype]

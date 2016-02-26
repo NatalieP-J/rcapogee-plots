@@ -120,10 +120,12 @@ if __name__ == '__main__':
     if correction != 'None':
         try:
             correction = float(correction)
-            correct='_SNRcorrected'
+            correct='_SNRcorrected_{0}'.format(correction)
         except (TypeError,ValueError):
+            correct_name = correction.split('.pkl')[0]
+            correct_name = correct_name.split('/')[-1]
+            correct='_SNR{0}'.format(correct_name)
             correction = acs.pklread(correction)
-            correct='_SNRcorrected'
     elif correction == 'None':
         correction = None
         correct=False
