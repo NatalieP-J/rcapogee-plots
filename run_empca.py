@@ -57,7 +57,7 @@ def pix_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,nsta
         # Change weights to incorporate flux uncertainties
         sigmas = errs.T[goodpix].T
         weights=basicweights
-        weights[mask] = pf.normweights(1./sigmas[mask]**2)
+        weights[mask] = 1./sigmas[mask]**2
         if verbose:
             print 'nans ',np.where(np.isnan(weights)==True)
         empcamodel_weight,runtime2 = timeIt(empca,empca_res.data,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad,randseed=randseed)
@@ -94,7 +94,7 @@ def elem_empca(model,residual,errs,empcaname,nvecs=5,gen=False,verbose=False,del
         basicweights = mask.astype(float)
         empcamodel,runtime1 = timeIt(empca,empca_res,weights = basicweights,nvec=nvecs,deltR2=deltR2,mad=usemad,randseed=randseed)
         weights=basicweights
-        weights[mask] = pf.normweights(1./noise[mask]**2)
+        weights[mask] = 1./noise[mask]**2
         if verbose:
             print 'nan ',np.where(np.isnan(weights)==True)
         empcamodel_weight,runtime2 = timeIt(empca,empca_res,weights = weights,nvec=nvecs,deltR2=deltR2,mad=usemad,randseed=randseed)
