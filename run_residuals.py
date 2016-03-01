@@ -10,7 +10,6 @@ Options:
     -g, --generate                      Option to run first sequence (generate everything from scratch)
     -x, --cross                         Option to include cross terms in the fit.
     -S, --save                          Option to save intermediate steps in residual calculation
-    -L, --load                          Option to load the model file.
     -i LABEL, --indep LABEL             A string with a label in which to crop the starsample 
                                         [default: 0]
     -u UPLIM, --upper UPLIM             An upper limit for the starsample crop 
@@ -28,7 +27,6 @@ Options:
 
 """
 
-# WAVEREGION PLOTS OF EMPCA EIGVECS
 import residuals
 reload(residuals)
 from residuals import Sample,badcombpixmask,aspcappix,tophats,windowPeaks,doubleResidualHistPlot,elems
@@ -62,7 +60,17 @@ def timeIt(fn,*args,**kwargs):
     end = time.time()
     return output,end-start
 
-def weight_residuals(model,residual,sigma,subgroup,numstars):
+def weight_residuals(model,residual,sigma,numstars,subgroup=None):
+    """
+    Weights residuals by an element window and sums for each star. Returns results for each element as a single array.
+
+    model:      Model object where resduals were created.
+    residual:   Fit residual values
+    sigma:      Flux uncertainty values
+    subgroup:   Possible option to specify a subgroup
+
+    Returns nothing, just saves results to file.
+    """
     weighted = np.ma.masked_array(np.zeros((len(elems),numstars)))
     weightedsigs = np.ma.masked_array(np.zeros((len(elems),numstars)))
     i=0
@@ -120,7 +128,7 @@ if __name__ == '__main__':
     if correction != 'None':
         try:
             correction = float(correction)
-            correct='_SNRcorrected_{0}'.format(correction)
+            correct='_SNRcorrected+factor{0}'.format(correction)
         except (TypeError,ValueError):
             correct_name = correction.split('.pkl')[0]
             correct_name = correct_name.split('/')[-1]

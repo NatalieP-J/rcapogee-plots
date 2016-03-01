@@ -196,7 +196,7 @@ class Model(object):
             med= N.median(d[self._unmasked])
             return 1.0 - \
                 N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)\
-                /self._unmasked_data_mad2
+                /(self._unmasked_data_mad2*1.4826**2)
         else:
             return 1.0 - N.var(d[self._unmasked]) / self._unmasked_data_var
         
@@ -228,7 +228,7 @@ class Model(object):
             #print 'max',N.amax(N.fabs(mx))
             return 1.0 - \
                 N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)/\
-                self._unmasked_data_mad2        
+                (self._unmasked_data_mad2*1.4826**2)        
         else:
             return 1.0 - N.var(d[self._unmasked]) / self._unmasked_data_var
                 

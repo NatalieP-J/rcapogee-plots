@@ -18,9 +18,23 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def gen_colours(n,cmap = 'Spectral'):
+    """
+    Generate a list of colours of length n from a given colourmap
+    
+    n:      Number of colours.
+    cmap:   Matplotlib colourmap name.
+    """
     return plt.get_cmap(cmap)(np.linspace(0, 1.0, n))
 
 def read_files(searchstr):
+    """
+    Given a list of search terms, search for files matching the list elements joined by '*' and return their contents.
+
+    searchstr:   List of search terms
+    
+    Returns file contents and the list of files
+
+    """
     searchstr = '*'.join(searchstr)
     os.system('ls {0} > filelist.txt'.format(searchstr))
     filelist = np.loadtxt('filelist.txt',dtype=str)
@@ -43,7 +57,10 @@ if __name__=='__main__':
     models,filelist = read_files(search)
 
     pixinds = [i for i in range(len(filelist)) if 'elem' not in filelist[i]]
+    pixinds = [i for i in pixinds if 'MADTrue' not in filelist[i]]
     eleminds = [i for i in range(len(filelist)) if 'elem' in filelist[i]]
+    eleminds = [i for i in eleminds if 'MADTrue' not in filelist[i]]
+    
 
     pcolours = gen_colours(len(pixinds)*2)
 
@@ -59,7 +76,11 @@ if __name__=='__main__':
             correct = filelist[p].split('_')[-1]
             correct = correct.split('.pkl')[0]
             correct = correct.split('SNR')[1]
-            correct = correct.split('correct')[0]
+            correct = correct.split('correct')
+            if correct[0] != '':
+                correct = correct[0]
+            elif correct[0] == '':
+                correct = correct[1].split('ed+')[1]
             label += correct+'\n'
         if 'MADTrue' in filelist[p]:
             label += ' M.A.D.'+'\n'
@@ -77,7 +98,7 @@ if __name__=='__main__':
         plt.ylabel('R2')
         plt.xlabel('Number of EMPCA vectors')
         plt.axhline(R2n1,linestyle='--',color = 'k')
-        plt.fill_between(vec_vals,R2n1,1,color=pcolours[cind],alpha=0.1)
+        plt.fill_between(vec_vals,R2n1,1,color=pcolours[cind],alpha=0.2)
         plt.plot(vec_vals,R2vals1,marker='o',linewidth = 3,markersize=8,label=label+' unweighted',color = pcolours[cind])
         plt.legend(loc='best',fontsize=10,title='R2_noise = {0:2f}\n var = {1:2f}\n Vnoise = {2:2f}'.format(R2n1,var1,vnoise1))
         plt.subplot2grid((2,len(pixinds)),(1,sind))
@@ -86,7 +107,7 @@ if __name__=='__main__':
         plt.ylabel('R2')
         plt.xlabel('Number of EMPCA vectors')
         plt.axhline(R2n2,linestyle='--',color = 'k')
-        plt.fill_between(vec_vals,R2n2,1,color=pcolours[cind+1],alpha=0.1)
+        plt.fill_between(vec_vals,R2n2,1,color=pcolours[cind+1],alpha=0.2)
         plt.plot(vec_vals,R2vals2,marker='o',linewidth = 3,markersize=8,label=label+' weighted',color = pcolours[cind+1])
         plt.legend(loc='best',fontsize=10,title='R2_noise = {0:2f}\n var = {1:2f}\n Vnoise = {2:2f}'.format(R2n2,var2,vnoise2))
         plt.suptitle('Pixel Space')
@@ -126,7 +147,7 @@ if __name__=='__main__':
         plt.ylabel('R2')
         plt.xlabel('Number of EMPCA vectors')
         plt.axhline(R2n1,linestyle='--',color = 'k')
-        plt.fill_between(vec_vals,R2n1,1,color=pcolours[cind],alpha=0.1)
+        plt.fill_between(vec_vals,R2n1,1,color=pcolours[cind],alpha=0.2)
         plt.plot(vec_vals,R2vals1,marker='o',linewidth = 3,markersize=8,label=label+' unweighted',color = pcolours[cind])
         plt.legend(loc='best',fontsize=10,title='R2_noise = {0:2f}\n var = {1:2f}\n Vnoise = {2:2f}'.format(R2n1,var1,vnoise1))
         plt.subplot2grid((2,len(eleminds)),(1,sind))
@@ -135,7 +156,7 @@ if __name__=='__main__':
         plt.ylabel('R2')
         plt.xlabel('Number of EMPCA vectors')
         plt.axhline(R2n2,linestyle='--',color = 'k')
-        plt.fill_between(vec_vals,R2n2,1,color=pcolours[cind+1],alpha=0.1)
+        plt.fill_between(vec_vals,R2n2,1,color=pcolours[cind+1],alpha=0.2)
         plt.plot(vec_vals,R2vals2,marker='o',linewidth = 3,markersize=8,label=label+' weighted',color = pcolours[cind+1])
         plt.legend(loc='best',fontsize=10,title='R2_noise = {0:2f}\n var = {1:2f}\n Vnoise = {2:2f}'.format(R2n2,var2,vnoise2))
         plt.suptitle('Element Space')

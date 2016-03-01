@@ -27,15 +27,19 @@ from comp_empca import gen_colours
 windowinfo = 'pickles/windowinfo.pkl'
 elemwindows,window_all,window_peak,windowPeaks,windowPixels,tophats = acs.pklread(windowinfo)
 
-def make_specs(specs,errs,elemlist,proportion=None):
+
+def make_specs(specs,errs,elemlist,proportion=None,scaling=None):
     SNR = specs/errs
     vec = np.zeros(aspcappix)
+    if proportion == 'default':
+        proportion = np.linspace(0.9,1.01,len(specs))
     for ind in range(len(elemlist)):
         if not proportion:
             vec += elemwindows[elemlist[ind]]
         elif proportion:
-            vec += elemwindows[elem[ind]]*proportion[ind]
+            vec += elemwindows[elem[ind]]*scaling[ind]
     newspecs = np.ma.masked_array(np.tile(vec,(specs.shape[0],1)),specs.mask)
+    newspecs = newspecs*np.tile(proportion,(specs.shape[1],1)).T
     noise = newspecs/SNR
     drawn_noise = noise*np.random.randn(noise.shape[0],noise.shape[1])
     newspecs += drawn_noise
