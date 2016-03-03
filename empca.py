@@ -228,7 +228,7 @@ class Model(object):
             #print 'max',N.amax(N.fabs(mx))
             return 1.0 - \
                 N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)/\
-                (self._unmasked_data_mad2*1.4826**2)        
+                (self._unmasked_data_mad2)        
         else:
             return 1.0 - N.var(d[self._unmasked]) / self._unmasked_data_var
                 
@@ -282,7 +282,7 @@ def _solve(A, b, w):
     
 #-------------------------------------------------------------------------
 
-def empca(data, weights=None, deltR2=0,niter=25, nvec=5, smooth=0, randseed=1, silent=True, mad=True):
+def empca(data, weights=None, deltR2=0,niter=25, nvec=5, smooth=0, randseed=1, silent=False, mad=True):
     """
     Iteratively solve data[i] = Sum_j: c[i,j] p[j] using weights
     
