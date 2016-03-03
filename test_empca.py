@@ -28,18 +28,24 @@ windowinfo = 'pickles/windowinfo.pkl'
 elemwindows,window_all,window_peak,windowPeaks,windowPixels,tophats = acs.pklread(windowinfo)
 
 
-def make_specs(specs,errs,elemlist,proportion=None,scaling=None):
+def make_specs(specs,errs,elemlist,proportion='real',scaling=None):
     SNR = specs/errs
     vec = np.zeros(aspcappix)
-    if proportion == 'default':
-        proportion = np.linspace(0.9,1.01,len(specs))
     for ind in range(len(elemlist)):
-        if not proportion:
+        if not scaling:
             vec += elemwindows[elemlist[ind]]
-        elif proportion:
+        elif scaling:
             vec += elemwindows[elem[ind]]*scaling[ind]
     newspecs = np.ma.masked_array(np.tile(vec,(specs.shape[0],1)),specs.mask)
-    newspecs = newspecs*np.tile(proportion,(specs.shape[1],1)).T
+    newspecs = (1-newspecs)
+    if proportion == 'default':
+        proportion = np.linspace(0.9,1.01,len(specs))
+        proportion = np.tile(proportion,(specs.shape[1],1)).T
+        newspecs *= proportion
+    if proportion == 'real':
+        proportion = np.ma.median(specs,axis=1)
+        proportion = np.tile(proportion,(specs.shape[1],1)).T
+        newspecs *= proportion
     noise = newspecs/SNR
     drawn_noise = noise*np.random.randn(noise.shape[0],noise.shape[1])
     newspecs += drawn_noise
@@ -62,7 +68,8 @@ def test_run(specs,noise,deltR2=2e-3,nvecs=5,mad=False,maxvec=5,seed=1):
     m1,m2,w1,w2 = pix_empca(None,specs.T,noise,'test.pkl',nvecs=nvecs,deltR2=2e-3,gen=True,usemad=mad,randseed=seed)
     R2_1 = R2(m1) #must be here (and not below resize) to avoid error
     R2_2 = R2(m2)
-    R2_noise2 = R2noise(w2,m2,usemad=mad)
+    print R2_1,R2_2
+    R2_noise2 = R2noise(w2,m2,usemad=mad)[0]
     resize_pix_eigvecs(specs.T,m1,nstars=5,nvecs=nvecs)
     resize_pix_eigvecs(specs.T,m2,nstars=5,nvecs=nvecs)
     m1elem = np.zeros((nvecs,len(elems)))
@@ -80,7 +87,8 @@ def test_run(specs,noise,deltR2=2e-3,nvecs=5,mad=False,maxvec=5,seed=1):
     m3,m4,w3,w4 = elem_empca(None,specs_weight,noise_weight,'test2.pkl',nvecs=nvecs,gen=True,deltR2=2e-3,usemad=mad,randseed=seed)        
     R2_3 = R2(m3)
     R2_4 = R2(m4)
-    R2_noise4 = R2noise(w4,m4,usemad=mad)
+    print R2_3,R2_4
+    R2_noise4 = R2noise(w4,m4,usemad=mad)[0]
     resize_pix_eigvecs(specs_weight,m3,nstars=5,dim2=len(elems),nvecs=nvecs)
     resize_pix_eigvecs(specs_weight,m4,nstars=5,dim2=len(elems),nvecs=nvecs)
     for n in range(maxvec):
@@ -104,13 +112,14 @@ def test_run(specs,noise,deltR2=2e-3,nvecs=5,mad=False,maxvec=5,seed=1):
     plt.plot(R2_4,marker='o',linewidth = 3,markersize=8,label='Element weighted')
     plt.axhline(R2_noise4,linestyle='--',color='r',linewidth=3,label='R2n_elem = {0:2f}'.format(R2_noise4))
     plt.fill_between(range(nvecs+1),R2_noise4,1,color='r',alpha=0.2)
+    plt.ylim(0,1)
     plt.legend(loc='best',fontsize=10)
     
 def test_run_comp(specs,noise,iteration,axs,colours,seed=1,deltR2=2e-3,nvecs=5,mad=True,maxvec=5):
     m1,m2,w1,w2 = pix_empca(None,specs.T,noise,'test.pkl',nvecs=nvecs,deltR2=2e-3,gen=True,usemad=mad,randseed=seed)
     R2_1 = R2(m1) #must be here (and not below resize) to avoid error
     R2_2 = R2(m2)
-    R2_noise2 = R2noise(w2,m2,usemad=mad)
+    R2_noise2 = R2noise(w2,m2,usemad=mad)[0]
     resize_pix_eigvecs(specs.T,m1,nstars=5,nvecs=nvecs)
     resize_pix_eigvecs(specs.T,m2,nstars=5,nvecs=nvecs)
     m1elem = np.zeros((nvecs,len(elems)))
@@ -128,7 +137,7 @@ def test_run_comp(specs,noise,iteration,axs,colours,seed=1,deltR2=2e-3,nvecs=5,m
     m3,m4,w3,w4 = elem_empca(None,specs_weight,noise_weight,'test2.pkl',nvecs=nvecs,gen=True,deltR2=2e-3,usemad=mad,randseed=seed)        
     R2_3 = R2(m3)
     R2_4 = R2(m4)
-    R2_noise4 = R2noise(w4,m4,usemad=mad)
+    R2_noise4 = R2noise(w4,m4,usemad=mad)[0]
     resize_pix_eigvecs(specs_weight,m3,nstars=5,dim2=len(elems),nvecs=nvecs)
     resize_pix_eigvecs(specs_weight,m4,nstars=5,dim2=len(elems),nvecs=nvecs)
     ax1,ax2,ax3,ax4,ax5,ax6,ax7,ax8 = axs
@@ -254,6 +263,7 @@ if __name__=='__main__':
         colours = gen_colours(iters)
         for i in range(iters):
             falsespecs,noise = make_specs(specs,errs,elemlist)
+            falsespecs -= np.mean(falsespecs,axis=0)
             if np.sum(falsespecs.mask)==falsespecs.shape[0]*falsespecs.shape[1]:
                 print 'All masked'
             elif not np.sum(falsespecs.mask)==falsespecs.shape[0]*falsespecs.shape[1]:
