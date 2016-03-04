@@ -24,7 +24,7 @@ def starFilter(data):
     return (data['TEFF'] > 4500) & (data['TEFF'] < 4800)
 
 def basicIronFilter(data):
-    return (data['FE_H'] > -0.2) & (data['FE_H'] < -0.1)
+    return (data['FE_H'] > -0.15) & (data['FE_H'] < -0.1)
 
 def bitsNotSet(bitmask,maskbits):
     goodLocs_bool = np.ones(bitmask.shape).astype(bool)
@@ -116,9 +116,6 @@ class starSample(object):
         
         """
 
-        if data:
-            self.getStars(self,data)
-        
         self.teff = np.ma.masked_array([self.allStars[i]._teff 
                                         for i in range(len(self.allStars))])
         self.logg = np.ma.masked_array([self.allStars[i]._logg 
@@ -142,6 +139,10 @@ class starSample(object):
 
 
 
+        if data:
+            
+            
+
 class subStarSample(starSample):
     def __init__(self,sampleType,starFilter):
         """
@@ -155,7 +156,10 @@ class subStarSample(starSample):
         starSample.__init__(self,sampleType)
         self._matchingStars = starFilter(self.data)
         self.matchingData = self.data[self._matchingStars]
+        print 'Found matching stars'
+        print 'Number of stars: ',len(self.matchingData)
         self.getStars(self.matchingData)
+        print 'Got stars'
         self.makeArrays()        
 
 
