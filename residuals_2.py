@@ -109,37 +109,50 @@ class starSample(object):
             newStar.getData()
             self.allStars.append(newStar)
 
-    def makeArrays(self,data=None):
+    def makeArrays(self,data):
         """
-        Create arrays across all stars in the sample with shape aspcappix by number of stars.
-        If data set is given make stars for that set first.
+        Create arrays across all stars in the sample with shape number of stars by aspcappix.
         
         """
 
-        self.teff = np.ma.masked_array([self.allStars[i]._teff 
-                                        for i in range(len(self.allStars))])
-        self.logg = np.ma.masked_array([self.allStars[i]._logg 
-                                        for i in range(len(self.allStars))])
-        self.fe_h = np.ma.masked_array([self.allStars[i]._fe_h 
-                                        for i in range(len(self.allStars))])
+        self.teff = np.ma.masked_array(np.zeros((len(data),aspcappix)))
+        self.logg = np.ma.masked_array(np.zeros((len(data),aspcappix)))
+        self.fe_h = np.ma.masked_array(np.zeros((len(data),aspcappix)))
 
-        self.teff_err = np.ma.masked_array([self.allStars[i]._teff_err 
-                                        for i in range(len(self.allStars))])
-        self.logg_err = np.ma.masked_array([self.allStars[i]._logg_err 
-                                        for i in range(len(self.allStars))])
-        self.fe_h_err = np.ma.masked_array([self.allStars[i]._fe_h_err 
-                                        for i in range(len(self.allStars))])
+        self.teff_err = np.ma.masked_array(np.zeros((len(data),aspcappix)))
+        self.logg_err = np.ma.masked_array(np.zeros((len(data),aspcappix)))
+        self.fe_h_err = np.ma.masked_array(np.zeros((len(data),aspcappix)))
 
-        self.spectra = np.ma.masked_array([self.allStars[i].spectrum 
-                                        for i in range(len(self.allStars))])
-        self.spectra_errs = np.ma.masked_array([self.allStars[i].spectrum_err 
-                                        for i in range(len(self.allStars))])
-        self._bitmasks = np.ma.masked_array([self.allStars[i]._bitmask 
-                                        for i in range(len(self.allStars))])
+        self.spectra = np.ma.masked_array(np.zeros((len(data),aspcappix)))
+        self.spectra_errs = np.ma.masked_array(np.zeros((len(data),aspcappix)))
+        self._bitmasks = np.ma.masked_array(np.zeros((len(data),aspcappix)))
 
+        for star in range(len(data)):
+            LOC = data[star]['LOCATION_ID']
+            APO = data[star]['APOGEE_ID']
+            TEFF = data[star]['TEFF']
+            LOGG = data[star]['LOGG']
+            FE_H = data[star]['FE_H']
+            TEFF_ERR = data[star]['TEFF_ERR']
+            LOGG_ERR = data[star]['LOGG_ERR']
+            FE_H_ERR = data[star]['FE_H_ERR']
+            self.teff[star] = np.ma.masked_array([TEFF]*aspcappix)
+            self.logg[star] = np.ma.masked_array([LOGG]*aspcappix)
+            self.fe_h[star] = np.ma.masked_array([FE_H]*aspcappix)
+            
+            # Independent variable uncertainty
+            self.teff_err[star] = np.ma.masked_array([TEFF_ERR]*aspcappix)
+            self.logg_err[star] = np.ma.masked_array([LOGG_ERR]*aspcappix)
+            self.fe_h_err[star] = np.ma.masked_array([FE_H_ERR]*aspcappix)
+            
+            # Spectral data
+            self.spectra[star] = apread.aspcapStar(LOC,APO,ext=1,header=False, 
+                                                   aspcapWavegrid=True)
+            self.spectra_errs[star] = apread.aspcapStar(LOC,APO,ext=2,header=False, 
+                                            aspcapWavegrid=True)
+            self._bitmasks[star] = apread.apStar(LOC,APO,ext=3, header=False, 
+                                    aspcapWavegrid=True)[1]            
 
-
-        if data:
             
             
 
