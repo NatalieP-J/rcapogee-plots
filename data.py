@@ -1,4 +1,6 @@
 import apogee.tools.read as apread
+from apogee.tools import bitmask
+from read_clusterdata import read_caldata
 
 # Dictionary to translate APOGEE's pixel mask (DR12).
 # Keys correspond to set bits in the mask.

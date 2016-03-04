@@ -1,4 +1,4 @@
-import numpy as numpy
+import numpy as np
 
 from data import *
 
@@ -21,10 +21,10 @@ def starFilter(data):
     Returns True where stellar properties match conditions
     
     """
-    return (data['TEFF'] > 4500) & (data['TEFF'] < 5000) & (data['LOGG'] > 3.5)
+    return (data['TEFF'] > 4500) & (data['TEFF'] < 4800)
 
 def basicIronFilter(data):
-    return (data['FE_H'] > -0.105) & (data['FE_H'] < -0.1)
+    return (data['FE_H'] > -0.2) & (data['FE_H'] < -0.1)
 
 def bitsNotSet(bitmask,maskbits):
     goodLocs_bool = np.ones(bitmask.shape).astype(bool)
@@ -76,11 +76,11 @@ class starInfo(object):
         self._fe_h_err = np.ma.masked_array([self.FE_H_ERR]*aspcappix)
         
         # Spectral data
-        self.spectrum = apread.aspcapStar(self.LOC,APO,ext=1,header=False, 
+        self.spectrum = apread.aspcapStar(self.LOC,self.APO,ext=1,header=False, 
                                           aspcapWavegrid=True)
-        self.spectrum_err = apread.aspcapStar(self.LOC,APO,ext=2,header=False, 
+        self.spectrum_err = apread.aspcapStar(self.LOC,self.APO,ext=2,header=False, 
                                               aspcapWavegrid=True)
-        self._bitmask = apread.apStar(self.LOC,APO,
+        self._bitmask = apread.apStar(self.LOC,self.APO,
                                      ext=3, header=False, aspcapWavegrid=True)[1]
 
 class starSample(object):
@@ -95,7 +95,7 @@ class starSample(object):
         """
         Get properties of all possible stars to be used.
         """
-        self.data = readfn[self.sampleType]
+        self.data = readfn[self._sampleType]()
 
     def getStars(self,data):
         """
@@ -105,7 +105,7 @@ class starSample(object):
         self.allStars = []
         self.numberStars = len(data)
         for star in range(len(data)):
-            newStar = starInfo(star)
+            newStar = starInfo(data[star])
             newStar.getData()
             self.allStars.append(newStar)
 
@@ -154,7 +154,7 @@ class subStarSample(starSample):
         """
         starSample.__init__(self,sampleType)
         self._matchingStars = starFilter(self.data)
-        self.matchingData = data[self._matchingStars]
+        self.matchingData = self.data[self._matchingStars]
         self.getStars(self.matchingData)
         self.makeArrays()        
 
@@ -190,8 +190,8 @@ class mask(subStarSample):
         self.spectra_errs.mask = self.masked
 
 
-class fit(mask)
+#class fit(mask)
 
-class residuals(fit)
+#class residuals(fit)
 
-class uncertainty(fit)
+#class uncertainty(fit)
