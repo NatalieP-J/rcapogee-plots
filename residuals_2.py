@@ -23,6 +23,16 @@ def starFilter(data):
     """
     return (data['TEFF'] > 4500) & (data['TEFF'] < 5000) & (data['LOGG'] > 3.5)
 
+def basicIronFilter(data):
+    return (data['FE_H'] > -0.105) & (data['FE_H'] < -0.1)
+
+def bitsNotSet(bitmask,maskbits):
+    goodLocs_bool = np.ones(bitmask.shape).astype(bool)
+    for m in maskbits:
+        bitind = bitmask.bit_set(m,bitmask)
+        goodLocs_bool[bitind] = False
+    return goodLocs_bool
+
 # Example mask filter function
 def maskFilter(sample):
     """
@@ -30,8 +40,7 @@ def maskFilter(sample):
 
     """
     maskbits = bitmask.bits_set(badcombpixmask)
-    bitind = bitmask.bit_set()
-    return (sample._SNR > 50.) & (sample._SNR < 200.) & ()
+    return (sample._SNR > 50.) & (sample._SNR < 200.) & bitsNotSet(sample._bitmasks,maskbits)
 
 class starInfo(object):
     """
@@ -71,10 +80,10 @@ class starInfo(object):
                                           aspcapWavegrid=True)
         self.spectrum_err = apread.aspcapStar(self.LOC,APO,ext=2,header=False, 
                                               aspcapWavegrid=True)
-        self.bitmask = apread.apStar(self.LOC,APO,
+        self._bitmask = apread.apStar(self.LOC,APO,
                                      ext=3, header=False, aspcapWavegrid=True)[1]
 
-class Sample(object):
+class starSample(object):
     def __init__(self,sampleType):
         """
         Get properties for all stars that match the sample type
@@ -128,40 +137,58 @@ class Sample(object):
                                         for i in range(len(self.allStars))])
         self.spectra_errs = np.ma.masked_array([self.allStars[i].spectrum_err 
                                         for i in range(len(self.allStars))])
-        self.bitmasks = np.ma.masked_array([self.allStars[i].bitmask 
+        self._bitmasks = np.ma.masked_array([self.allStars[i]._bitmask 
                                         for i in range(len(self.allStars))])
 
 
 
-class subSample(Sample):
+class subStarSample(starSample):
     def __init__(self,sampleType,starFilter):
         """
         Create a subsample according to a starFilter function
-        Sample call:
+        starSample call:
 
-        subSample(red_clump,lambda data: data['TEFF'] > 4500)
-        subSample(red_clump,starFilter)
+        subStarSample(red_clump,lambda data: data['TEFF'] > 4500)
+        subStarSample(red_clump,starFilter)
 
         """
-        Sample.__init__(self,sampleType)
+        starSample.__init__(self,sampleType)
         self._matchingStars = starFilter(self.data)
         self.matchingData = data[self._matchingStars]
         self.getStars(self.matchingData)
         self.makeArrays()        
 
 
-class mask(subSample):
+class mask(subStarSample):
     """
     Define a mask given a conditions in the form of maskConditions
     """
     def __init__(self,sampleType,starFilter,maskConditions):
-        subSample.__init__(self,sampleType,starFilter)
+        subStarSample.__init__(self,sampleType,starFilter)
         self._SNR = self.spectra/self.spectra_errs
-        self.mask = np.zeros([datasize])
-        self.inverseMask = np.ones([datasize])
+        self.masked = np.zeros(self.spectra.shape)
+        self.unmasked = np.ones(self.spectra.shape)
         self._maskHere = maskConditions(self)
-        self.mask = 1
-        self.inverseMask = 0
+        self.masked[_maskHere]= 1
+        self.unmasked[_maskHere] = 0
+        self.applyMask()
+
+    def applyMask(self):
+        """
+        Mask all arrays according to maskConditions
+
+        """
+        self.teff.mask = self.masked
+        self.logg.mask = self.masked
+        self.fe_h.mask = self.masked
+
+        self.teff_err.mask = self.masked
+        self.logg_err.mask = self.masked
+        self.fe_h_err.mask = self.masked
+
+        self.spectra.mask = self.masked
+        self.spectra_errs.mask = self.masked
+
 
 class fit(mask)
 
