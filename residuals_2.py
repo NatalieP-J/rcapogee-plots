@@ -15,13 +15,16 @@ import access_spectrum as acs
 import reduce_dataset as rd
 import polyfit as pf
 
-# Example star filter function
-def starFilter(data):
-    """
-    Returns True where stellar properties match conditions
-    
-    """
-    return (data['TEFF'] > 4500) & (data['TEFF'] < 4800)
+from filter_function import starFilter
+
+_keyList = ['RA','DEC','GLON','GLAT','TEFF','LOGG','TEFF_ERR','LOGG_ERR',
+            'AL_H','CA_H','C_H','FE_H','K_H','MG_H','MN_H','NA_H','NI_H',
+            'N_H','O_H','SI_H','S_H','TI_H','V_H']
+_keyList.sort()
+
+_basicStructure = ('def starFilter(data):\n\treturn')
+_upperKeys = ['max','m','Max','Maximum','maximum','']
+_lowerKeys = ['min','m','Min','Minimum','minimum','']
 
 def basicIronFilter(data):
     return (data['FE_H'] > -0.15) & (data['FE_H'] < -0.1)
@@ -42,47 +45,6 @@ def maskFilter(sample):
     maskbits = bitmask.bits_set(badcombpixmask)
     return (sample._SNR > 50.) & (sample._SNR < 200.) & bitsNotSet(sample._bitmasks,maskbits)
 
-class starInfo(object):
-    """
-    Each instance of starInfo holds information about a given star
-    """
-    def __init__(self,data):
-        """
-        For a given data index, assign stellar properties.
-
-        """
-        self.LOC = data['LOCATION_ID']
-        self.APO = data['APOGEE_ID']
-        self.TEFF = data['TEFF']
-        self.LOGG = data['LOGG']
-        self.FE_H = data['FE_H']
-        self.TEFF_ERR = data['TEFF_ERR']
-        self.LOGG_ERR = data['LOGG_ERR']
-        self.FE_H_ERR = data['FE_H_ERR']
-        
-    def getData(self):
-        """
-        Create arrays of data for this star.
-
-        """
-        # Independent variables
-        self._teff = np.ma.masked_array([self.TEFF]*aspcappix)
-        self._logg = np.ma.masked_array([self.LOGG]*aspcappix)
-        self._fe_h = np.ma.masked_array([self.FE_H]*aspcappix)
-        
-        # Independent variable uncertainty
-        self._teff_err = np.ma.masked_array([self.TEFF_ERR]*aspcappix)
-        self._logg_err = np.ma.masked_array([self.LOGG_ERR]*aspcappix)
-        self._fe_h_err = np.ma.masked_array([self.FE_H_ERR]*aspcappix)
-        
-        # Spectral data
-        self.spectrum = apread.aspcapStar(self.LOC,self.APO,ext=1,header=False, 
-                                          aspcapWavegrid=True)
-        self.spectrum_err = apread.aspcapStar(self.LOC,self.APO,ext=2,header=False, 
-                                              aspcapWavegrid=True)
-        self._bitmask = apread.apStar(self.LOC,self.APO,
-                                     ext=3, header=False, aspcapWavegrid=True)[1]
-
 class starSample(object):
     def __init__(self,sampleType):
         """
@@ -96,18 +58,6 @@ class starSample(object):
         Get properties of all possible stars to be used.
         """
         self.data = readfn[self._sampleType]()
-
-    def getStars(self,data):
-        """
-        Create a starInfo object for each star in data.
-
-        """
-        self.allStars = []
-        self.numberStars = len(data)
-        for star in range(len(data)):
-            newStar = starInfo(data[star])
-            newStar.getData()
-            self.allStars.append(newStar)
 
     def makeArrays(self,data):
         """
@@ -149,15 +99,101 @@ class starSample(object):
             self.spectra[star] = apread.aspcapStar(LOC,APO,ext=1,header=False, 
                                                    aspcapWavegrid=True)
             self.spectra_errs[star] = apread.aspcapStar(LOC,APO,ext=2,header=False, 
-                                            aspcapWavegrid=True)
+                                                        aspcapWavegrid=True)
             self._bitmasks[star] = apread.apStar(LOC,APO,ext=3, header=False, 
-                                    aspcapWavegrid=True)[1]            
+                                                 aspcapWavegrid=True)[1]            
 
             
             
+class makeFilter(starSample):
+    def __init__(self,sampleType,ask):
+        starSample.__init__(self,sampleType)
+        if ask:
+            self.done = False
+            print 'Type done at any prompt when finished'
+            self.name = self._sampleType
+            self.condition = ''
+            while not self.done:
+                self.sampleInfo()
+            self.condition = self.condition[:-2]
+            f = open('filter_function.py','w')
+            f.write(_basicStructure+self.condition)
+            f.close()
+            import filter_function
+            reload(filter_function)
+            from filter_function import starFilter
+        elif not ask:
+            try:
+                import filter_function
+                reload(filter_function)
+                from filter_function import starFilter
+            except ImportError:
+                print 'filter_function.py does not contain the required starFilter function.'
+                self.__init__(self.sampleType,ask=True)
+            
+    def sampleInfo(self):
+        gotKey = False
+        while not gotKey:
+            key = raw_input('Data key: ')
+            if key in _keyList:
+                self.name+='_'+key
+                match = self.match(key)
+                if match[0]:
+                    self.name+='_match'+match[1]
+                    self.condition += ' (data[\'{0}\'] == {1}) &'.format(key,match[1])
+                elif not match[0]:
+                    self.name+='_up'+str(match[1])+'_lo'+str(match[2])
+                    self.condition += ' (data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2}) &'.format(key,match[1],match[2])
+            elif key not in _keyList and key != 'done':
+                print 'Got a bad key. Try choosing one of ',_keyList
+                self.sampleInfo()
+            elif key == 'done':
+                self.done = True
+    
+
+    def match(self,key):
+        match = raw_input('Default is full range. Match or slice? ').strip()
+        if match == 'match' or match == 'm' or match == 'Match':
+            m = raw_input('Match value: ')
+            if m=='done':
+                self.done = True
+            elif m!='done' and m in self.data[key]:
+                return True,m
+            elif m not in self.data[key]:
+                print 'No match for this key. Try choosing one of ',np.unique(self.data[key])
+                self.match()
+        elif match == 'slice' or match == 's' or match == 'Slice':
+            upperLimit = raw_input('Upper limit (Enter for maximum): ')
+            lowerLimit = raw_input('Lower limit (Enter for minimum): ')
+            if upperLimit <= lowerLimit:
+                print 'Limits are the same or are in the wrong order. Try again.'
+                self.match()
+            elif upperLimit == 'done' or lowerLimit == 'done':
+                self.done = True
+            elif upperLimit != 'done' and lowerLimit != 'done':
+                if upperLimit == 'max' or upperLimit == 'm' or upperLimit == '':
+                    upperLimit = np.max(self.data[key])
+                if lowerLimit == 'min' or lowerLimit == 'm' or lowerLimit == '':
+                    lowerLimit = np.min(self.data[key])
+                try:
+                    return False,float(upperLimit),float(lowerLimit)
+                except ValueError:
+                    print 'Please enter floats for the limits'
+                    self.match()
+        elif match == 'done':
+            self.done = True
+        else:
+            print 'Please type m or s'
+            self.match()
+        
+    def name(self):
+        return self.name
+
+
+
 
 class subStarSample(starSample):
-    def __init__(self,sampleType,starFilter):
+    def __init__(self,sampleType,filterFunction=starFilter):
         """
         Create a subsample according to a starFilter function
         starSample call:
@@ -167,13 +203,9 @@ class subStarSample(starSample):
 
         """
         starSample.__init__(self,sampleType)
-        self._matchingStars = starFilter(self.data)
+        self._matchingStars = filterFunction(self.data)
         self.matchingData = self.data[self._matchingStars]
-        print 'Found matching stars'
-        print 'Number of stars: ',len(self.matchingData)
-        self.getStars(self.matchingData)
-        print 'Got stars'
-        self.makeArrays()        
+        self.makeArrays(self.matchingData)        
 
 
 class mask(subStarSample):
