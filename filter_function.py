@@ -1,6 +1,5 @@
 def starFilter(data):
-    """
-    Returns True where stellar properties match conditions
-    
-    """
-    return (data['TEFF'] > 4500) & (data['TEFF'] < 4800)
+	"""
+	red_clump_TEFF_up4850.0_lo4830.0
+	"""
+	return (data['TEFF'] < 4850.0) & (data['TEFF'] > 4830.0)
