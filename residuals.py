@@ -977,7 +977,7 @@ class Sample:
         return weighted
 
 
-    def weighting_stars(self,arr,elem,name):
+    def weighting_stars(self,arr,elem):
         """
         Sums an input array weighted by the window function of a given element.
 
@@ -988,20 +988,17 @@ class Sample:
         Returns weighted sum.
 
         """
-        if os.path.isfile(name):
-            return acs.pklread(name)
-        elif not os.path.isfile(name):
-            weighted = np.ma.masked_array(-np.ones(arr.shape[1]),mask=np.zeros(arr.shape[1]))
-            # Sum unmasked pixels weighted by element window for each star.
-            for star in range(arr.shape[1]):
-                weighted[star] = self.weighting(arr[:,star],elem)
-                #print weighted[star]
-                if abs(weighted[star])<1e-10:
-                    #print 'mask'
-                    weighted.mask[star] = True
-                #print 'mask done'
-            acs.pklwrite(name,weighted)
-            return weighted
+        weighted = np.ma.masked_array(-np.ones(arr.shape[1]),mask=np.zeros(arr.shape[1]))
+        # Sum unmasked pixels weighted by element window for each star.
+        for star in range(arr.shape[1]):
+            weighted[star] = self.weighting(arr[:,star],elem)
+            #print weighted[star]
+            if abs(weighted[star])<1e-10:
+                #print 'mask'
+                weighted.mask[star] = True
+            #print 'mask done'
+        acs.pklwrite(name,weighted)
+        return weighted
 
 
 
