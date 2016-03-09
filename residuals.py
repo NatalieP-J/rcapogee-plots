@@ -997,7 +997,6 @@ class Sample:
                 #print 'mask'
                 weighted.mask[star] = True
             #print 'mask done'
-        acs.pklwrite(name,weighted)
         return weighted
 
 

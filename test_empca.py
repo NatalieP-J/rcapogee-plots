@@ -28,7 +28,7 @@ windowinfo = 'pickles/windowinfo.pkl'
 elemwindows,window_all,window_peak,windowPeaks,windowPixels,tophats = acs.pklread(windowinfo)
 
 
-def make_specs(specs,errs,elemlist,proportion='real',scaling=None):
+def make_specs(specs,errs,elemlist,proportion='default',scaling=None):
     SNR = specs/errs
     vec = np.zeros(aspcappix)
     for ind in range(len(elemlist)):
@@ -46,7 +46,7 @@ def make_specs(specs,errs,elemlist,proportion='real',scaling=None):
         proportion = np.ma.median(specs,axis=1)
         proportion = np.tile(proportion,(specs.shape[1],1)).T
         newspecs *= proportion
-    noise = newspecs/SNR
+    noise =errs# newspecs/SNR
     drawn_noise = noise*np.random.randn(noise.shape[0],noise.shape[1])
     newspecs += drawn_noise
     newspecs.mask[np.where(noise<1e-10)] = True
