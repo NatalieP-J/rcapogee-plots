@@ -66,7 +66,7 @@ if __name__=='__main__':
 
     pcolours = gen_colours(len(pixinds))
 
-    plt.figure(1,figsize=(16,9))
+    plt.figure(1,figsize=(14,9))
 
     cind = 0
     sind = 0
@@ -119,7 +119,7 @@ if __name__=='__main__':
     cind = 0
     sind = 0
 
-    plt.figure(2,figsize=(16,9))
+    plt.figure(2,figsize=(14,9))
 
     cind = 0
     sind = 0
@@ -175,7 +175,7 @@ if __name__=='__main__':
 
     pcolours = gen_colours(len(eleminds))
 
-    plt.figure(3,figsize=(16,9))
+    plt.figure(3,figsize=(14,9))
 
     for p in eleminds_nomad:
         print 'file = ',filelist[p]
@@ -222,7 +222,7 @@ if __name__=='__main__':
 
     sind=0
     cind=0
-    plt.figure(4,figsize=(16,9))
+    plt.figure(4,figsize=(14,9))
 
     for p in eleminds_mad:
         print 'file = ',filelist[p]
