@@ -526,7 +526,6 @@ class Sample:
 
 ################################################################################
 ############################## FIT ALONG PIXEL #################################
-
     def pixFit(self,pix,match,indeps=False):
         """
         Fits a data set in independent variables specified in fitvars at a particular pixel and calculates residuals from the fit.

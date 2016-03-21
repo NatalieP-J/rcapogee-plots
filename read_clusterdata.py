@@ -55,6 +55,8 @@ def read_meszarosgcdata(filename='../clusterdata/aj509073t2_mrt.txt'):
     data['LOCATION_ID']= locids
     data['H']= hmags
     data['FIBERID']= fibers
+    data['APOGEE_ID'] = data['ID']
+    data['FE_H'] = data['FEH']
     return data
 
 def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt'):
@@ -104,6 +106,8 @@ def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt'):
     data['H']= hmags
     data['FIBERID']= fibers
     data['SNR'] = snrs
+    data['APOGEE_ID'] = data['ID']
+    data['FE_H'] = data['FEH']
     return data
 
 def read_spectra(cluster,teffmin=4000.,teffmax=5000.,cont_type='cannon',

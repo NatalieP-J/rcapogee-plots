@@ -1,6 +1,7 @@
 import apogee.tools.read as apread
 from apogee.tools import bitmask
 from read_clusterdata import read_caldata
+import window as wn
 
 # Dictionary to translate APOGEE's pixel mask (DR12).
 # Keys correspond to set bits in the mask.
@@ -38,3 +39,12 @@ readfn = {'clusters' : read_caldata,        # Sample of open and globular cluste
           'red_clump' : apread.rcsample        # Sample of red clump stars
           }
 
+independentVariables = {'clusters':['TEFF'],
+                        'OCs':['TEFF'],
+                        'GCs':['TEFF'],
+                        'red_clump':['TEFF','LOGG','FE_H']
+                    }
+elemwindows = {}
+for elem in elems:
+    w = wn.read(elem,dr=12,apStarWavegrid=False)
+    elemwindows[elem] = w
