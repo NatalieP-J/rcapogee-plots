@@ -58,8 +58,9 @@ def maskFilter(sample):
     sample:   an object of mask class
 
     """
+    sample.spectra_errs[sample._SNR>200] = sample.spectra[sample._SNR>200]/200.
     maskbits = bm.bits_set(badcombpixmask)
-    return (sample._SNR < 50.) | (sample._SNR > 200.) | bitsNotSet(sample._bitmasks,maskbits)
+    return (sample._SNR < 50.) | bitsNotSet(sample._bitmasks,maskbits)
 
 def smoothMedian(diag,frac=None,numpix=None):
     """
@@ -533,13 +534,14 @@ class fit(mask):
         starsAtPixel = np.matrix(self.spectra[:,pixel][self.unmasked[:,pixel]])
         
         # transform to matrices that have been weighted by the inverse covariance
-        newIndeps = covInverse*indeps
-        newIndeps = indeps.T*newIndeps
-        newStarsAtPixel = covInverse*starsAtPixel.T
-        newStarsAtPixel = indeps.T*newStarsAtPixel
+        newIndeps = indeps.T*covInverse*indeps
+        #newIndeps = indeps.T*newIndeps
+        newStarsAtPixel = indeps.T*covInverse*starsAtPixel.T
+        #newStarsAtPixel = indeps.T*newStarsAtPixel
         
         # calculate fit coefficients
-        coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]
+        coeffs = np.linalg.inv(newIndeps)*newStarsAtPixel
+        #coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]
         return indeps*coeffs,coeffs.T
 
     def multiFit(self,minStarNum='default'):
