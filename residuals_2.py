@@ -4,6 +4,8 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
 import multiprocessing
 import matplotlib.pyplot as plt
+import statsmodels.nonparametric.smoothers_lowess as sm
+import scipy as sp
 from data import *
 
 # Import APOGEE/sample packages
@@ -37,6 +39,10 @@ _lowerKeys = ['min','m','Min','Minimum','minimum','']
 def bitsNotSet(bitmask,maskbits):
     """
     Given a bitmask, returns True where any of maskbits are set and False otherwise.
+    
+    bitmask:   bitmask to check
+    maskbits:  bits to check if set in the bitmask
+    
     """
     goodLocs_bool = np.zeros(bitmask.shape).astype(bool)
     for m in maskbits:
@@ -48,15 +54,50 @@ def bitsNotSet(bitmask,maskbits):
 def maskFilter(sample):
     """
     Returns True where sample properties match conditions
+    
+    sample:   an object of mask class
 
     """
     maskbits = bm.bits_set(badcombpixmask)
     return (sample._SNR < 50.) | (sample._SNR > 200.) | bitsNotSet(sample._bitmasks,maskbits)
 
+def smoothMedian(diag,frac=None,numpix=None):
+    """
+    Uses Locally Weighted Scatterplot Smoothing to smooth an array on each detector separately. Interpolates
+    at masked pixels and concatenates the result.
+    
+    Returns the smoothed median value of the input array, with the same dimension.
+    """
+    mask = diag.mask==False
+    smoothmedian = np.zeros(diag.shape)
+    for i in range(len(detectors)-1):
+        xarray = np.arange(detectors[i],detectors[i+1])
+        yarray = diag[detectors[i]:detectors[i+1]]
+        array_mask = mask[detectors[i]:detectors[i+1]]
+        if frac:
+            low_smooth = sm.lowess(yarray[array_mask],xarray[array_mask],frac=frac,it=3,return_sorted=False)
+        if numpix:
+            frac = numpix/len(xarray)
+            low_smooth = sm.lowess(yarray[array_mask],xarray[array_mask],frac=frac,it=3,return_sorted=False)
+        smooth_interp = sp.interpolate.interp1d(xarray[array_mask],low_smooth,bounds_error=False)
+        smoothmedian[detectors[i]:detectors[i+1]] = smooth_interp(xarray)
+    nanlocs = np.where(np.isnan(smoothmedian))
+    smoothmedian[nanlocs] = 1
+    return smoothmedian
+
+
 class starSample(object):
+    """
+    Gets properties of a sample of stars given a key that defines the read function.
+    
+    """
     def __init__(self,sampleType):
         """
         Get properties for all stars that match the sample type
+
+        sampleType:   designator of the sample type - must be a key in readfn 
+                      and independentVariables in data.py
+        
         """
         self._sampleType = sampleType
         self._getProperties()
@@ -70,6 +111,8 @@ class starSample(object):
     def makeArrays(self,data):
         """
         Create arrays across all stars in the sample with shape number of stars by aspcappix.
+
+        data:   array whose columns contain information about stars in sample
         
         """
 
@@ -104,13 +147,23 @@ class starSample(object):
             self._bitmasks[star] = apread.apStar(LOC,APO,ext=3, header=False, 
                                                  aspcapWavegrid=True)[1] 
     def plotHistogram(self,array,title = '',xlabel = '',ylabel = 'number of stars',saveName=None,**kwargs):
+        """
+        Plots a histogram of some input array, with the option to save it.
+
+        array:      array to plot as histogram
+        title:      (optional) title of the plot
+        xlabel:     (optional) x-axis label of the plot
+        ylabel:     y-axis label of the plot (default: 'number of stars')
+        saveName:   (optional) path to save plot, without file extension
+        **kwargs:   kwargs for numpy.histogram
+
+        """
         hist,binEdges = np.histogram(array,**kwargs)
         area = np.sum(hist*(binEdges[1]-binEdges[0]))
         plt.bar(binEdges[:-1],hist/area,width = binEdges[1]-binEdges[0])
         plt.title(title)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
-        plt.ylim(0,1)
         if saveName:
             plt.savefig('plots/'+saveName+'.png')
             plt.close()
@@ -118,16 +171,16 @@ class starSample(object):
             
 class makeFilter(starSample):
     """
-    Contains functions to create a filter and associated name for a starSample.
+    Contains functions to create a filter and associated directory name for a starSample.
     """
     def __init__(self,sampleType,ask=True):
         """
-        Sets up filter_function.py file to contain the appropriate function and puts the save directory name in 
-        the docstring of the function.
+        Sets up filter_function.py file to contain the appropriate function and puts the save directory name in the docstring of the function.
 
-        sampleType:   designator of the sample type - must be a key in readfn and independentVariables in data.py
-        ask:          if True, function asks for user input to make filter_function.py, if False, uses existing
-                      filter_function.py
+        sampleType:   designator of the sample type - must be a key in readfn 
+                      and independentVariables in data.py
+        ask:          if True, function asks for user input to make filter_function.py, 
+                      if False, uses existing filter_function.py
                       
         """
         starSample.__init__(self,sampleType)
@@ -166,12 +219,14 @@ class makeFilter(starSample):
     def _basicStructure(self):
         """
         Returns the basic form of filter_function.py
+        
         """
         return 'import numpy as np\n\ndef starFilter(data):\n\t"""\n\t{0}\n\t"""\n\treturn'.format(self.name)
 
     def _sampleInfo(self):
         """
         Retrieves information about the sample from the user.
+        
         """
         while not self.done:
             key = raw_input('Data key: ')
@@ -210,7 +265,7 @@ class makeFilter(starSample):
         """
         Returns user-generated conditions to match or slice in a given key.
 
-        key:   label of the data set
+        key:   label of property of the data set
         
         """
         # Check whether we will match to key or slice in its range
@@ -252,47 +307,63 @@ class makeFilter(starSample):
                     print 'Please enter floats for the limits'
                     self._match(key)
 
+        # Option to use the entire sample
         elif match == 'all' or match == 'a' or match == 'All':
             return 'a',None
             
-            
+        # Exit filter finding 
         elif match == 'done':
             print 'Done getting filter information'
             return 'done',None
 
+        # Invalid entry condition
         else:
             print 'Please type m, s or a'
             self._match(key)
         
     def getDirectory(self):
         """
-        Create directory for given filter
+        Create directory to store results for given filter.
+        
         """
         if not os.path.isdir(self.name):
             os.system('mkdir {0}'.format(self.name))
         return
 
 
-
-
 class subStarSample(makeFilter):
+    """
+    Given a filter function, defines a subsample of the total sample of stars.
+    
+    """
     def __init__(self,sampleType,ask=True,correction=None):
         """
         Create a subsample according to a starFilter function
-        Set ask=True if you wish to be asked about the filter, leave False to use existing filter
-
+        
+        sampleType:   designator of the sample type - must be a key in readfn 
+                      and independentVariables in data.py
+        ask:          if True, function asks for user input to make filter_function.py, 
+                      if False, uses existing filter_function.py
+        correction:   Information on how to perform the correction.
+                      May be a path to a pickled file, a float, or list of values.
+        
         """
+        # Create starFilter
         makeFilter.__init__(self,sampleType,ask=ask)
         import filter_function
         reload(filter_function)
         from filter_function import starFilter
+        # Find stars that satisfy starFilter and cut data accordingly
         self._matchingStars = starFilter(self.data)
         self.matchingData = self.data[self._matchingStars]
         self.numberStars = len(self.matchingData)
-        self.correctUncertainty()
-        
+        self.checkArrays()
         
     def checkArrays(self):
+        """
+        Check if input data has already been saved as arrays. If not, create them.
+        
+        """
         if os.path.isfile(self.name+'/inputdata.pkl'):
             self.teff,self.logg,self.fe_h,self.spectra,self.spectra_errs,self._bitmasks = acs.pklread(self.name+'/inputdata.pkl')
         elif not os.path.isfile(self.name+'/inputdata.pkl'):
@@ -301,8 +372,14 @@ class subStarSample(makeFilter):
             acs.pklwrite(self.name+'/inputdata.pkl',inputdata)
 
     def correctUncertainty(self,correction=None):
+        """
+        Performs a correction on measurement uncertainty.
+
+        correction:   Information on how to perform the correction.
+                      May be a path to a pickled file, a float, or list of values.
+
+        """
         self.checkArrays()
-        SNR = self.spectra/self.spectra_errs
         if isinstance(correction,(str)):
             correction = acs.pklread(correction)
         if isinstance(correction,(float,int)):
@@ -316,7 +393,19 @@ class subStarSample(makeFilter):
         
 
     def imshow(self,plotData,saveName=None,title = '',xlabel='pixels',ylabel='stars',**kwargs):
-        plt.imshow(plotData,interpolation='nearest',aspect = float(plotData.shape[1])/plotData.shape[0],**kwargs)
+        """
+        Creates a square 2D plot of some input array, with the option to save it.
+
+        plotData:   2D array to plot
+        saveName:   (optional) path to save plot without file extension
+        title:      (optional) title for the plot
+        xlabel:     x-axis label for the plot (default:'pixels')
+        ylabel:     y-axis label for the plot (default:'stars')
+        **kwargs:   kwargs for matplotlib.pyplot.imshow
+        
+        """
+        plt.imshow(plotData,interpolation='nearest',
+                   aspect = float(plotData.shape[1])/plotData.shape[0],**kwargs)
         plt.title(title)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
@@ -334,30 +423,51 @@ class subStarSample(makeFilter):
 
 class mask(subStarSample):
     """
-    Define a mask given a conditions in the form of maskConditions
+    Define and apply a mask given a set of conditions in the form of the maskConditions function.
     """
     def __init__(self,sampleType,maskFilter,ask=True,correction=None):
+        """
+        Mask a subsample according to a maskFilter function
+        
+        sampleType:   designator of the sample type - must be a key in readfn 
+                      and independentVariables in data.py
+        maskFilter:   function that decides on elements to be masked
+        ask:          if True, function asks for user input to make filter_function.py, 
+                      if False, uses existing filter_function.py
+        correction:   Information on how to perform the correction.
+                      May be a path to a pickled file, a float, or list of values.
+        
+        """
         subStarSample.__init__(self,sampleType,ask=ask)
         self._SNR = self.spectra/self.spectra_errs
+        # create default mask arrays (mask nothing)
         self.masked = np.zeros(self.spectra.shape).astype(bool)
         self.unmasked = np.ones(self.spectra.shape).astype(bool)
+        # find indices that should be masked
         self._maskHere = maskFilter(self)
+        # update mask arrays
         self.masked[self._maskHere]= True
         self.unmasked[self._maskHere] = False
+        # apply mask arrays to data
         self.applyMask()
+        # perform correction on uncertainty post masking
+        self.correctUncertainty(correction=correction)
 
     def applyMask(self):
         """
         Mask all arrays according to maskConditions
 
         """
+        # independent variables
         self.teff.mask = self.masked
         self.logg.mask = self.masked
         self.fe_h.mask = self.masked
 
+        # spectral information
         self.spectra.mask = self.masked
         self.spectra_errs.mask = self.masked
 
+        # create dictionary tracing the independent variables to keywords
         self.keywordMap = {'TEFF':self.teff,
                            'LOGG':self.logg,
                            'FE_H':self.fe_h
@@ -365,79 +475,165 @@ class mask(subStarSample):
 
 
 class fit(mask):
+    """
+    Contains functions to find polynomial fits.
+    
+    """
     def __init__(self,sampleType,maskFilter,ask=True,correction=None,degree=2):
-        mask.__init__(self,sampleType,maskFilter,ask=ask)
+        """
+        Fit a masked subsample.
+        
+        sampleType:   designator of the sample type - must be a key in readfn 
+                      and independentVariables in data.py
+        maskFilter:   function that decides on elements to be masked
+        ask:          if True, function asks for user input to make filter_function.py, 
+                      if False, uses existing filter_function.py
+        correction:   Information on how to perform the correction.
+                      May be a path to a pickled file, a float, or list of values.
+        degree:       degree of polynomial to fit
+        
+        """
+        mask.__init__(self,sampleType,maskFilter,ask=ask,correction=correction)
+        # create a polynomial object to be used in producing independent variable matrix
         self.polynomial = PolynomialFeatures(degree=degree)
         self.findResiduals()
 
     def makeMatrix(self,pixel):
+        """
+        Find independent variable matrix
+        
+        pixel:   pixel to use, informs the mask on the matrix
+        
+        Returns the matrix
+        """
+        # Find the number of unmasked stars at this pixel
         numberStars = len(self.spectra[:,pixel][self.unmasked[:,pixel]])
-        indeps = np.zeros((len(independentVariables[self._sampleType]),numberStars))
+        # Create basic independent variable array
+        indeps = np.zeros((numberStars,len(independentVariables[self._sampleType])))
         for i in range(len(independentVariables[self._sampleType])):
             variable = independentVariables[self._sampleType][i]
-            indeps[i] = self.keywordMap[variable][:,pixel][self.unmasked[:,pixel]]
-        return np.matrix(self.polynomial.fit_transform(indeps.T))
+            indeps[:,i] = self.keywordMap[variable][:,pixel][self.unmasked[:,pixel]]
+        # use polynomial to produce matrix with all columns needed for our polynomial
+        return np.matrix(self.polynomial.fit_transform(indeps))
 
     def findFit(self,pixel):
+        """
+        Fits polynomial to all spectra at a given pixel, weighted by spectra uncertainties.
+
+        pixel:   pixel at which to perform fit
+
+        Return polynomial values and coefficients
+
+        """
+        # find matrix for polynomial of independent values
         indeps = self.makeMatrix(pixel)
+        # calculate inverse covariance matrix
         covInverse = np.diag(1./self.spectra_errs[:,pixel][self.unmasked[:,pixel]]**2)
+        # find matrix for spectra values
         starsAtPixel = np.matrix(self.spectra[:,pixel][self.unmasked[:,pixel]])
+        
+        # transform to matrices that have been weighted by the inverse covariance
         newIndeps = covInverse*indeps
         newIndeps = indeps.T*newIndeps
         newStarsAtPixel = covInverse*starsAtPixel.T
         newStarsAtPixel = indeps.T*newStarsAtPixel
-        linModel = linear_model.LinearRegression()
-        linModel.fit(newIndeps,newStarsAtPixel)
-        return indeps*linModel.coef_.T,linModel.coef_
+        
+        # calculate fit coefficients
+        coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]
+        return indeps*coeffs,coeffs.T
 
     def multiFit(self,minStarNum='default'):
+        """
+        Loop over all pixels and find fit. Mask where there aren't enough stars to fit.
+
+        minStarNum:   (optional) number of stars required to perform fit 
+                      (default:'default' which sets minStarNum to the number 
+                       of fit parameters plus one)
+        
+        """
+        # create sample matrix to confirm the number of parameters
         self.testM = self.makeMatrix(0)
+        
+        # set minimum number of stars needed for the fit
         if minStarNum=='default':
             self.minStarNum = self.testM.shape[1]+1
         elif minStarNum!='default':
             self.minStarNum = minStarNum
+        
+        # create arrays to hold fit results
         self.fitCoeffs = np.ma.masked_array(np.zeros((aspcappix,self.testM.shape[1])))
         self.fitSpectra = np.ma.masked_array(np.zeros((self.spectra.shape)),mask = self.spectra.mask)
+        
+        # perform fit at all pixels with enough stars
         for pixel in range(aspcappix):
             if np.sum(self.unmasked[:,pixel].astype(int)) < self.minStarNum:
+                # if too many stars missing, update mask
                 self.fitSpectra[:,pixel].mask = np.ones(self.fitSpectra[:,pixel].shape)
                 self.fitCoeffs[pixel].mask = np.ones(self.fitCoeffs[pixel].shape)
                 self.unmasked[:,pixel] = np.zeros(self.unmasked[:,pixel].shape)
                 self.masked[:,pixel] = np.ones(self.masked[:,pixel].shape)
             else:
+                # if fit possible
                 fitSpectrum,coefficients = self.findFit(pixel)
                 self.fitSpectra[:,pixel][self.unmasked[:,pixel]] = fitSpectrum
                 self.fitCoeffs[pixel] = coefficients
+        
+        # update mask on input data
         self.applyMask()
     
     def findResiduals(self,minStarNum='default'):
+        """
+        Calculate residuals from polynomial fits.
+        
+        minStarNum:   (optional) number of stars required to perform fit 
+                      (default:'default' which sets minStarNum to the number 
+                       of fit parameters plus one)
+        
+        """
         self.multiFit(minStarNum=minStarNum)
         self.residuals = self.spectra - self.fitSpectra 
 
+    def findCorrection(self,cov,median=True,numpix=10.,frac=None):
+        diagonal = np.ma.masked_array([cov[i,i] for i in range(len(cov))],
+                                      mask=[cov.mask[i,i] for i in range(len(cov))])
+        if median:
+            median = smoothMedian(diagonal,frac=frac,numpix=numpix)
+            return median
+        elif not median:
+            return diagonal
+
 class EMPCA(fit):
+    """
+    Contains funtions to perform EMPCA
+    """
     def __init__(self,sampleType,maskFilter,ask=True,correction=None,degree=2,nvecs=5,deltR2=0,mad=False):
         fit.__init__(self,sampleType,maskFilter,ask=ask,correction=correction,degree=degree)
         self.nvecs=nvecs
         self.deltR2=deltR2
         self.mad=mad
         self.pixelEMPCA()
-        self.setR2noise()
 
     def pixelEMPCA(self,randomSeed=1):
         self.goodPixels=([i for i in range(aspcappix) if np.sum(self.residuals[:,i].mask) < self.residuals.shape[0]-self.minStarNum],)
         empcaResiduals = self.residuals.T[self.goodPixels].T
         unmasked = (empcaResiduals.mask==False)
         basicWeights=unmasked.astype(float)
-        self.empcaModel = empca(empcaResiduals.data,weights=basicWeights,nvec=self.nvecs,deltR2=self.deltR2,mad=self.mad,randseed=randomSeed)
+        self.empcaModel = empca(empcaResiduals.data,weights=basicWeights,
+                                nvec=self.nvecs,deltR2=self.deltR2,mad=self.mad,
+                                randseed=randomSeed)
         self.setR2(self.empcaModel)
+        self.setR2noise(self.empcaModel)
         self.resizePixelEigvec(self.empcaModel)
         self.elementEigVec(self.empcaModel)
         errorWeights = basicWeights
-        errorWeights[unmasked] = 1./(self.spectra_errs.T[self.goodPixels].T[unmasked])**2
-        self.empcaModelWeight = empca(empcaResiduals.data,weights=errorWeights,nvec=self.nvecs,deltR2=self.deltR2,mad=self.mad,randseed=randomSeed)
+        errorWeights[unmasked] = 1./((self.spectra_errs.T[self.goodPixels].T[unmasked])**2)
+        self.empcaModelWeight = empca(empcaResiduals.data,weights=errorWeights,
+                                      nvec=self.nvecs,deltR2=self.deltR2,mad=self.mad,
+                                      randseed=randomSeed)
         self.setR2(self.empcaModelWeight)
+        self.setR2noise(self.empcaModelWeight)
         self.resizePixelEigvec(self.empcaModelWeight)
-        self.elementEigVec(self.empcaModel)
+        self.elementEigVec(self.empcaModelWeight)
 
     def setR2(self,model):
         vecs = len(model.eigvec)
@@ -466,13 +662,13 @@ class EMPCA(fit):
             neweigvec[vec] = neweigvec[vec]/np.sqrt(np.sum(neweigvec[vec]**2))
         model.elementEigVec = neweigvec
                             
-    def setR2noise(self):
+    def setR2noise(self,model):
         if self.mad:
-            self.Vdata = self.empcaModelWeight._unmasked_data_mad2*1.4826**2
+            model.Vdata = model._unmasked_data_mad2*1.4826**2
         elif not self.mad:
-            self.Vdata = self.empcaModelWeight._unmasked_data_var
-        self.Vnoise = np.mean(1./(self.empcaModelWeight.weights[self.empcaModelWeight.weights!=0]))
-        self.R2noise = 1.-(self.Vnoise/self.Vdata)
+            model.Vdata = model._unmasked_data_var
+        model.Vnoise = np.mean(1./(model.weights[model.weights!=0]))
+        model.R2noise = 1.-(model.Vnoise/model.Vdata)
 
     def plotEigVec(self,model,index):
         plt.ylim(-1,1)
@@ -481,5 +677,11 @@ class EMPCA(fit):
         plt.xlabel('Element')
         plt.ylabel('Eigenvector {0}'.format(index))
         plt.xticks(range(len(elems)),elems)
-        
+    
+    def plotR2(self,model):
+        plt.ylim(0,1)
+        plt.axhline(model.R2noise,color='k')
+        plt.plot(model.R2Array)
+        plt.ylabel('R2')
+        plt.xlabel('number of eigvectors')
         

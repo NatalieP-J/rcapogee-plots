@@ -48,3 +48,18 @@ elemwindows = {}
 for elem in elems:
     w = wn.read(elem,dr=12,apStarWavegrid=False)
     elemwindows[elem] = w
+
+detec_blue =[0,2920]
+detec_blue_wv = [1.514,1.581] #microns
+detec_green = [2920,5320]
+detec_green_wv = [1.585,1.644] #microns
+detec_red = [5320,7213]
+detec_red_wv = [1.647,1.696] #microns
+detectors = [0,2920,5320,7214]
+ASPCAPdetectors = [0,2920,2920,5320,5320,7214]
+apStarDetectors = [322,3242,3648,6048,6412,8306]
+
+
+#def pix2wavelength():
+    # log scale log wv[i+1] - log wv[i] = 6e-6
+    
