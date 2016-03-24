@@ -640,7 +640,7 @@ class fit(mask):
         self.residuals = self.spectra - self.fitSpectra 
 
     def testFit(self,errs=1,randomize=False,
-                params=[1,1,1,2,3,2,1,2,1,1]):
+                params=np.array([1,1,1,2,3,2,1,2,1,1])):
         
         self.testParams = np.matrix(params).T
         self.old_spectra = np.ma.copy(self.spectra)
@@ -660,8 +660,10 @@ class fit(mask):
                                                               self.spectra[1])
 
         self.findResiduals()
-        a = np.reshape(np.array(test.testParams),(10,))
-        self.diff = np.array([a-test.fitCoeffs[i] for i in range(len(test.fitCoeffs))])
+        a = np.reshape(np.array(self.testParams),(10,))
+        self.diff = np.array([a-self.fitCoeffs[i] for i in range(len(self.fitCoeffs))])
+        self.spectra = self.old_spectra
+        self.spectra_errs = self.old_spectra_errs
 
 
     def findCorrection(self,cov,median=True,numpix=10.,frac=None):
