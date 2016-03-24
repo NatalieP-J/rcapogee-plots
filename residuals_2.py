@@ -639,6 +639,33 @@ class fit(mask):
         self.multiFit(minStarNum=minStarNum)
         self.residuals = self.spectra - self.fitSpectra 
 
+    def testFit(self,errs=1,mask=False,randomize=False,
+                params=[1,1,1,2,3,2,1,2,1,1]):
+        
+        self.testParams = np.matrix(params).T
+        self.old_spectra = np.ma.copy(self.spectra)
+        self.old_spectra_errs = np.ma.copy(self.spectra_errs)
+        self.old_residuals = np.ma.copy(self.residuals)
+        if isinstance(errs,(int,float)):
+            const = True
+            self.spectra_errs = np.ma.masked_array(np.zeros(self.old_spectra_errs.shape))
+            self.spectra_errs.mask=self.old_spectra_errs.mask
+
+        if not mask:
+            self.spectra_errs.mask=False
+            self.spectra.mask=False
+            
+        for pixel in range(aspcappix):
+            indeps = self.makeMatrix(pixel)
+            #print np.reshape(np.array(indeps*self.testParams),(194,)).shape
+            self.spectra[:,pixel][self.unmasked[:,pixel]] = np.reshape(np.array(indeps*self.testParams),self.spectra[:,pixel][self.unmasked[:,pixel]].shape)
+                
+        if not const and randomize:
+            self.spectra += self.spectra_errs*np.random.randn(self.spectra[0],
+                                                              self.spectra[1])
+
+        self.findResiduals()
+
     def findCorrection(self,cov,median=True,numpix=10.,frac=None):
         diagonal = np.ma.masked_array([cov[i,i] for i in range(len(cov))],
                                       mask=[cov.mask[i,i] for i in 

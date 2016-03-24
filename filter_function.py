@@ -2,6 +2,6 @@ import numpy as np
 
 def starFilter(data):
 	"""
-	clusters_CLUSTER_matchN6819
+	red_clump_FE_H_up-0.1_lo-0.105
 	"""
-	return (data['CLUSTER'] == "N6819")
+	return (data['FE_H'] < -0.1) & (data['FE_H'] > -0.105)
