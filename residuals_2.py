@@ -580,8 +580,8 @@ class fit(mask):
         #newStarsAtPixel = indeps.T*newStarsAtPixel
         
         # calculate fit coefficients
-        coeffs = np.linalg.inv(newIndeps)*newStarsAtPixel
-        #coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]
+        #coeffs = np.linalg.inv(newIndeps)*newStarsAtPixel
+        coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]
         return indeps*coeffs,coeffs.T
 
     def multiFit(self,minStarNum='default'):
@@ -639,7 +639,7 @@ class fit(mask):
         self.multiFit(minStarNum=minStarNum)
         self.residuals = self.spectra - self.fitSpectra 
 
-    def testFit(self,errs=1,mask=False,randomize=False,
+    def testFit(self,errs=1,randomize=False,
                 params=[1,1,1,2,3,2,1,2,1,1]):
         
         self.testParams = np.matrix(params).T
@@ -650,14 +650,9 @@ class fit(mask):
             const = True
             self.spectra_errs = np.ma.masked_array(np.zeros(self.old_spectra_errs.shape))
             self.spectra_errs.mask=self.old_spectra_errs.mask
-
-        if not mask:
-            self.spectra_errs.mask=False
-            self.spectra.mask=False
             
         for pixel in range(aspcappix):
             indeps = self.makeMatrix(pixel)
-            #print np.reshape(np.array(indeps*self.testParams),(194,)).shape
             self.spectra[:,pixel][self.unmasked[:,pixel]] = np.reshape(np.array(indeps*self.testParams),self.spectra[:,pixel][self.unmasked[:,pixel]].shape)
                 
         if not const and randomize:
@@ -665,6 +660,9 @@ class fit(mask):
                                                               self.spectra[1])
 
         self.findResiduals()
+        a = np.reshape(np.array(test.testParams),(10,))
+        self.diff = np.array([a-test.fitCoeffs[i] for i in range(len(test.fitCoeffs))])
+
 
     def findCorrection(self,cov,median=True,numpix=10.,frac=None):
         diagonal = np.ma.masked_array([cov[i,i] for i in range(len(cov))],
