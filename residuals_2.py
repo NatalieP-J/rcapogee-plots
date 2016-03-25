@@ -531,6 +531,8 @@ class fit(mask):
         mask.__init__(self,sampleType,maskFilter,ask=ask,correction=correction)
         # create a polynomial object to be used in producing independent 
         # variable matrix
+        self.degree = degree
+        self.crossInds = ([5,6,8],)
         self.polynomial = PolynomialFeatures(degree=degree)
         self.findResiduals()
 
@@ -575,13 +577,19 @@ class fit(mask):
         # transform to matrices that have been weighted by the inverse 
         # covariance
         newIndeps = indeps.T*covInverse*indeps
-        #newIndeps = indeps.T*newIndeps
+        
+        # Degeneracy check
+        eigvals,eigvecs = np.linalg.eig(newIndeps)
+        if any(eigvals<1e-10) and indeps.shape[1] > self.degree+1 :
+            indeps = indeps.T[self.crossInds].T
+        
+        newIndeps = indeps.T*covInverse*indeps
         newStarsAtPixel = indeps.T*covInverse*starsAtPixel.T
-        #newStarsAtPixel = indeps.T*newStarsAtPixel
         
         # calculate fit coefficients
         #coeffs = np.linalg.inv(newIndeps)*newStarsAtPixel
         coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]
+        bestFit = indeps*coeffs
         return indeps*coeffs,coeffs.T
 
     def multiFit(self,minStarNum='default'):
