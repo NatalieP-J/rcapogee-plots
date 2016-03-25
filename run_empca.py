@@ -152,11 +152,7 @@ def weight_residual(model,numstars,plot=True,subgroup=False):
             residual = model.residual
             sigma = model.errs.T
         # Weight residuals and sigma values
-        weightedr = model.weighting_stars(residual,elem,
-                                          model.outName('pkl','resids',elem=elem,
-                                                        order = model.order,
-                                                        subgroup=subgroup,
-                                                        cross=model.cross))
+        weightedr = model.weighting_stars(residual,elem)
         weighteds = np.sqrt(np.ma.sum(sigma**2*np.tile(pf.normweights(elemwindows[elem])**2,(sigma.shape[1],1)).T,axis=0))
         weighteds = np.ma.masked_array(weighteds,mask=weightedr.mask)
         savename = model.outName('pkl',content='sigma',elem=elem,order=model.order,subgroup=subgroup,cross=model.cross)
