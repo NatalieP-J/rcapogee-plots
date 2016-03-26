@@ -582,8 +582,8 @@ class fit(mask):
         # Degeneracy check
         degen = False
         eigvals,eigvecs = np.linalg.eig(newIndeps)
-        if any(eigvals<1e-10) and indeps.shape[1] > self.degree+1:
-            print 'degenerate pixel ',pixel
+        if any(np.fabs(eigvals)<1e-10) and indeps.shape[1] > self.degree+1:
+            print 'degenerate pixel ',pixel,' eigenvals: ',eigvals
             degen = True
             indeps = indeps.T[self.noncrossInds].T
         
@@ -644,9 +644,12 @@ class fit(mask):
                 self.fitCoeffs[pixel] = coefficients
 
         # calculate fit statistics
-        self.fitChiSquared = np.ma.sum((self.spectra-self.fitSpectra)/self.spectra_errs,axis=0)
-        self.fitReducedChi = self.fitChiSquared/np.sum(self.fitCoeffs.mask==False,axis=1)
-        
+        self.fitChiSquared = np.ma.sum((self.spectra-self.fitSpectra)**2/self.spectra_errs**2,axis=0)
+        if self.fitCoeffs.mask == False:
+            dof = aspcappix - self.numparams - 1
+        else: 
+            dof = aspcappix - np.sum(self.fitCoeffs.mask==False,axis=1) - 1
+        self.fitReducedChi = self.fitChiSquared/dof
         # update mask on input data
         self.applyMask()
     
@@ -676,7 +679,7 @@ class fit(mask):
 
         """
         # Choose parameters if necessary
-        if isinstance(params,(int))
+        if isinstance(params,(int)):
             params = self.fitCoeffs[params]
 
         # Store parameters for future comparison
