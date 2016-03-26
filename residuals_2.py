@@ -532,6 +532,7 @@ class fit(mask):
         # create a polynomial object to be used in producing independent 
         # variable matrix
         self.degree = degree
+        self.noncrossInds = ([0,1,2,3,4,7,9])
         self.crossInds = ([5,6,8],)
         self.polynomial = PolynomialFeatures(degree=degree)
         self.findResiduals()
@@ -579,9 +580,12 @@ class fit(mask):
         newIndeps = indeps.T*covInverse*indeps
         
         # Degeneracy check
+        degen = False
         eigvals,eigvecs = np.linalg.eig(newIndeps)
-        if any(eigvals<1e-10) and indeps.shape[1] > self.degree+1 :
-            indeps = indeps.T[self.crossInds].T
+        if any(eigvals<1e-10) and indeps.shape[1] > self.degree+1:
+            print 'degenerate pixel ',pixel
+            degen = True
+            indeps = indeps.T[self.noncrossInds].T
         
         newIndeps = indeps.T*covInverse*indeps
         newStarsAtPixel = indeps.T*covInverse*starsAtPixel.T
@@ -590,7 +594,13 @@ class fit(mask):
         #coeffs = np.linalg.inv(newIndeps)*newStarsAtPixel
         coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]
         bestFit = indeps*coeffs
-        return indeps*coeffs,coeffs.T
+        if degen:
+            newcoeffs = np.ma.masked_array(np.zeros(self.numparams),
+                                           mask = np.zeros(self.numparams))
+            newcoeffs[self.noncrossInds] = coeffs
+            newcoeffs.mask[self.crossInds] = True
+            coeffs = newcoeffs
+        return bestFit,coeffs.T
 
     def multiFit(self,minStarNum='default'):
         """
@@ -604,7 +614,7 @@ class fit(mask):
         """
         # create sample matrix to confirm the number of parameters
         self.testM = self.makeMatrix(0)
-        numparams = self.testM.shape[1]
+        self.numparams = self.testM.shape[1]
         
         # set minimum number of stars needed for the fit
         if minStarNum=='default':
@@ -614,7 +624,7 @@ class fit(mask):
         
         # create arrays to hold fit results
         self.fitCoeffs = np.ma.masked_array(np.zeros((aspcappix,
-                                                      numparams)))
+                                                      self.numparams)))
         self.fitSpectra = np.ma.masked_array(np.zeros((self.spectra.shape)),
                                              mask = self.spectra.mask)
         
@@ -623,7 +633,7 @@ class fit(mask):
             if np.sum(self.unmasked[:,pixel].astype(int)) < self.minStarNum:
                 # if too many stars missing, update mask
                 self.fitSpectra[:,pixel].mask = np.ones(self.spectra.shape[1])
-                self.fitCoeffs[pixel].mask = np.ones(numparams)
+                self.fitCoeffs[pixel].mask = np.ones(self.numparams)
                 self.unmasked[:,pixel] = np.zeros(self.unmasked[:,pixel].shape)
                 self.masked[:,pixel] = np.ones(self.masked[:,pixel].shape)
             else:
@@ -631,6 +641,9 @@ class fit(mask):
                 fitSpectrum,coefficients = self.findFit(pixel)
                 self.fitSpectra[:,pixel][self.unmasked[:,pixel]] = fitSpectrum
                 self.fitCoeffs[pixel] = coefficients
+
+        self.fitChiSquared = np.ma.sum((self.spectra-self.fitSpectra)/self.spectra_errs,axis=0)
+        self.fitReducedChi = self.fitChiSquared/np.sum(self.fitCoeffs.mask==False,axis=1)
         
         # update mask on input data
         self.applyMask()
@@ -647,15 +660,31 @@ class fit(mask):
         self.multiFit(minStarNum=minStarNum)
         self.residuals = self.spectra - self.fitSpectra 
 
-    def testFit(self,errs=1,randomize=False,
-                params=np.array([1,1,1,2,3,2,1,2,1,1])):
-        
+    def testFit(self,errs=1,randomize=False, params=0):
+
+        """
+        Test fit accuracy by generating a data set from given input parameters.
+
+        errs:        Sets errors to use in the fit. If a int or float, set 
+                     constant errors. Else, use data set errors.
+        randomize:   Sets whether generated data gets Gaussian uncertainty added
+        params:      Either an array of parameters to use or an index to select
+                     from existing fitCoeffs array.    
+
+        """
+        # Choose parameters if necessary
+        if isinstance(params,(int))
+            params = self.fitCoeffs[params]
+
+        # Store parameters for future comparison
         self.testParams = np.matrix(params).T
+        # Keep old spectra information
         self.old_spectra = np.ma.copy(self.spectra)
         self.old_spectra_errs = np.ma.copy(self.spectra_errs)
         self.old_residuals = np.ma.copy(self.residuals)
+
         if isinstance(errs,(int,float)):
-            const = True
+            randomize = False
             self.spectra_errs = np.ma.masked_array(np.zeros(self.old_spectra_errs.shape))
             self.spectra_errs.mask=self.old_spectra_errs.mask
             
@@ -663,13 +692,13 @@ class fit(mask):
             indeps = self.makeMatrix(pixel)
             self.spectra[:,pixel][self.unmasked[:,pixel]] = np.reshape(np.array(indeps*self.testParams),self.spectra[:,pixel][self.unmasked[:,pixel]].shape)
                 
-        if not const and randomize:
+        if randomize:
             self.spectra += self.spectra_errs*np.random.randn(self.spectra[0],
                                                               self.spectra[1])
 
         self.findResiduals()
         a = np.reshape(np.array(self.testParams),(10,))
-        self.diff = np.array([a-self.fitCoeffs[i] for i in range(len(self.fitCoeffs))])
+        self.diff = np.ma.masked_array([a-self.fitCoeffs[i] for i in range(len(self.fitCoeffs))],mask = self.fitCoeffs.mask)
         self.spectra = self.old_spectra
         self.spectra_errs = self.old_spectra_errs
 
