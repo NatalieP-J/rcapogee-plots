@@ -6,6 +6,8 @@ import multiprocessing
 import matplotlib.pyplot as plt
 import statsmodels.nonparametric.smoothers_lowess as sm
 import scipy as sp
+import data
+reload(data)
 from data import *
 
 # Import APOGEE/sample packages
@@ -161,6 +163,7 @@ class starSample(object):
                                                         aspcapWavegrid=True)
             self._bitmasks[star] = apread.apStar(LOC,APO,ext=3, header=False, 
                                                  aspcapWavegrid=True)[1] 
+    
     def plotHistogram(self,array,title = '',xlabel = '',
                       ylabel = 'number of stars',saveName=None,**kwargs):
         """
@@ -180,6 +183,7 @@ class starSample(object):
         plt.title(title)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
+        plt.ylim(0,1)
         if saveName:
             plt.savefig('plots/'+saveName+'.png')
             plt.close()
@@ -583,7 +587,7 @@ class fit(mask):
         degen = False
         eigvals,eigvecs = np.linalg.eig(newIndeps)
         if any(np.fabs(eigvals)<1e-10) and indeps.shape[1] > self.degree+1:
-            print 'degenerate pixel ',pixel,' eigenvals: ',eigvals
+            print 'degenerate pixel ',pixel,' coeffs ',np.where(np.fabs(eigvals) < 1e-10)[0] 
             degen = True
             indeps = indeps.T[self.noncrossInds].T
         
@@ -645,10 +649,10 @@ class fit(mask):
 
         # calculate fit statistics
         self.fitChiSquared = np.ma.sum((self.spectra-self.fitSpectra)**2/self.spectra_errs**2,axis=0)
-        if self.fitCoeffs.mask == False:
-            dof = aspcappix - self.numparams - 1
-        else: 
+        if isinstance(self.fitCoeffs.mask,np.ndarray):
             dof = aspcappix - np.sum(self.fitCoeffs.mask==False,axis=1) - 1
+        else:
+            dof = aspcappix - self.numparams - 1
         self.fitReducedChi = self.fitChiSquared/dof
         # update mask on input data
         self.applyMask()
