@@ -539,7 +539,7 @@ class fit(mask):
         self.noncrossInds = ([0,1,2,3,4,7,9])
         self.crossInds = ([5,6,8],)
         self.polynomial = PolynomialFeatures(degree=degree)
-        self.findResiduals()
+        #self.findResiduals()
 
     def makeMatrix(self,pixel):
         """
@@ -693,10 +693,8 @@ class fit(mask):
         self.old_spectra_errs = np.ma.copy(self.spectra_errs)
         self.old_residuals = np.ma.copy(self.residuals)
 
-        # If errors are constant, don't do randomization, update errors
         if isinstance(errs,(int,float)):
-            randomize = False
-            self.spectra_errs = np.ma.masked_array(np.zeros(self.old_spectra_errs.shape))
+            self.spectra_errs = np.ma.masked_array(np.zeros(self.old_spectra_errs.shape))+errs
             self.spectra_errs.mask=self.old_spectra_errs.mask
             
         # Generate data 
@@ -706,8 +704,8 @@ class fit(mask):
          
         # If requested, added noise to the data        
         if randomize:
-            self.spectra += self.spectra_errs*np.random.randn(self.spectra[0],
-                                                              self.spectra[1])
+            self.spectra += self.spectra_errs*np.random.randn(self.spectra.shape[0],
+                                                              self.spectra.shape[1])
 
         # Calculate residuals
         self.findResiduals()
