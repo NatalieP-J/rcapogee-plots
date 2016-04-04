@@ -591,11 +591,11 @@ class fit(mask):
             degen = True
             indeps = indeps.T[self.noncrossInds].T
         
-        newIndeps = indeps.T*covInverse*indeps
-        newStarsAtPixel = indeps.T*covInverse*starsAtPixel.T
+        newIndeps = np.dot(indeps.T,np.dot(covInverse,indeps))
+        newStarsAtPixel = np.dot(indeps.T,np.dot(covInverse,starsAtPixel.T))
         
         # calculate fit coefficients
-        #coeffs = np.linalg.inv(newIndeps)*newStarsAtPixel
+        #coeffs = np.dot(np.linalg.inv(newIndeps),newStarsAtPixel)
         coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]
         bestFit = indeps*coeffs
         # If degeneracy, make coefficients into the correct shape
@@ -669,7 +669,7 @@ class fit(mask):
         self.multiFit(minStarNum=minStarNum)
         self.residuals = self.spectra - self.fitSpectra 
 
-    def testFit(self,errs=1,randomize=False, params=0):
+    def testFit(self,errs=1,randomize=False, params=defaultparams, singlepix=None):
 
         """
         Test fit accuracy by generating a data set from given input parameters.
@@ -679,19 +679,28 @@ class fit(mask):
         randomize:   Sets whether generated data gets Gaussian noise added,
                      drawn from flux uncertainty.
         params:      Either an array of parameters to use or an index to select
-                     from existing fitCoeffs array.    
+                     from existing fitCoeffs array.
+        singlepix:   Sets whether to fit all pixels, or just a single one
+                     (random if singlepix not set as integer)
 
         """
         # Choose parameters if necessary
         if isinstance(params,(int)):
             params = self.fitCoeffs[params]
+        
+        if isinstance(params,(dict)):
+            params = params[self._sampleType]
+
+        if isinstance(params,(list)):
+            params = np.array(params)
 
         # Store parameters for future comparison
         self.testParams = np.matrix(params).T
         # Keep old spectra information
-        self.old_spectra = np.ma.copy(self.spectra)
-        self.old_spectra_errs = np.ma.copy(self.spectra_errs)
-        self.old_residuals = np.ma.copy(self.residuals)
+        self.old_spectra = np.ma.masked_array(np.zeros(self.spectra.shape))
+        self.old_spectra[:] = self.spectra
+        self.old_spectra_errs = np.ma.masked_array(np.zeros(self.spectra_errs.shape))
+        self.old_spectra_errs[:] = self.spectra_errs
 
         if isinstance(errs,(int,float)):
             self.spectra_errs = np.ma.masked_array(np.zeros(self.old_spectra_errs.shape))+errs
@@ -707,15 +716,21 @@ class fit(mask):
             self.spectra += self.spectra_errs*np.random.randn(self.spectra.shape[0],
                                                               self.spectra.shape[1])
 
-        # Calculate residuals
-        self.findResiduals()
-        # Find the difference between the calculated parameters and original input
-        a = np.reshape(np.array(self.testParams),(10,))
-        self.diff = np.ma.masked_array([a-self.fitCoeffs[i] for i in range(len(self.fitCoeffs))],mask = self.fitCoeffs.mask)
-        
+        self.testParams = np.reshape(np.array(self.testParams),(10,))
+        if not singlepix:
+            # Calculate residuals
+            self.multiFit()
+            # Find the difference between the calculated parameters and original input
+            self.diff = np.ma.masked_array([testParams-self.fitCoeffs[i] for i in range(len(self.fitCoeffs))],mask = self.fitCoeffs.mask)
+        elif singlepix:
+            fitSpectrum,coefficients = self.findFit(singlepix)
+            self.fitCoeffs = coefficients
+            self.diff = testParams-coefficients
+            
+
         # Restore previous values
-        self.spectra = self.old_spectra
-        self.spectra_errs = self.old_spectra_errs
+        self.spectra[:] = self.old_spectra
+        self.spectra_errs[:] = self.old_spectra_errs
 
 
     def findCorrection(self,cov,median=True,numpix=10.,frac=None):
