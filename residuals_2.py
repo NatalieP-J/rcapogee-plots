@@ -4,6 +4,7 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
 import multiprocessing
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 import statsmodels.nonparametric.smoothers_lowess as sm
 import scipy as sp
 import data
@@ -454,6 +455,17 @@ class subStarSample(makeFilter):
 
     def logplot(self,arrays,labels,ylabel='log10 of coefficients',xlabel='coefficient',reshape=True,
                 coeff_labels=True):
+        """
+        Creates a plot with log values of input array, with legend indicating where array is positive
+        and where its negative.
+
+        arrays:         List of input arrays
+        labels:         Legend labels for the input arrays
+        ylabel:         Label for y-axis
+        xlabel:         Label for x-axis
+        reshape:        If True, reshape input arrays (use if one of the inputs is a numpy matrix)
+        coeff_labels:   If True, use the default list of labels for the x-axis fit coefficients
+        """
         if not isinstance(arrays,(list,np.ndarray)):
             arrays = [arrays]
         plt.figure(figsize=(14,8))
@@ -461,21 +473,26 @@ class subStarSample(makeFilter):
             array = arrays[a]
             if reshape:
                 array = np.reshape(np.array(arrays[a]),(len(coeff_inds[self._sampleType]),))
+            # Find independent indices
             x = np.arange(len(array))
+            # Find where positive and negative
             pos = np.where(array>0)
             neg = np.where(array<0)
-            print array
-            print 'positive {0}'.format(labels[a])
-            print 'negative {0}'.format(labels[a])
+            # Create legend labels
             poslabel = 'positive {0}'.format(labels[a])
             neglabel = 'negative {0}'.format(labels[a])
+            # Plot positive and negative separately
             plt.plot(x[pos],np.log10(array[pos]),'o',label=poslabel)
             plt.plot(x[neg],np.log10(np.fabs(array[neg])),'o',label=neglabel)
+        # Extend limits so all points are clearly visible
         plt.xlim(x[0]-1,x[-1]+1)
+        # Label axes
         plt.ylabel(ylabel)
         plt.xlabel(xlabel)
+        # Label x-ticks if requested
         if coeff_labels:
             plt.xticks(range(len(coeff_inds[self._sampleType])),coeff_inds[self._sampleType])
+        # Draw legend
         plt.legend(loc='best')
         plt.show()
             
@@ -690,8 +707,12 @@ class fit(mask):
         self.applyMask()
 
     def fitStatistic(self):
-        # calculate fit statistics
+        """
+        Adds to fit object chi squared and reduced chi squared properties.
+
+        """
         self.fitChiSquared = np.ma.sum((self.spectra-self.fitSpectra)**2/self.spectra_errs**2,axis=0)
+        # Calculate degrees of freedom
         if isinstance(self.fitCoeffs.mask,np.ndarray):
             dof = aspcappix - np.sum(self.fitCoeffs.mask==False,axis=1) - 1
         else:
@@ -709,6 +730,62 @@ class fit(mask):
         """
         self.multiFit(minStarNum=minStarNum)
         self.residuals = self.spectra - self.fitSpectra 
+
+    def findAbundances(self):
+        """
+        From calculated residuals, calculate elemental abundances for each star.
+        """
+        self.abundances = np.ma.masked_array(np.zeros((self.numberStars,len(elems))))
+        for ind in range(len(elems)):
+            # Find element window and normalize it
+            window = elemwindows[elems[ind]]
+            normWindow = np.ma.masked_array(window/np.sqrt(np.sum(window**2)))
+            # multiply all residuals by this element window
+            windowed = np.tile(normWindow,(self.numberStars,1))*self.residuals
+            # calculate abundance of this element for all stars
+            elemAbundance = np.ma.sum(windowed,axis=1)
+            # update abundance tracker
+            self.abundances[:,ind] = elemAbundance
+
+
+    def plotAbundances2d(self,elem1,elem2,saveName=None):
+        """
+        Creates a 2D plot comparing two abundances.
+
+        elem1:      Name of first element (eg. 'C')
+        elem2:      Name of second element
+        saveName:   Name of output file (saved in directory associated with sample)
+        """
+        ind1 = elems.index(elem1)
+        ind1 = elems.index(elem2)
+        plt.figure(figsize=(10,10))
+        plt.plot(self.abundances[:,ind1],self.abundances[:,ind2],'o')
+        plt.xlabel(elem1)
+        plt.ylabel(elem2)
+        if saveName:
+            plt.savefig(self.name+'/'+saveName+'.png')
+
+    def plotAbundances3d(self,elem1,elem2,elem3,saveName=None):
+        """
+        Creates a 3D plot comparing two abundances.
+
+        elem1:      Name of first element (eg. 'C')
+        elem2:      Name of second element
+        elem3:      Name of third element
+        saveName:   Name of output file (saved in directory associated with sample)
+        """
+        ind1 = elems.index(elem1)
+        ind2 = elems.index(elem2)
+        ind3 = elems.index(elem3)
+        fig = plt.figure(figsize=(10,10))
+        ax = fig.add_subplot(111,project='3d')  
+        ax.scatter(test.abundances[:,ind],test.abundances[:,ind2],test.abundances[:,ind3])
+        ax.set_xlabel(elem1)
+        ax.set_ylabel(elem2)
+        ax.set_zlabel(elem3)
+        if saveName:
+            plt.savefig(self.name+'/'+saveName+'.png')
+
 
     def testFit(self,errs=None,randomize=False, params=defaultparams, singlepix=None,minStarNum='default'):
 
@@ -749,6 +826,7 @@ class fit(mask):
         self.old_spectra_errs[:] = self.spectra_errs
 
         if not errs:
+            # assign errors as constant with consistent max
             self.spectra_errs = np.ma.masked_array(np.ones(self.old_spectra_errs.shape))
             self.spectra_errs.mask=self.old_spectra_errs.mask
             
@@ -775,6 +853,7 @@ class fit(mask):
             self.fitCoeffErrs = coefficient_uncertainty
             self.diff = self.testParams-coefficients
     
+        # Normalize the difference by standard error size
         self.errNormDiff = self.diff/np.median(self.spectra_errs)
 
         # Restore previous values
