@@ -566,6 +566,7 @@ class fit(mask):
         self.noncrossInds = ([0,1,2,3,4,7,9])
         self.crossInds = ([5,6,8],)
         self.polynomial = PolynomialFeatures(degree=degree)
+        self.testM = self.makeMatrix(0) 
         #self.findResiduals()
 
     def makeMatrix(self,pixel):
@@ -609,8 +610,8 @@ class fit(mask):
         
         # transform to matrices that have been weighted by the inverse 
         # covariance
-        newIndeps = indeps.T*covInverse*indeps
-        
+        newIndeps = np.dot(indeps.T,np.dot(covInverse,indeps))
+
         # Degeneracy check
         degen = False
         eigvals,eigvecs = np.linalg.eig(newIndeps)
@@ -619,7 +620,6 @@ class fit(mask):
             degen = True
             indeps = indeps.T[self.noncrossInds].T
         
-        newIndeps = np.dot(indeps.T,np.dot(covInverse,indeps))
         newStarsAtPixel = np.dot(indeps.T,np.dot(covInverse,starsAtPixel.T))
         invNewIndeps = np.linalg.inv(newIndeps)
 
@@ -774,7 +774,8 @@ class fit(mask):
             self.fitCoeffs = coefficients
             self.fitCoeffErrs = coefficient_uncertainty
             self.diff = self.testParams-coefficients
-            
+    
+        self.errNormDiff = self.diff/np.median(self.spectra_errs)
 
         # Restore previous values
         self.spectra[:] = self.old_spectra
