@@ -58,10 +58,10 @@ defaultparams={'red_clump':np.array([1.53796328e-07,3.80441208e-04,2.04021066e-0
                'clusters':np.ones(3)
                }
 
-const_inds = {'red_clump': ['const','Teff','logg','[Fe/H]','Teff^2','Teff*logg',
-                            'Teff*[Fe/H]','logg^2','logg*[Fe/H]','[Fe/H]^2']
+coeff_inds = {'red_clump': ['const','Teff','logg','[Fe/H]','Teff^2','Teff*logg',
+                            'Teff*[Fe/H]','logg^2','logg*[Fe/H]','[Fe/H]^2'],
               'clusters': ['const','Teff','Teff^2']
-
+              }
 
 detec_red_pix =[0,2920]
 detec_blue_wv = [1.514,1.581] #microns
