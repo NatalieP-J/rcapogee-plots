@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import statsmodels.nonparametric.smoothers_lowess as sm
 import scipy as sp
+from tqdm import tqdm
 import data
 reload(data)
 from data import *
@@ -144,7 +145,7 @@ class starSample(object):
         self._bitmasks = np.zeros((len(data),aspcappix),dtype=np.int64)
 
         # Fill arrays for each star
-        for star in range(len(data)):
+        for star in tqdm(range(len(data)),desc='read star data'):
             LOC = data[star]['LOCATION_ID']
             APO = data[star]['APOGEE_ID']
             TEFF = data[star]['TEFF']
@@ -603,7 +604,8 @@ class fit(mask):
 
         for i in range(len(independentVariables[self._sampleType])):
             variable = independentVariables[self._sampleType][i]
-            indeps[:,i] = self.keywordMap[variable][:,pixel][self.unmasked[:,pixel]]
+            indep = self.keywordMap[variable][:,pixel][self.unmasked[:,pixel]]
+            indeps[:,i] = indep-np.median(indep)
         # use polynomial to produce matrix with all necessary columns
         return np.matrix(self.polynomial.fit_transform(indeps))
 
@@ -688,7 +690,7 @@ class fit(mask):
                                              mask = self.spectra.mask)
         
         # perform fit at all pixels with enough stars
-        for pixel in range(aspcappix):
+        for pixel in tqdm(range(aspcappix),desc='fit'):
             if np.sum(self.unmasked[:,pixel].astype(int)) < self.minStarNum:
                 # if too many stars missing, update mask
                 self.fitSpectra[:,pixel].mask = np.ones(self.spectra.shape[1])
@@ -714,9 +716,9 @@ class fit(mask):
         self.fitChiSquared = np.ma.sum((self.spectra-self.fitSpectra)**2/self.spectra_errs**2,axis=0)
         # Calculate degrees of freedom
         if isinstance(self.fitCoeffs.mask,np.ndarray):
-            dof = aspcappix - np.sum(self.fitCoeffs.mask==False,axis=1) - 1
+            dof = self.numberStars - np.sum(self.fitCoeffs.mask==False,axis=1) - 1
         else:
-            dof = aspcappix - self.numparams - 1
+            dof = self.numberStars - self.numparams - 1
         self.fitReducedChi = self.fitChiSquared/dof
     
     def findResiduals(self,minStarNum='default'):
@@ -757,8 +759,8 @@ class fit(mask):
         saveName:   Name of output file (saved in directory associated with sample)
         """
         ind1 = elems.index(elem1)
-        ind1 = elems.index(elem2)
-        plt.figure(figsize=(10,10))
+        ind2 = elems.index(elem2)
+        plt.figure(figsize=(10,8))
         plt.plot(self.abundances[:,ind1],self.abundances[:,ind2],'o')
         plt.xlabel(elem1)
         plt.ylabel(elem2)
@@ -856,7 +858,7 @@ class fit(mask):
             self.diff = self.testParams-coefficients
     
         # Normalize the difference by standard error size
-        self.errNormDiff = self.diff/np.median(self.spectra_errs)
+        self.errNormDiff = self.diff/np.ma.median(self.spectra_errs)
 
         # Restore previous values
         self.spectra[:] = self.old_spectra
@@ -885,28 +887,16 @@ class fit(mask):
         elif not median:
             return diagonal
 
-class EMPCA(fit):
-    """
-    Contains functions to perform EMPCA
-    """
-    def __init__(self,sampleType,maskFilter,ask=True,correction=None,degree=2,
-                 nvecs=5,deltR2=0,mad=False):
-        fit.__init__(self,sampleType,maskFilter,ask=ask,correction=correction,
-                     degree=degree)
-        # Store properties of EMPCA
-        self.nvecs=nvecs
-        self.deltR2=deltR2
-        self.mad=mad
-        # Do EMPCA
-        self.pixelEMPCA()
-
-    def pixelEMPCA(self,randomSeed=1):
+    def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,mad=False):
         """
         Calculates EMPCA on residuals in pixel space.
 
         randomSeed:   seed to initialize starting EMPCA vectors
 
         """
+        self.mad = mad
+        self.nvecs = nvecs
+        self.deltR2 = deltR2
         # Find pixels with enough stars to do EMPCA
         self.goodPixels=([i for i in range(aspcappix) if np.sum(self.residuals[:,i].mask) < self.residuals.shape[0]-self.minStarNum],)
         empcaResiduals = self.residuals.T[self.goodPixels].T
