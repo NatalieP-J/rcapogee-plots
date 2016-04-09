@@ -1,5 +1,6 @@
 import numpy as np
 import os
+from joblib import Parallel,delayed
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
 import multiprocessing
@@ -366,7 +367,7 @@ class subStarSample(makeFilter):
     Given a filter function, defines a subsample of the total sample of stars.
     
     """
-    def __init__(self,sampleType,ask=True,correction=None):
+    def __init__(self,sampleType,ask=True):
         """
         Create a subsample according to a starFilter function
         
@@ -375,9 +376,6 @@ class subStarSample(makeFilter):
         ask:          if True, function asks for user input to make 
                       filter_function.py, if False, uses existing 
                       filter_function.py
-        correction:   Information on how to perform the correction.
-                      May be a path to a pickled file, a float, or list 
-                      of values.
         
         """
         # Create starFilter
@@ -424,7 +422,26 @@ class subStarSample(makeFilter):
             if correction.shape != self.spectra_errs.shape:
                 correction = np.tile(correction,(self.spectra_errs.shape[0],1))
             self.spectra_errs = np.sqrt(correction*self.spectra_errs**2)
-        
+
+    def uncorrectUncertainty(self,correction=None):
+        """
+        Undoes correction on measurement uncertainty.
+
+        correction:   Information on how to perform the correction.
+                      May be a path to a pickled file, a float, or 
+                      list of values.
+        """
+        self.checkArrays()
+        if isinstance(correction,(str)):
+            correction = acs.pklread(correction)
+        if isinstance(correction,(float,int)):
+            self.spectra_errs /= np.sqrt(correction)
+        elif isinstance(correction,(list)):
+            correction = np.array(correction)
+        if isinstance(correction,(np.ndarray)):
+            if correction.shape != self.spectra_errs.shape:
+                correction = np.tile(correction,(self.spectra_errs.shape[0],1))
+            self.spectra_errs = np.sqrt(self.spectra_errs**2/correction)
 
     def imshow(self,plotData,saveName=None,title = '',xlabel='pixels',ylabel='stars',**kwargs):
         """
@@ -505,7 +522,7 @@ class mask(subStarSample):
     maskConditions function.
     
     """
-    def __init__(self,sampleType,maskFilter,ask=True,correction=None):
+    def __init__(self,sampleType,maskFilter,ask=True):
         """
         Mask a subsample according to a maskFilter function
         
@@ -515,9 +532,6 @@ class mask(subStarSample):
         ask:          if True, function asks for user input to make 
                       filter_function.py, if False, uses existing 
                       filter_function.py
-        correction:   Information on how to perform the correction.
-                      May be a path to a pickled file, a float, or list 
-                      of values.
         
         """
         subStarSample.__init__(self,sampleType,ask=ask)
@@ -532,8 +546,6 @@ class mask(subStarSample):
         self.unmasked[self._maskHere] = False
         # apply mask arrays to data
         self.applyMask()
-        # perform correction on uncertainty post masking
-        self.correctUncertainty(correction=correction)
 
     def applyMask(self):
         """
@@ -561,7 +573,7 @@ class fit(mask):
     Contains functions to find polynomial fits.
     
     """
-    def __init__(self,sampleType,maskFilter,ask=True,correction=None,degree=2):
+    def __init__(self,sampleType,maskFilter,ask=True,degree=2):
         """
         Fit a masked subsample.
         
@@ -571,13 +583,10 @@ class fit(mask):
         ask:          if True, function asks for user input to make 
                       filter_function.py, if False, uses existing 
                       filter_function.py
-        correction:   Information on how to perform the correction.
-                      May be a path to a pickled file, a float, or list 
-                      of values.
         degree:       degree of polynomial to fit
         
         """
-        mask.__init__(self,sampleType,maskFilter,ask=ask,correction=correction)
+        mask.__init__(self,sampleType,maskFilter,ask=ask)
         # create a polynomial object to be used in producing independent 
         # variable matrix
         self.degree = degree
@@ -609,7 +618,7 @@ class fit(mask):
         # use polynomial to produce matrix with all necessary columns
         return np.matrix(self.polynomial.fit_transform(indeps))
 
-    def findFit(self,pixel):
+    def findFit(self,pixel,eigcheck=False):
         """
         Fits polynomial to all spectra at a given pixel, weighted by spectra 
         uncertainties.
@@ -633,18 +642,19 @@ class fit(mask):
 
         # Degeneracy check
         degen = False
-        eigvals,eigvecs = np.linalg.eig(newIndeps)
-        if any(np.fabs(eigvals)<1e-10) and indeps.shape[1] > self.degree+1:
-            print 'degenerate pixel ',pixel,' coeffs ',np.where(np.fabs(eigvals) < 1e-10)[0] 
-            degen = True
-            indeps = indeps.T[self.noncrossInds].T
+        if eigcheck:
+            eigvals,eigvecs = np.linalg.eig(newIndeps)
+            if any(np.fabs(eigvals)<1e-10) and indeps.shape[1] > self.degree+1:
+                print 'degenerate pixel ',pixel,' coeffs ',np.where(np.fabs(eigvals) < 1e-10)[0] 
+                degen = True
+                indeps = indeps.T[self.noncrossInds].T
         
         newStarsAtPixel = np.dot(indeps.T,np.dot(covInverse,starsAtPixel.T))
         invNewIndeps = np.linalg.inv(newIndeps)
 
         # calculate fit coefficients
-        #coeffs = np.dot(invNewIndeps,newStarsAtPixel)
-        coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]
+        coeffs = np.dot(invNewIndeps,newStarsAtPixel)
+        #coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]
         coeff_errs = np.array([np.sqrt(np.array(invNewIndeps)[i][i]) for i in range(newIndeps.shape[1])])
         bestFit = indeps*coeffs
         # If degeneracy, make coefficients into the correct shape
@@ -661,7 +671,7 @@ class fit(mask):
             coeff_errs = newcoeff_errs
         return bestFit,coeffs.T,coeff_errs
 
-    def multiFit(self,minStarNum='default'):
+    def multiFit(self,minStarNum='default',eigcheck=False):
         """
         Loop over all pixels and find fit. Mask where there aren't enough 
         stars to fit.
@@ -700,7 +710,7 @@ class fit(mask):
                 self.masked[:,pixel] = np.ones(self.masked[:,pixel].shape)
             else:
                 # if fit possible update arrays
-                fitSpectrum,coefficients,coefficient_uncertainty = self.findFit(pixel)
+                fitSpectrum,coefficients,coefficient_uncertainty = self.findFit(pixel,eigcheck)
                 self.fitSpectra[:,pixel][self.unmasked[:,pixel]] = fitSpectrum
                 self.fitCoeffs[pixel] = coefficients
                 self.fitCoeffErrs[pixel] = coefficient_uncertainty
@@ -721,7 +731,7 @@ class fit(mask):
             dof = self.numberStars - self.numparams - 1
         self.fitReducedChi = self.fitChiSquared/dof
     
-    def findResiduals(self,minStarNum='default'):
+    def findResiduals(self,minStarNum='default',gen=True):
         """
         Calculate residuals from polynomial fits.
         
@@ -730,8 +740,12 @@ class fit(mask):
                        of fit parameters plus one)
         
         """
-        self.multiFit(minStarNum=minStarNum)
-        self.residuals = self.spectra - self.fitSpectra 
+        if gen:
+            self.multiFit(minStarNum=minStarNum)
+            self.residuals = self.spectra - self.fitSpectra 
+            acs.pklwrite(self.name+'/residuals.pkl',self.residuals)
+        if not gen:
+            self.residuals = acs.pklread(self.name+'/residuals.pkl')
 
     def findAbundances(self):
         """
@@ -887,13 +901,14 @@ class fit(mask):
         elif not median:
             return diagonal
 
-    def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,mad=False):
+    def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,mad=False,correction=None):
         """
         Calculates EMPCA on residuals in pixel space.
 
         randomSeed:   seed to initialize starting EMPCA vectors
 
         """
+        self.correctUncertainty(correction=correction)
         self.mad = mad
         self.nvecs = nvecs
         self.deltR2 = deltR2
@@ -931,6 +946,7 @@ class fit(mask):
         self.resizePixelEigvec(self.empcaModelWeight)
         # Find eigenvectors in element space
         self.elementEigVec(self.empcaModelWeight)
+        self.uncorrectUncertainty(correction=correction)
 
     def setR2(self,model):
         """
