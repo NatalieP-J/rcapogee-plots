@@ -46,9 +46,14 @@ independentVariables = {'clusters':['TEFF'],
                         'red_clump':['TEFF','LOGG','FE_H']
                     }
 elemwindows = {}
+normwindows = np.zeros((len(elems),aspcappix))
+e = 0
 for elem in elems:
     w = wn.read(elem,dr=12,apStarWavegrid=False)
+    nw = np.ma.masked_array(w/np.sqrt(np.sum(w)))
     elemwindows[elem] = w
+    normwindows[e] = nw
+    e+=1
 
 #for testing
 defaultparams={'red_clump':np.array([1.53796328e-07,3.80441208e-04,2.04021066e-07,
