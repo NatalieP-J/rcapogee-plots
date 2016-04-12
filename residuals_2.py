@@ -70,6 +70,15 @@ class fakeEMPCA(object):
             return 1.0 - np.var(d[self._unmasked]) / self._unmasked_data_var
 
 
+class smallEMPCA(object):
+    def __init__(self,R2Array,R2noise,mad,numpix,eigvec,coeff):
+        self.R2Array = R2Array
+        self.R2noise = R2noise
+        self.mad = mad
+        self.numpix = numpix
+        self.eigvec = eigvec
+        self.coeff = coeff
+
 def pixel2element(arr):
     if arr.shape[1] == aspcappix:
         return np.dot(arr,normwindows.T)
@@ -939,7 +948,7 @@ class fit(mask):
         elif not median:
             return diagonal
 
-    def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,mad=False,correction=None,savename=None,gen=True):
+    def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,mad=False,correction=None,savename=None,gen=True,numpix=None):
         """
         Calculates EMPCA on residuals in pixel space.
 
@@ -952,6 +961,7 @@ class fit(mask):
             except IOError:
                 gen = True
         if gen:
+            self.numpix=numpix
             self.correctUncertainty(correction=correction)
             self.mad = mad
             self.nvecs = nvecs
@@ -1004,7 +1014,8 @@ class fit(mask):
             # Find eigenvectors in element space
             #self.elementEigVec(self.empcaModelWeight)
             self.uncorrectUncertainty(correction=correction)
-            acs.pklwrite(self.name+'/'+savename,self.empcaModelWeight)
+            self.smallModel = smallEMPCA(self.empcaModelWeight.R2Array,self.empcaModelWeight.R2noise,self.mad,self.numpix,self.empcaModelWeight.eigvec,self.empcaModelWeight.coeff)
+            acs.pklwrite(self.name+'/'+savename,self.smallModel)
 
     def setR2(self,model):
         """
