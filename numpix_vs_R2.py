@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def R2noises(models,cov,labels,nvecs = 5,pixrange=(5.,50.),deltR2=2e-3,step=1.,numpixs=None,usefile=False):
+def R2noises(models,cov,labels,nvecs = 5,pixrange=(5.,50.),deltR2=2e-3,step=1.,numpixs=None,usefile=False,mad=False):
     if not usefile:
         if not isinstance(numpixs,(list,np.ndarray)):
             numpixs = np.arange(pixrange[0],pixrange[1]+step,step)
@@ -12,7 +12,7 @@ def R2noises(models,cov,labels,nvecs = 5,pixrange=(5.,50.),deltR2=2e-3,step=1.,n
             R2noises[n][0] = numpixs[n]
             corr = models[0].findCorrection(cov,numpix=numpixs[n])
             for m in range(len(models)):
-                models[m].pixelEMPCA(nvecs=nvecs,deltR2=deltR2,correction=corr)
+                models[m].pixelEMPCA(nvecs=nvecs,deltR2=deltR2,correction=corr,mad=mad)
                 R2noises[n][m+1] = models[m].empcaModelWeight.R2noise
         np.savetxt('numpix_vs_R2.txt',R2noises)
     if usefile:
