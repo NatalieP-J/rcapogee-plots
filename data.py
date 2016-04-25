@@ -32,6 +32,8 @@ APOGEE_PIXMASK={0:"BADPIX", # Pixel marked as BAD in bad pixel mask
 badcombpixmask= bitmask.badpixmask()+2**bitmask.apogee_pixmask_int("SIG_SKYLINE")
 
 elems = ['Al','Ca','C','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
+elems = ['C','N','O','Na','Mg','Al','Si','S','K','Ca','Ti','V','Mn','Fe','Ni']
+
 
 # Functions to access particular sample types
 readfn = {'clusters' : read_caldata,        # Sample of open and globular clusters

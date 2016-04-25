@@ -798,17 +798,8 @@ class fit(mask):
         """
         From calculated residuals, calculate elemental abundances for each star.
         """
-        self.abundances = np.ma.masked_array(np.zeros((self.numberStars,len(elems))))
-        for ind in range(len(elems)):
-            # Find element window and normalize it
-            window = elemwindows[elems[ind]]
-            normWindow = np.ma.masked_array(window/np.sqrt(np.sum(window**2)))
-            # multiply all residuals by this element window
-            windowed = np.tile(normWindow,(self.numberStars,1))*self.residuals
-            # calculate abundance of this element for all stars
-            elemAbundance = np.ma.sum(windowed,axis=1)
-            # update abundance tracker
-            self.abundances[:,ind] = elemAbundance
+        self.abundances = pixel2element(self.residuals)
+        self.abundance_errs = np.sqrt(np.dot(self.spectra_errs**2,normwindows.T**2))
 
 
     def plotAbundances2d(self,elem1,elem2,saveName=None):
@@ -1015,7 +1006,8 @@ class fit(mask):
             #self.elementEigVec(self.empcaModelWeight)
             self.uncorrectUncertainty(correction=correction)
             self.smallModel = smallEMPCA(self.empcaModelWeight.R2Array,self.empcaModelWeight.R2noise,self.mad,self.numpix,self.empcaModelWeight.eigvec,self.empcaModelWeight.coeff)
-            acs.pklwrite(self.name+'/'+savename,self.smallModel)
+            if savename:
+                acs.pklwrite(self.name+'/'+savename,self.smallModel)
 
     def setR2(self,model):
         """
