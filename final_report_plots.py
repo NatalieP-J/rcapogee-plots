@@ -3,8 +3,9 @@ import matplotlib
 import numpy as np
 from astropy.coordinates import SkyCoord
 import astropy.units as u
-from data import elems,normwindows
+from data import elems,normwindows,elemwindows
 import access_spectrum as acs
+from residuals_2 import smoothMedian
 
 font = {'family': 'serif',
         'weight': 'normal',
@@ -71,23 +72,6 @@ def show_sample_coverage(models):
         ax1.set_theta_direction(-1)
         ax2.plot(r,z,'ko',markersize=2,alpha=0.2)
 
-    """
-    ax1.plot(m67_gal[1],m67_gal[0],'ws',markersize=8,mew=2)
-    ax2.plot([m67_gal[0],13.6],[m67_gal[2],1.6],'r',lw=2)
-    ax2.plot(m67_gal[0],m67_gal[2],'ws',markersize=8,mew=2)
-    ax2.text(13.7,1.5,'M67',color='k',fontsize = 12,bbox=dict(facecolor='none', edgecolor='none'))
-
-    ax1.plot(n6819_gal[1],n6819_gal[0],'^w',markersize=8,mew=2)
-    ax2.plot([n6819_gal[0],5.7],[n6819_gal[2],-1.3],'r',lw=2)
-    ax2.plot(n6819_gal[0],n6819_gal[2],'^w',markersize=8,mew=2)
-    ax2.text(2.9,-1.6,'N6819',color='k',fontsize = 12,bbox=dict(facecolor='none', edgecolor='none'))
-
-    ax1.plot(m13_gal[1],m13_gal[0],'pw',markersize=8,mew=2)
-    ax2.plot([m13_gal[0],5.7],[m13_gal[2],5.2],'r',lw=2)
-    ax2.plot(m13_gal[0],m13_gal[2],'pw',markersize=8,mew=2)
-    ax2.text(3.8,5,'M13',color='k',fontsize = 12,bbox=dict(facecolor='none', edgecolor='none'))
-    """
-
     ax1.set_rlabel_position(135)
     ax1.set_rlim(min(r),max(r))
     ax1.set_xticks([])
@@ -97,6 +81,29 @@ def show_sample_coverage(models):
     ax2.set_ylabel('z (kpc)')
     plt.subplots_adjust(wspace=0.05)
 
+def plot_big_eig(es):
+    for e in es:
+        med = smoothMedian(e,numpix=100.)
+        plt.figure(figsize=(16,5*15))
+        for i in range(len(elems)):
+            plt.subplot2grid((15,1),(i,0))
+            plt.plot(e)
+            plt.plot(med,lw=3,color='k')
+            plt.xlim(0,7214)
+            plt.yticks([])
+            plt.plot(0.1*(normwindows[i]/np.max(normwindows[i]))-0.06,color='r')
+            if i!=len(elems):
+                plt.xticks([])
+
+def plot_comb_eig(es):
+    for e in es:
+        plt.figure(figsize=(16,5))
+        plt.plot(e)
+        combwin =np.ma.masked_array(0.1*(np.sum(normwindows,axis=0)/np.max(np.sum(normwindows,axis=0)))-0.06,mask=np.zeros(7214).astype(bool))
+        plt.plot(combwin,color='r')
+        plt.plot(smoothMedian(e,numpix=100.),lw=3,color='k')
+        plt.xlim(0,7214)
+            
 def plot_eigenvector(es,**kwargs):
     plt.figure(figsize=(14,5))
     plt.axhline(0,color='grey',lw=2)
