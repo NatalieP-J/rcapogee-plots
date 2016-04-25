@@ -81,8 +81,33 @@ ASPCAPdetectors_pix = [(0,2920),(2920,5320),(5320,7214)]
 apStarDetectors_pix = [(322,3242),(3648,6048),(6412,8306)]
 detectors_wv = [(1.696,1.647),(1.644,1.585),(1.581,1.514)]
 
+wv0 = 15100.802
+totalpix = 8575
+wvs = np.zeros(totalpix)
+wvs[0] = wv0
+for i in range(1,totalpix):
+    wvs[i] = 10**(6e-6 + np.log10(wvs[i-1]))
+aspcapwvs = np.concatenate((wvs[322:3242],wvs[3648:6048],wvs[6412:8306]))
 
-#def pix2wavelength(pix,apStarWavegrid=False):
-    # log scale log wv[i+1] - log wv[i] = 6e-6
+    
+def pixel2wavelength(pix,apStarWavegrid=False):
+    if apStarWavegrid:
+        if isinstance(pix,int):
+            return wvs[pix]
+        elif isinstance(pix,tuple):
+            return wvs[pix[0]:pix[1]]
+        elif isinstance(pix,(list,np.ndarray)):
+            wavelengths = np.zeros(len(pix))
+            for p in pix:
+                wavelengths[p] = wvs[pix[p]]
+    elif not apStarWavegrid:
+        if isinstance(pix,int):
+            return aspcapwvs[pix]
+        elif isinstance(pix,tuple):
+            return aspcapwvs[pix[0]:pix[1]]
+        elif isinstance(pix,(list,np.ndarray)):
+            wavelengths = np.zeros(len(pix))
+            for p in pix:
+                wavelengths[p] = aspcapwvs[pix[p]]
 
     

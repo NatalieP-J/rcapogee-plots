@@ -934,7 +934,7 @@ class fit(mask):
                                       mask=[cov.mask[i,i] for i in 
                                             range(len(cov))])
         if median:
-            median = smoothMedian(diagonal,frac=frac,numpix=numpix)
+            median = smoothMedian(diagonal,frac=frac,numpix=float(numpix))
             return median
         elif not median:
             return diagonal

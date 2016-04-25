@@ -34,7 +34,7 @@ m13_gal = xyz2rphiz(m13_gal)
 
 def comp_R2(ms,direc=None):
     pres = ['raw sample,','corrected \nsample,','M.A.D.,']
-    plt.figure(figsize = (8,5.5))
+    plt.figure(figsize = (8,8))
     colors = plt.get_cmap('plasma')(np.linspace(0, 0.8, len(ms)))
     styles = [':','-.','--']
     types = ['o','s','^']
@@ -67,7 +67,8 @@ def show_sample_coverage(models):
         phi = models[m].data['RC_GALPHI']
         r = models[m].data['RC_GALR']
         z = models[m].data['RC_GALZ']
-        ax1.plot(-phi,r,'ko',markersize=2,alpha=0.2)
+        ax1.plot(phi,r,'ko',markersize=2,alpha=0.2)
+        ax1.set_theta_direction(-1)
         ax2.plot(r,z,'ko',markersize=2,alpha=0.2)
 
     """
@@ -96,13 +97,19 @@ def show_sample_coverage(models):
     ax2.set_ylabel('z (kpc)')
     plt.subplots_adjust(wspace=0.05)
 
-def plot_eigenvector(e,**kwargs):
-    #plt.figure(figsize=(14,5))
+def plot_eigenvector(es,**kwargs):
+    plt.figure(figsize=(14,5))
+    plt.axhline(0,color='grey',lw=2)
     plt.xticks(np.arange(len(elems)),elems)
     plt.xlim(-1,len(elems))
-    #plt.axhline(0,color='grey',lw=2)
-    plt.plot(np.arange(len(elems)),e,'o-',**kwargs)
-
+    colors = plt.get_cmap('plasma')(np.linspace(0, 0.8, len(es)))
+    markers = ['v','d','p']
+    i=0
+    plt.ylabel('vector magnitude')
+    for e in es:
+        plt.plot(np.arange(len(elems)),e,'o-',lw=3,color=colors[i],label='eigenvector {0}'.format(i+1),marker=markers[i],markersize=8)
+        i+=1
+    plt.legend(loc='best',frameon=False)
 
 def plot_example_fit(model,pixel,**kwargs):
     plt.figure(figsize=(8,6))#figsize=(12,6))
@@ -166,3 +173,4 @@ if __name__=='__main__':
     n6819.findResiduals(gen=True)
     n6819.findAbundances()
     plot_example_fi
+    """
