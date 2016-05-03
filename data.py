@@ -3,6 +3,7 @@ from apogee.tools import bitmask
 from read_clusterdata import read_caldata
 import window as wn
 import numpy as np
+import time
 
 # Dictionary to translate APOGEE's pixel mask (DR12).
 # Keys correspond to set bits in the mask.

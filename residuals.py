@@ -171,30 +171,36 @@ class starSample(object):
         """
         self.data = readfn[self._sampleType]()
 
-    def makeArrays(self,data):
+    def initArrays(self,data):
         """
-        Create arrays across all stars in the sample with shape number of 
-        stars by aspcappix.
-
-        data:   array whose columns contain information about stars in sample
-        
+        Initialize arrays.
         """
-
         # Create fit variable arrays
-        self.teff = np.ma.masked_array(np.zeros((len(data),aspcappix),
+        self.teff = np.ma.masked_array(np.zeros((len(data)),
                                                 dtype=float))
-        self.logg = np.ma.masked_array(np.zeros((len(data),aspcappix),
+        self.logg = np.ma.masked_array(np.zeros((len(data)),
                                                 dtype=float))
-        self.fe_h = np.ma.masked_array(np.zeros((len(data),aspcappix),
+        self.fe_h = np.ma.masked_array(np.zeros((len(data)),
                                                 dtype=float))
-
+        
         # Create spectra arrays
         self.spectra = np.ma.masked_array(np.zeros((len(data),aspcappix),
                                                    dtype=float))
         self.spectra_errs = np.ma.masked_array(np.zeros((len(data),aspcappix),
                                                         dtype=float))
         self._bitmasks = np.zeros((len(data),aspcappix),dtype=np.int64)
-
+        
+    def makeArrays(self,data):
+        """
+        Create arrays across all stars in the sample with shape number of 
+        stars by aspcappix.
+        
+        data:   array whose columns contain information about stars in sample
+        
+        """
+        
+        self.initArrays(data)
+        
         # Fill arrays for each star
         for star in tqdm(range(len(data)),desc='read star data'):
             LOC = data[star]['LOCATION_ID']
@@ -202,11 +208,11 @@ class starSample(object):
             TEFF = data[star]['TEFF']
             LOGG = data[star]['LOGG']
             FE_H = data[star]['FE_H']
-
+            
             # Fit variables
-            self.teff[star] = np.ma.masked_array([TEFF]*aspcappix)
-            self.logg[star] = np.ma.masked_array([LOGG]*aspcappix)
-            self.fe_h[star] = np.ma.masked_array([FE_H]*aspcappix)
+            self.teff[star] = np.ma.masked_array(TEFF)
+            self.logg[star] = np.ma.masked_array(LOGG)
+            self.fe_h[star] = np.ma.masked_array(FE_H)
             
             # Spectral data
             self.spectra[star] = apread.aspcapStar(LOC,APO,ext=1,header=False, 
@@ -216,19 +222,19 @@ class starSample(object):
                                                         aspcapWavegrid=True)
             self._bitmasks[star] = apread.apStar(LOC,APO,ext=3, header=False, 
                                                  aspcapWavegrid=True)[1] 
-    
+            
     def plotHistogram(self,array,title = '',xlabel = '',
                       ylabel = 'number of stars',saveName=None,**kwargs):
         """
         Plots a histogram of some input array, with the option to save it.
-
+        
         array:      array to plot as histogram
         title:      (optional) title of the plot
         xlabel:     (optional) x-axis label of the plot
         ylabel:     y-axis label of the plot (default: 'number of stars')
         saveName:   (optional) path to save plot, without file extension
         **kwargs:   kwargs for numpy.histogram
-
+        
         """
         hist,binEdges = np.histogram(array,**kwargs)
         area = np.sum(hist*(binEdges[1]-binEdges[0]))
@@ -445,12 +451,34 @@ class subStarSample(makeFilter):
         If not, create them.
         
         """
-        if os.path.isfile(self.name+'/inputdata.pkl'):
-            self.teff,self.logg,self.fe_h,self.spectra,self.spectra_errs,self._bitmasks = acs.pklread(self.name+'/inputdata.pkl')
-        elif not os.path.isfile(self.name+'/inputdata.pkl'):
+        
+        fnames = np.array([self.name+'/teff.npy',
+                           self.name+'/logg.npy',
+                           self.name+'/fe_h.npy',
+                           self.name+'/spectra.npy',
+                           self.name+'/spectra_errs.npy',
+                           self.name+'/bitmasks.npy'])
+        fexist = True
+        for f in fnames:
+            fexist *= os.path.isfile(f)
+        if fexist:
+            self.initArrays(data)
+            self.teff.data = np.load(self.name+'/teff.npy')
+            self.logg.data = np.load(self.name+'/logg.npy')
+            self.fe_h.data = np.load(self.name+'fe_h.npy')
+            self.spectra.data = np.load(self.name+'/spectra.npy')
+            self.spectra_errs.data = np.load(self.name+'/spectra_errs.npy')
+            self._bitmasks.data = np.load(self.name+'/bitmasks.npy')
+            
+        elif not fexist:
             self.makeArrays(self.matchingData)
-            inputdata = [self.teff,self.logg,self.fe_h,self.spectra,self.spectra_errs,self._bitmasks]
-            acs.pklwrite(self.name+'/inputdata.pkl',inputdata)
+            np.save(self.name+'/teff.npy',self.teff.data)
+            np.save(self.name+'/logg.npy',self.logg.data)
+            np.save(self.name+'fe_h.npy',self.fe_h.data)
+            np.save(self.name+'/spectra.npy',self.spectra.data)
+            np.save(self.name+'/spectra_errs.npy',self.spectra_errs.data)
+            np.save(self.name+'/bitmasks.npy',self._bitmasks.data)
+            
 
     def correctUncertainty(self,correction=None):
         """
@@ -602,11 +630,6 @@ class mask(subStarSample):
         Mask all arrays according to maskConditions
 
         """
-        # independent variables
-        self.teff.mask = self.masked
-        self.logg.mask = self.masked
-        self.fe_h.mask = self.masked
-
         # spectral information
         self.spectra.mask = self.masked
         self.spectra_errs.mask = self.masked
@@ -643,11 +666,10 @@ class fit(mask):
         self.noncrossInds = ([0,1,2,3,4,7,9])
         self.crossInds = ([5,6,8],)
         self.polynomial = PolynomialFeatures(degree=degree)
-        self.testM = self.makeMatrix(0) 
-        #self.findResiduals()
+        self.testM = self.makeMatrix(0)
 
     def makeMatrix(self,pixel):
-        """
+         """
         Find independent variable matrix
         
         pixel:   pixel to use, informs the mask on the matrix
@@ -663,7 +685,7 @@ class fit(mask):
 
         for i in range(len(independentVariables[self._sampleType])):
             variable = independentVariables[self._sampleType][i]
-            indep = self.keywordMap[variable][:,pixel][self.unmasked[:,pixel]]
+            indep = self.keywordMap[variable][self.unmasked[:,pixel]]
             indeps[:,i] = indep-np.median(indep)
         # use polynomial to produce matrix with all necessary columns
         return np.matrix(self.polynomial.fit_transform(indeps))
@@ -944,7 +966,7 @@ class fit(mask):
         elif not median:
             return diagonal
 
-    def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,mad=False,correction=None,savename=None,gen=True,numpix=None):
+    def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,mad=False,correction=None,savename=None,gen=True,numpix=None,weighttype='basic'):
         """
         Calculates EMPCA on residuals in pixel space.
 
