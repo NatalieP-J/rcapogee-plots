@@ -188,7 +188,7 @@ class starSample(object):
                                                    dtype=float))
         self.spectra_errs = np.ma.masked_array(np.zeros((len(data),aspcappix),
                                                         dtype=float))
-        self._bitmasks = np.zeros((len(data),aspcappix),dtype=np.int64)
+        self._bitmasks = np.zeros((len(data),aspcappix),dtype=float)
         
     def makeArrays(self,data):
         """
@@ -461,23 +461,23 @@ class subStarSample(makeFilter):
         fexist = True
         for f in fnames:
             fexist *= os.path.isfile(f)
+        # If all files exist, read data from file for increased initialization speed
         if fexist:
-            self.initArrays(data)
-            self.teff.data = np.load(self.name+'/teff.npy')
-            self.logg.data = np.load(self.name+'/logg.npy')
-            self.fe_h.data = np.load(self.name+'fe_h.npy')
-            self.spectra.data = np.load(self.name+'/spectra.npy')
-            self.spectra_errs.data = np.load(self.name+'/spectra_errs.npy')
-            self._bitmasks.data = np.load(self.name+'/bitmasks.npy')
-            
+            self.teff = np.load(self.name+'/teff.npy')
+            self.logg = np.load(self.name+'/logg.npy')
+            self.fe_h = np.load(self.name+'/fe_h.npy')
+            self.spectra = np.load(self.name+'/spectra.npy')
+            self.spectra_errs = np.load(self.name+'/spectra_errs.npy')
+            self._bitmasks = np.load(self.name+'/bitmasks.npy')
+        # If any file is missing, generate arrays and write to file
         elif not fexist:
             self.makeArrays(self.matchingData)
             np.save(self.name+'/teff.npy',self.teff.data)
             np.save(self.name+'/logg.npy',self.logg.data)
-            np.save(self.name+'fe_h.npy',self.fe_h.data)
+            np.save(self.name+'/fe_h.npy',self.fe_h.data)
             np.save(self.name+'/spectra.npy',self.spectra.data)
             np.save(self.name+'/spectra_errs.npy',self.spectra_errs.data)
-            np.save(self.name+'/bitmasks.npy',self._bitmasks.data)
+            np.save(self.name+'/bitmasks.npy',self._bitmasks)
             
 
     def correctUncertainty(self,correction=None):
