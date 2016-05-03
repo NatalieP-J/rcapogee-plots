@@ -1,13 +1,14 @@
 import numpy as np
 import os
 from sklearn.preprocessing import PolynomialFeatures
-from sklearn import linear_model
 import multiprocessing
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import statsmodels.nonparametric.smoothers_lowess as sm
 import scipy as sp
 from tqdm import tqdm
+
+# Import data information file
 import data
 reload(data)
 from data import *
@@ -21,8 +22,6 @@ import apogee.spec.plot as aplt
 import access_spectrum
 reload(access_spectrum)
 import access_spectrum as acs
-import reduce_dataset as rd
-import polyfit as pf
 
 #Import EMPCA package
 from empca import empca
