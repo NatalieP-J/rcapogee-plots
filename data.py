@@ -28,6 +28,20 @@ APOGEE_PIXMASK={0:"BADPIX", # Pixel marked as BAD in bad pixel mask
                 16:"FAILFIT" # Fitting for stellar parameters failed on pixel
                 } 
 
+def timeIt(fn,*args,**kwargs):
+    """
+    A basic function to time how long another function takes to run.
+
+    fn:     Function to time.
+
+    Returns the output of the function and its runtime.
+
+    """
+    start = time.time()
+    output = fn(*args,**kwargs)
+    end = time.time()
+    return output,end-start
+
 # Chosen set of bits on which to mask
 badcombpixmask= bitmask.badpixmask()+2**bitmask.apogee_pixmask_int("SIG_SKYLINE")
 

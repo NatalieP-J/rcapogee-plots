@@ -41,6 +41,11 @@ _lowerKeys = ['min','m','Min','Minimum','minimum','']
     
 
 class fakeEMPCA(object):
+    """
+    
+    Class to contain crucial EMPCA-related objects.
+
+    """
     def __init__(self,data,weights,eigenvectors,coeff,mad=False):
         self.data = data
         self.weights = weights
