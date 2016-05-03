@@ -37,54 +37,36 @@ _keyList.sort()
 _upperKeys = ['max','m','Max','Maximum','maximum','']
 _lowerKeys = ['min','m','Min','Minimum','minimum','']
 
-#def directoryClean():
-    
-
-class fakeEMPCA(object):
+class smallEMPCA(object):
     """
     
     Class to contain crucial EMPCA-related objects.
 
     """
-    def __init__(self,data,weights,eigenvectors,coeff,mad=False):
-        self.data = data
-        self.weights = weights
-        self.mad = mad
-        ii = np.where(self.weights > 0)
-        self._unmasked = ii
-        self._unmasked_data_var = np.var(self.data[ii])
-        self._unmasked_data_mad2 = np.sum(np.median(np.fabs(self.data[ii]\
-                                                      -np.median(self.data[ii])))**2.)
-        self.eigvec = eigenvectors
-        self.coeff = coeff
+    def __init__(self,model,correction=None):
+        """
+        Set all relevant data for the EMPCA.
 
-    def R2(self,nvec=None,mad=False):
-        mx = np.zeros(self.data.shape)
-        for i in range(nvec):
-            mx += np.outer(self.coeff[:,i],self.eigvec[i])
-        d = mx-data
-
-        #- Only consider R2 for unmasked data
-        if mad:
-            med= np.median(d[self._unmasked])
-            return 1.0 - \
-                np.sum(np.median(np.fabs(d-med)[self._unmasked])**2.)/\
-                (self._unmasked_data_mad2)        
-        else:
-            print np.var(d[self._unmasked]),self._unmasked_data_var
-            return 1.0 - np.var(d[self._unmasked]) / self._unmasked_data_var
-
-
-class smallEMPCA(object):
-    def __init__(self,R2Array,R2noise,mad,numpix,eigvec,coeff):
-        self.R2Array = R2Array
-        self.R2noise = R2noise
-        self.mad = mad
-        self.numpix = numpix
-        self.eigvec = eigvec
-        self.coeff = coeff
+        model:        EMPCA model object
+        correction:   information about correction used on data
+        """
+        self.R2Array = model.R2Array
+        self.R2noise = model.R2noise
+        self.mad = model.mad
+        self.eigvec = model.eigvec
+        self.coeff = model.coeff
+        self.correction = correction
 
 def pixel2element(arr):
+    """
+    Convert an array in pixel space to a corresponding array in pseudo-element space.
+
+    arr:   array to convert - must have one dimension equal to aspcappix set in data.py
+
+    Returns reshaped array.
+    """
+    # Determine which direction the array matches with pixel space and dot it with
+    # normalized element windows.
     if arr.shape[1] == aspcappix:
         return np.dot(arr,normwindows.T)
     elif arr.shape[0] == aspcappix:
@@ -416,6 +398,13 @@ class makeFilter(starSample):
         if not os.path.isdir(self.name):
             os.system('mkdir {0}'.format(self.name))
         return
+
+    def directoryClean(self):
+        """
+        Removes all files from a specified directory.
+
+        """
+        os.system('rm -rf {0}/*'.format(self.name))
 
 
 class subStarSample(makeFilter):
@@ -966,7 +955,7 @@ class fit(mask):
         elif not median:
             return diagonal
 
-    def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,mad=False,correction=None,savename=None,gen=True,numpix=None,weighttype='basic'):
+    def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,mad=False,correction=None,savename=None,gen=True,numpix=None,weight=True):
         """
         Calculates EMPCA on residuals in pixel space.
 
@@ -990,25 +979,9 @@ class fit(mask):
             
             # Calculate weights that just mask missing elements
             unmasked = (empcaResiduals.mask==False)
-            basicWeights=unmasked.astype(float)
-
-            # Find EMPCA model
-            #self.empcaModel = empca(empcaResiduals.data,weights=basicWeights,
-            #                        nvec=self.nvecs,deltR2=self.deltR2,mad=self.mad,
-            #                        randseed=randomSeed)
-        
-            # Find R2 and R2noise for this model, and resize eigenvectors appropriately
-            #self.setR2(self.empcaModel)
-            #self.setR2noise(self.empcaModel) # This doesn't make sense since there are no errors
-            #self.resizePixelEigvec(self.empcaModel)
-            # Find eigenvectors in element space
-            #eigvecs = self.elementEigVec(self.empcaModel)
-
-            # Calculate weights from the inverse square of the flux uncertainty, keeping
-            # zeros where residuals are masked
-            errorWeights = np.zeros(basicWeights.shape)
-            errorWeights[:] = basicWeights
-            errorWeights[unmasked] = 1./((self.spectra_errs.T[self.goodPixels].T[unmasked])**2)
+            errorWeights = unmasked.astype(float)
+            if weight:
+                errorWeights[unmasked] = 1./((self.spectra_errs.T[self.goodPixels].T[unmasked])**2)
             self.empcaModelWeight = empca(empcaResiduals.data,weights=errorWeights,
                                           nvec=self.nvecs,deltR2=self.deltR2,
                                           mad=self.mad,randseed=randomSeed)    
@@ -1019,20 +992,8 @@ class fit(mask):
             self.setR2noise(self.empcaModelWeight)
             self.resizePixelEigvec(self.empcaModelWeight)
 
-            # Resize data set
-
-            #newdata = np.zeros(self.residuals.T.shape)
-            #newweights = np.zeros(self.residuals.T.shape)
-            #newdata[self.goodPixels] = self.empcaModel.data.T
-            #newweights[self.goodPixels] = self.empcaModel.weights.T
-            #self.empcaModelWeight.data = newdata.T 
-            #self.empcaModelWeight.weights = newweights.T
-
-
-            # Find eigenvectors in element space
-            #self.elementEigVec(self.empcaModelWeight)
             self.uncorrectUncertainty(correction=correction)
-            self.smallModel = smallEMPCA(self.empcaModelWeight.R2Array,self.empcaModelWeight.R2noise,self.mad,self.numpix,self.empcaModelWeight.eigvec,self.empcaModelWeight.coeff)
+            self.smallModel = smallEMPCA(self.empcaModelWeight,correction=correction)
             if savename:
                 acs.pklwrite(self.name+'/'+savename,self.smallModel)
 
@@ -1132,15 +1093,4 @@ class fit(mask):
         plt.plot(model.R2Array)
         plt.ylabel('R2')
         plt.xlabel('number of eigvectors')
-
-    def elementModel(self,model,mad=False):
-        #self.resizePixelEigvec(model)
-        eigvec = self.elementEigVec(model)
-        data = pixel2element(model.data)
-        weights = pixel2element(model.weights)
-        coeff = np.zeros(model.coeff.shape)
-        coeff[:] = model.coeff
-        self.empcaElement = fakeEMPCA(data,weights,eigvec,coeff,mad=mad)
-        self.setR2noise(self.empcaElement)
-        self.setR2(self.empcaElement)
 

@@ -18,12 +18,12 @@ APOGEE_PIXMASK={0:"BADPIX", # Pixel marked as BAD in bad pixel mask
                 5:"BADFLAT", # Pixel marked as bad as determined from flat frame
                 6:"BADERR", # Pixel set to have very high error (not used)
                 7:"NOSKY", # No sky available for this pixel from sky fibers
-                8:"LITTROW_GHOST", # Pixel falls in Littrow ghost, may be affected
-                9:"PERSIST_HIGH", # Pixel falls in high persistence region, may be affected
-                10:"PERSIST_MED", # Pixel falls in medium persistence region, may be affected
-                11:"PERSIST_LOW", # Pixel falls in low persistence region, may be affected
-                12:"SIG_SKYLINE", # Pixel falls near sky line that has significant flux compared with object
-                13:"SIG_TELLURIC", # Pixel falls near telluric line that has significant absorption
+                8:"LITTROW_GHOST", # Pixel falls in Littrow ghost
+                9:"PERSIST_HIGH", # Pixel falls in high persistence region
+                10:"PERSIST_MED", # Pixel falls in medium persistence region
+                11:"PERSIST_LOW", # Pixel falls in low persistence region
+                12:"SIG_SKYLINE", # Pixel falls near sky line
+                13:"SIG_TELLURIC", # Pixel falls near telluric line
                 14:"NOT_ENOUGH_PSF", # Less than 50 percent PSF in good pixels
                 15:"POORSNR", # Signal to noise below limit
                 16:"FAILFIT" # Fitting for stellar parameters failed on pixel
@@ -44,25 +44,30 @@ def timeIt(fn,*args,**kwargs):
     return output,end-start
 
 # Chosen set of bits on which to mask
-badcombpixmask= bitmask.badpixmask()+2**bitmask.apogee_pixmask_int("SIG_SKYLINE")
+badcombpixmask = bitmask.badpixmask()
+badcombpixmask += 2**bitmask.apogee_pixmask_int("SIG_SKYLINE")
 
-elems = ['Al','Ca','C','Fe','K','Mg','Mn','Na','Ni','N','O','Si','S','Ti','V']
 elems = ['C','N','O','Na','Mg','Al','Si','S','K','Ca','Ti','V','Mn','Fe','Ni']
 
 
 # Functions to access particular sample types
-readfn = {'clusters' : read_caldata,        # Sample of open and globular clusters
-          'OCs': read_caldata,                # Sample of open clusters
-          'GCs': read_caldata,                # Sample of globular clusters
-          'red_clump' : apread.rcsample        # Sample of red clump stars
+readfn = {'clusters' : read_caldata,      # Sample of clusters
+          'OCs': read_caldata,            # Sample of open clusters
+          'GCs': read_caldata,            # Sample of globular clusters
+          'red_clump' : apread.rcsample   # Sample of red clump stars
           }
 
+# Specify which independent variables to use when fitting different sample types
 independentVariables = {'clusters':['TEFF'],
                         'OCs':['TEFF'],
                         'GCs':['TEFF'],
                         'red_clump':['TEFF','LOGG','FE_H']
                     }
+
+# Store information about where element windows are
+# Track by element name
 elemwindows = {}
+# Track by array in order of periodic table
 normwindows = np.zeros((len(elems),aspcappix))
 e = 0
 for elem in elems:
@@ -72,14 +77,16 @@ for elem in elems:
     normwindows[e] = nw
     e+=1
 
-#for testing
-defaultparams={'red_clump':np.array([1.53796328e-07,3.80441208e-04,2.04021066e-07,
-                                     -2.63714534e-08,-3.56518938e-08,-1.45798835e-06,
-                                     -1.67953566e-07,-7.07997832e-09,1.92230060e-10,
-                                     -1.23611443e-10]),
+# Test parameters to use for testing the polynomial fit
+defaultparams={'red_clump':np.array([1.53796328e-07,3.80441208e-04,
+                                     2.04021066e-07,-2.63714534e-08,
+                                     -3.56518938e-08,-1.45798835e-06,
+                                     -1.67953566e-07,-7.07997832e-09,
+                                     1.92230060e-10,-1.23611443e-10]),
                'clusters':np.ones(3)
                }
 
+# Track what each coefficient corresponds to in polynomial fits
 coeff_inds = {'red_clump': ['const','Teff','logg','[Fe/H]','Teff^2','Teff*logg',
                             'Teff*[Fe/H]','logg^2','logg*[Fe/H]','[Fe/H]^2'],
               'clusters': ['const','Teff','Teff^2']
@@ -96,7 +103,7 @@ ASPCAPdetectors_pix = [(0,2920),(2920,5320),(5320,7214)]
 apStarDetectors_pix = [(322,3242),(3648,6048),(6412,8306)]
 detectors_wv = [(1.696,1.647),(1.644,1.585),(1.581,1.514)]
 
-wv0 = 15100.802
+wv0 = 10**4.179
 totalpix = 8575
 wvs = np.zeros(totalpix)
 wvs[0] = wv0
