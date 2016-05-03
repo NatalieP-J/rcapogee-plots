@@ -669,7 +669,7 @@ class fit(mask):
         self.testM = self.makeMatrix(0)
 
     def makeMatrix(self,pixel):
-         """
+        """
         Find independent variable matrix
         
         pixel:   pixel to use, informs the mask on the matrix
