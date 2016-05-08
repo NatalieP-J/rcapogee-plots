@@ -25,15 +25,7 @@ import polyfit as pf
 #Import EMPCA package
 from empca import empca
 
-# List of accepted keys to do slice in
-_keyList = ['RA','DEC','GLON','GLAT','TEFF','LOGG','TEFF_ERR','LOGG_ERR',
-            'AL_H','CA_H','C_H','FE_H','K_H','MG_H','MN_H','NA_H','NI_H',
-            'N_H','O_H','SI_H','S_H','TI_H','V_H','CLUSTER']
-_keyList.sort()
 
-# List of accepted keys for upper and lower limits
-_upperKeys = ['max','m','Max','Maximum','maximum','']
-_lowerKeys = ['min','m','Min','Minimum','minimum','']
 
 class smallEMPCA(object):
     """
@@ -54,52 +46,6 @@ class smallEMPCA(object):
         self.eigvec = model.eigvec
         self.coeff = model.coeff
         self.correction = correction
-
-class mask(subStarSample):
-    """
-    Define and apply a mask given a set of conditions in the form of the
-    maskConditions function.
-    
-    """
-    def __init__(self,sampleType,maskFilter,ask=True):
-        """
-        Mask a subsample according to a maskFilter function
-        
-        sampleType:   designator of the sample type - must be a key in readfn 
-                      and independentVariables in data.py
-        maskFilter:   function that decides on elements to be masked
-        ask:          if True, function asks for user input to make 
-                      filter_function.py, if False, uses existing 
-                      filter_function.py
-        
-        """
-        subStarSample.__init__(self,sampleType,ask=ask)
-        self._SNR = self.spectra/self.spectra_errs
-        # create default mask arrays (mask nothing)
-        self.masked = np.zeros(self.spectra.shape).astype(bool)
-        self.unmasked = np.ones(self.spectra.shape).astype(bool)
-        # find indices that should be masked
-        self._maskHere = maskFilter(self)
-        # update mask arrays
-        self.masked[self._maskHere]= True
-        self.unmasked[self._maskHere] = False
-        # apply mask arrays to data
-        self.applyMask()
-
-    def applyMask(self):
-        """
-        Mask all arrays according to maskConditions
-
-        """
-        # spectral information
-        self.spectra.mask = self.masked
-        self.spectra_errs.mask = self.masked
-
-        # create dictionary tracing the independent variables to keywords
-        self.keywordMap = {'TEFF':self.teff,
-                           'LOGG':self.logg,
-                           'FE_H':self.fe_h
-                       }
 
 
 class fit(mask):
