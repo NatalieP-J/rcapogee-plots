@@ -6,6 +6,17 @@ import scipy as sp
 import window as wn
 import numpy as np
 import time
+import matplotlib
+import matplotlib.pyplot as plt
+
+font = {'family': 'serif',
+        'weight': 'normal',
+        'size'  :  20
+}
+
+matplotlib.rc('font',**font)
+plt.ion()
+
 
 
 # Dictionary to translate APOGEE's pixel mask (DR12).

@@ -7,6 +7,14 @@ from data import *
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
+font = {'family': 'serif',
+        'weight': 'normal',
+        'size'  :  20
+}
+
+matplotlib.rc('font',**font)
+plt.ion()
+
 class starSample(object):
     """
     Gets properties of a sample of stars given a key that defines the 
@@ -84,6 +92,39 @@ class starSample(object):
             self._bitmasks[star] = apread.apStar(LOC,APO,ext=3, header=False, 
                                                  aspcapWavegrid=True)[1] 
             
+    def show_sample_coverage(self):
+        """
+        Plots the sample in Galacto-centric cylindrical coordinates.
+
+        """
+        # Start figure
+        plt.figure(figsize=(10,5.5))
+        # Set up Cartesian axes
+        car = plt.subplot(121)
+        # Set up polar axes
+        pol = plt.subplot(122,projection='polar')
+        
+        # Find location data
+        phi = self.data['RC_GALPHI']
+        r = self.data['RC_GALR']
+        z = self.data['RC_GALZ']
+        
+        # Plot data
+        car.plot(r,z,'ko',markersize=2,alpha=0.2)
+        pol.plot(phi,r,'ko',markersize=2,alpha=0.2)
+        # Reorient polar plot to match convention
+        pol.set_theta_direction(-1)
+
+        # Constrain plot limits and set labels
+        car.set_xlim(min(r),max(r))
+        car.set_ylim(min(z),max(z))
+        car.set_xlabel('R (kpc)')
+        car.set_ylabel('z (kpc)')
+        pol.set_rlabel_position(135)
+        pol.set_rlim(min(r),max(r))
+        pol.set_xticks([])
+        plt.subplots_adjust(wspace=0.05)
+
     def plotHistogram(self,array,title = '',xlabel = '',
                       ylabel = 'number of stars',saveName=None,**kwargs):
         """
@@ -334,8 +375,8 @@ class subStarSample(makeFilter):
             self.teff = np.load(self.name+'/teff.npy')
             self.logg = np.load(self.name+'/logg.npy')
             self.fe_h = np.load(self.name+'/fe_h.npy')
-            self.spectra = np.load(self.name+'/spectra.npy')
-            self.spectra_errs = np.load(self.name+'/spectra_errs.npy')
+            self.spectra = np.ma.masked_array(np.load(self.name+'/spectra.npy'))
+            self.spectra_errs = np.ma.masked_array(np.load(self.name+'/spectra_errs.npy'))
             self._bitmasks = np.load(self.name+'/bitmasks.npy')
         # If any file is missing, generate arrays and write to file
         elif not fexist:

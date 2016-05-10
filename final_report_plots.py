@@ -15,25 +15,10 @@ font = {'family': 'serif',
 matplotlib.rc('font',**font)
 plt.ion()
 
-def xyz2rphiz(galcoords):
-    r = np.sqrt(galcoords.x**2+galcoords.y**2)/1000.
-    phi = np.arctan2(galcoords.y,galcoords.x)*(180./np.pi)
-    z = galcoords.z/1000.
-    return r.value,phi.value,z.value
-
-"""
-m67coord = SkyCoord('08h51m18.0s','+11d48m00s',frame='icrs',distance=850*u.pc)
-m67_gal = m67coord.galactocentric
-m67_gal = xyz2rphiz(m67_gal)
-n6819coord = SkyCoord('19h41m18.0s','+40d11m12s',frame='icrs',distance=2208*u.pc)
-n6819_gal = n6819coord.galactocentric
-n6819_gal = xyz2rphiz(n6819_gal)
-m13coord = SkyCoord('16h41m41.634s','+36d27m40.75s',frame='icrs',distance=6800*u.pc)
-m13_gal = m13coord.galactocentric
-m13_gal = xyz2rphiz(m13_gal)
-"""
-
-def comp_R2(ms,direc=None):
+def comp_R2(ms,direc=None,labels = ['raw sample,','corrected \nsample,','M.A.D.,']):
+    """
+    Plot comparison of 
+    """
     pres = ['raw sample,','corrected \nsample,','M.A.D.,']
     plt.figure(figsize = (8,8))
     colors = plt.get_cmap('plasma')(np.linspace(0, 0.8, len(ms)))
@@ -173,11 +158,3 @@ def plot_abun(model,elemlist,**kwargs):
         plt.ylabel('deviation')
         i+=1
     plt.subplots_adjust(hspace=0.2)
-
-if __name__=='__main__':
-    """
-    n6819 = fit('clusters',maskFilter,ask=True)
-    n6819.findResiduals(gen=True)
-    n6819.findAbundances()
-    plot_example_fi
-    """

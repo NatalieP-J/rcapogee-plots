@@ -1,2 +1,3 @@
 # rcapogee-plots
-This repository is home to code for plotting and analysing red clump stars from APOGEE, including Ipython Notebooks.
+
+Home to code for spectra analysis of red clump stars from the APOGEE survey.

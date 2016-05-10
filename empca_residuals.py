@@ -6,6 +6,8 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
 import access_spectrum as acs
 from empca import empca
+from mask_data import mask,maskFilter
+from data import *
 
 
 class smallEMPCA(object):
@@ -176,6 +178,45 @@ class empca_residuals(mask):
         # update mask on input data
         self.applyMask()
 
+    def plot_example_fit(self,indep=1,pixel=0,
+                         xlabel='$T_{\mathrm{eff}}$ - median($T_{\mathrm{eff}}$) [K]'):
+        """
+        Show a two-dimensional representation of the fit at a given pixel.
+
+        indep:   Column of matrix from makeMatrix corresponding to the
+                 independent variable to plot against.
+        pixel:   Pixel at which to plot the fit.
+        xlabel:  Label for the x-axis of the plot.
+        """
+        # Create figure
+        plt.figure(figsize=(8,6))
+        plt.subplot2grid((3,1),(0,0),rowspan=2)
+        # Find and sort independent value
+        indeps = self.makeMatrix(pixel)
+        fitresult = np.dot(indeps,self.fitCoeffs[pixel].T)
+        indep = np.array(np.reshape(indeps[:,indep],len(fitresult)))[0]
+        sortd = indep.argsort()
+        # Plot a fit line and errorbar points of data
+        plt.plot(indep[sortd],fitresult[sortd],lw=3,color='k',
+                 label='$f(s,T_{\mathrm{eff}}$)')
+        plt.errorbar(i[s],self.spectra[:,pixel][s],color='r',fmt='o',
+                     yerr=self.spectra_errs[:,pixel][s])
+        plt.ylabel('stellar flux $F_p(s)$',fontsize=22)
+        plt.xticks([])
+        plt.ylim(0.6,1.1)
+        plt.yticks(np.arange(0.7,1.1,0.1),np.arange(0.7,1.1,0.1).astype(str))
+        plt.legend(loc='best',frameon=False)
+        # Plot residuals of the fit
+        plt.subplot2grid((3,1),(2,0))
+        plt.axhline(0,lw=3,color='k')
+        plt.errorbar(i[s],self.residuals[:,pixel][s],color='r',fmt='o',
+                     yerr=self.spectra_errs[:,pixel][s])
+        plt.ylabel('residuals $\delta_p(s)$ ',fontsize=22)
+        plt.xlabel(xlabel,fontsize=22)
+        plt.ylim(-0.05,0.05)
+        plt.yticks(np.arange(-0.04,0.05,0.04),np.arange(-0.04,0.05,0.04).astype(str))
+        plt.subplots_adjust(hspace=0)
+
     def fitStatistic(self):
         """
         Adds to fit object chi squared and reduced chi squared properties.
@@ -201,12 +242,20 @@ class empca_residuals(mask):
         if gen:
             self.multiFit(minStarNum=minStarNum)
             self.residuals = self.spectra - self.fitSpectra 
-            acs.pklwrite(self.name+'/residuals.pkl',self.residuals)
+            np.save(self.name+'/fitcoeffs.npy',self.fitCoeffs.data)
+            np.save(self.name+'/fitcoeffmask.npy',self.fitCoeffs.mask)
+            np.save(self.name+'/fitcoefferrs.npy',self.fitCoeffErrs.data)
+            np.save(self.name+'/fitspectra.npy',self.fitSpectra.data)
+            np.save(self.name+'/residuals.npy',self.residuals.data)
         if not gen:
             self.testM = self.makeMatrix(0)
             self.minStarNum = self.testM.shape[1]+1
-            self.residuals = acs.pklread(self.name+'/residuals.pkl')
-
+            fmask = np.load(self.name+'/fitcoeffmask.npy')
+            self.fitCoeffs = np.ma.masked_array(np.load(self.name+'/fitcoeffs.npy'),mask=fmask)
+            self.fitCoeffErrs = np.ma.masked_array(np.load(self.name+'/fitcoefferrs.npy'),mask=fmask)
+            self.fitSpectra = np.ma.mask_array(np.load(self.name+'/fitspectra.npy'),mask=self.masked)
+            self.residuals = np.ma.masked_array(np.load(self.name+'/residuals.npy'),mask=self.masked)
+            
     def findAbundances(self):
         """
         From calculated residuals, calculate elemental abundances for each star.
@@ -383,6 +432,7 @@ class empca_residuals(mask):
                                           nvec=self.nvecs,deltR2=self.deltR2,
                                           mad=self.mad,randseed=randomSeed)    
 
+            self.empcaModelWeight.mad = self.mad
             # Find R2 and R2noise for this model, and resize eigenvectors appropriately
             self.setR2(self.empcaModelWeight)
             self.setDeltaR2(self.empcaModelWeight)
