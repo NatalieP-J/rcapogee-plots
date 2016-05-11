@@ -1,5 +1,6 @@
 import numpy as np
 from tqdm import tqdm
+import matplotlib
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.preprocessing import PolynomialFeatures
@@ -8,6 +9,16 @@ import access_spectrum as acs
 from empca import empca
 from mask_data import mask,maskFilter
 from data import *
+import access_spectrum as acs 
+
+font = {'family': 'serif',
+        'weight': 'normal',
+        'size'  :  20
+}
+
+matplotlib.rc('font',**font)
+plt.ion()
+
 
 
 class smallEMPCA(object):
@@ -196,12 +207,14 @@ class empca_residuals(mask):
         fitresult = np.dot(indeps,self.fitCoeffs[pixel].T)
         indep = np.array(np.reshape(indeps[:,indep],len(fitresult)))[0]
         sortd = indep.argsort()
+        unmasked = np.where(self.spectra[:,pixel][sortd].mask==False)
         # Plot a fit line and errorbar points of data
         plt.plot(indep[sortd],fitresult[sortd],lw=3,color='k',
                  label='$f(s,T_{\mathrm{eff}}$)')
-        plt.errorbar(i[s],self.spectra[:,pixel][s],color='r',fmt='o',
-                     yerr=self.spectra_errs[:,pixel][s])
-        plt.ylabel('stellar flux $F_p(s)$',fontsize=22)
+        plt.errorbar(indep[sortd][unmasked],
+                     self.spectra[:,pixel][sortd][unmasked],color='r',
+                     fmt='o',yerr=self.spectra_errs[:,pixel][sortd][unmasked])
+        plt.ylabel('stellar flux $F_p(s)$',fontsize=20)
         plt.xticks([])
         plt.ylim(0.6,1.1)
         plt.yticks(np.arange(0.7,1.1,0.1),np.arange(0.7,1.1,0.1).astype(str))
@@ -209,12 +222,14 @@ class empca_residuals(mask):
         # Plot residuals of the fit
         plt.subplot2grid((3,1),(2,0))
         plt.axhline(0,lw=3,color='k')
-        plt.errorbar(i[s],self.residuals[:,pixel][s],color='r',fmt='o',
-                     yerr=self.spectra_errs[:,pixel][s])
-        plt.ylabel('residuals $\delta_p(s)$ ',fontsize=22)
-        plt.xlabel(xlabel,fontsize=22)
-        plt.ylim(-0.05,0.05)
-        plt.yticks(np.arange(-0.04,0.05,0.04),np.arange(-0.04,0.05,0.04).astype(str))
+        plt.errorbar(indep[sortd][unmasked],
+                     self.residuals[:,pixel][sortd][unmasked],color='r',
+                     fmt='o',yerr=self.spectra_errs[:,pixel][sortd][unmasked])
+        plt.ylabel('residuals $\delta_p(s)$ ',fontsize=20)
+        plt.xlabel(xlabel,fontsize=20)
+        plt.ylim(-0.1,0.1)
+        plt.yticks(np.arange(-0.1,0.2,0.1),
+                   np.arange(-0.1,0.2,0.1).astype(str))
         plt.subplots_adjust(hspace=0)
 
     def fitStatistic(self):
@@ -253,7 +268,7 @@ class empca_residuals(mask):
             fmask = np.load(self.name+'/fitcoeffmask.npy')
             self.fitCoeffs = np.ma.masked_array(np.load(self.name+'/fitcoeffs.npy'),mask=fmask)
             self.fitCoeffErrs = np.ma.masked_array(np.load(self.name+'/fitcoefferrs.npy'),mask=fmask)
-            self.fitSpectra = np.ma.mask_array(np.load(self.name+'/fitspectra.npy'),mask=self.masked)
+            self.fitSpectra = np.ma.masked_array(np.load(self.name+'/fitspectra.npy'),mask=self.masked)
             self.residuals = np.ma.masked_array(np.load(self.name+'/residuals.npy'),mask=self.masked)
             
     def findAbundances(self):
