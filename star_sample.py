@@ -126,7 +126,7 @@ class starSample(object):
         pol.set_xticks([])
         plt.subplots_adjust(wspace=0.05)
 
-    def plotHistogram(self,array,title = '',xlabel = '',
+    def plotHistogram(self,array,title = '',xlabel = '',norm=True,
                       ylabel = 'number of stars',saveName=None,**kwargs):
         """
         Plots a histogram of some input array, with the option to save it.
@@ -139,13 +139,19 @@ class starSample(object):
         **kwargs:   kwargs for numpy.histogram
         
         """
+        plt.figure(figsize=(10,8))
         hist,binEdges = np.histogram(array,**kwargs)
-        area = np.sum(hist*(binEdges[1]-binEdges[0]))
-        plt.bar(binEdges[:-1],hist/area,width = binEdges[1]-binEdges[0])
+        if norm:
+            area = np.sum(hist*(binEdges[1]-binEdges[0]))
+            barlist = plt.bar(binEdges[:-1],hist/area,width = binEdges[1]-binEdges[0])
+        elif not norm:
+            barlist = plt.bar(binEdges[:-1],hist,width = binEdges[1]-binEdges[0])
+        colours = plt.get_cmap('plasma')(np.linspace(0, 0.85, len(barlist)))
+        for bar in range(len(barlist)):
+            barlist[bar].set_color(colours[bar])
         plt.title(title)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
-        plt.ylim(0,1)
         if saveName:
             plt.savefig('plots/'+saveName+'.png')
             plt.close()
@@ -410,7 +416,8 @@ class subStarSample(makeFilter):
             if correction.shape != self.spectra_errs.shape:
                 correction = np.tile(correction,(self.spectra_errs.shape[0],1))
             self.spectra_errs = np.sqrt(correction*self.spectra_errs**2)
-
+        print 'Uncertainties corrected. Please call self.applyMask()'
+            
     def uncorrectUncertainty(self,correction=None):
         """
         Undoes correction on measurement uncertainty.
@@ -430,6 +437,7 @@ class subStarSample(makeFilter):
             if correction.shape != self.spectra_errs.shape:
                 correction = np.tile(correction,(self.spectra_errs.shape[0],1))
             self.spectra_errs = np.sqrt(self.spectra_errs**2/correction)
+        print 'Uncertainties corrected. Please call self.applyMask()'
 
     def imshow(self,plotData,saveName=None,title = '',xlabel='pixels',ylabel='stars',**kwargs):
         """

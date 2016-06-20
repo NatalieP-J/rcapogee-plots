@@ -200,34 +200,54 @@ class empca_residuals(mask):
         xlabel:  Label for the x-axis of the plot.
         """
         # Create figure
-        plt.figure(figsize=(8,6))
+        plt.figure(figsize=(12,8))
         plt.subplot2grid((3,1),(0,0),rowspan=2)
         # Find and sort independent value
         indeps = self.makeMatrix(pixel)
         fitresult = np.dot(indeps,self.fitCoeffs[pixel].T)
         indep = np.array(np.reshape(indeps[:,indep],len(fitresult)))[0]
         sortd = indep.argsort()
+        fitindep = np.arange(np.floor((min(indep)-100)/100.)*100,np.ceil((max(indep)+100)/100.)*100,100)
+        fit = np.dot(np.matrix([np.ones(len(fitindep)),fitindep,fitindep**2]).T,self.fitCoeffs[pixel].T)
+        colors = plt.get_cmap('plasma')(np.linspace(0, 0.8, len(indep)))
         unmasked = np.where(self.spectra[:,pixel][sortd].mask==False)
         # Plot a fit line and errorbar points of data
-        plt.plot(indep[sortd],fitresult[sortd],lw=3,color='k',
+        plt.plot(fitindep,fit,lw=3,color='k',
                  label='$f(s,T_{\mathrm{eff}}$)')
-        plt.errorbar(indep[sortd][unmasked],
-                     self.spectra[:,pixel][sortd][unmasked],color='r',
-                     fmt='o',yerr=self.spectra_errs[:,pixel][sortd][unmasked])
+        print len(indep[sortd][unmasked])
+        print sortd
+        print unmasked
+        for i in range(len(indep[sortd][unmasked])):
+            plt.errorbar(indep[sortd][unmasked][i],
+                         self.spectra[:,pixel][sortd][unmasked][i],
+                         markerfacecolor=colors[i],fmt='o',
+                         markeredgecolor='w',markeredgewidth=1.5,
+                         ecolor = colors[i],capsize=5,elinewidth=3,
+                         markersize=8,
+                         yerr=self.spectra_errs[:,pixel][sortd][unmasked][i])
         plt.ylabel('stellar flux $F_p(s)$',fontsize=20)
         plt.xticks([])
         plt.ylim(0.6,1.1)
+        plt.xlim(np.floor((min(indep)-100)/100.)*100+100,
+                 np.ceil((max(indep)+100)/100.)*100-100)
         plt.yticks(np.arange(0.7,1.1,0.1),np.arange(0.7,1.1,0.1).astype(str))
         plt.legend(loc='best',frameon=False)
         # Plot residuals of the fit
         plt.subplot2grid((3,1),(2,0))
         plt.axhline(0,lw=3,color='k')
-        plt.errorbar(indep[sortd][unmasked],
-                     self.residuals[:,pixel][sortd][unmasked],color='r',
-                     fmt='o',yerr=self.spectra_errs[:,pixel][sortd][unmasked])
+        for i in range(len(indep[sortd][unmasked])):
+            plt.errorbar(indep[sortd][unmasked][i],
+                         self.residuals[:,pixel][sortd][unmasked][i],
+                         markerfacecolor=colors[i],fmt='o',
+                         markeredgecolor='w',markeredgewidth=1.5,
+                         ecolor = colors[i],capsize=5,elinewidth=3,
+                         markersize=8,
+                         yerr=self.spectra_errs[:,pixel][sortd][unmasked][i])
         plt.ylabel('residuals $\delta_p(s)$ ',fontsize=20)
         plt.xlabel(xlabel,fontsize=20)
         plt.ylim(-0.1,0.1)
+        plt.xlim(np.floor((min(indep)-100)/100.)*100+100,
+                 np.ceil((max(indep)+100)/100.)*100-100)
         plt.yticks(np.arange(-0.1,0.2,0.1),
                    np.arange(-0.1,0.2,0.1).astype(str))
         plt.subplots_adjust(hspace=0)
@@ -431,6 +451,7 @@ class empca_residuals(mask):
         if gen:
             self.numpix=numpix
             self.correctUncertainty(correction=correction)
+            self.applyMask()
             self.mad = mad
             self.nvecs = nvecs
             self.deltR2 = deltR2

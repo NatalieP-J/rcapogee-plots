@@ -52,6 +52,13 @@ class mask(subStarSample):
         """
         subStarSample.__init__(self,sampleType,ask=ask)
         self._SNR = self.spectra/self.spectra_errs
+        self.applyMask()
+
+    def applyMask(self):
+        """
+        Mask all arrays according to maskConditions
+
+        """
         # create default mask arrays (mask nothing)
         self.masked = np.zeros(self.spectra.shape).astype(bool)
         self.unmasked = np.ones(self.spectra.shape).astype(bool)
@@ -61,13 +68,6 @@ class mask(subStarSample):
         self.masked[self._maskHere]= True
         self.unmasked[self._maskHere] = False
         # apply mask arrays to data
-        self.applyMask()
-
-    def applyMask(self):
-        """
-        Mask all arrays according to maskConditions
-
-        """
         # spectral information
         self.spectra.mask = self.masked
         self.spectra_errs.mask = self.masked

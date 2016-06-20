@@ -9,7 +9,7 @@ from residuals_2 import smoothMedian
 
 font = {'family': 'serif',
         'weight': 'normal',
-        'size'  :  12
+        'size'  :  16
 }
 
 matplotlib.rc('font',**font)
@@ -27,7 +27,7 @@ def comp_R2(ms,direc=None,
     """
         
     # Start figure
-    plt.figure(figsize = (8,8))
+    plt.figure(figsize = (10,8))
     # Find equally spaced colours from the plasma colourmap
     colors = plt.get_cmap('plasma')(np.linspace(0, 0.8, len(ms)))
     # Choose linestypes and markertypes
@@ -62,14 +62,18 @@ def comp_R2(ms,direc=None,
             vecs = np.append(vecs,crossvec)
         
         # Plot R^2 as a function of number of eigenvectors
-        plt.plot(m.R2Array,color=colors[i],ls='-',lw=3,ms=9,marker = types[t],
+        plt.plot(m.R2Array,color=colors[i],markerfacecolor=colors[i],
+                 markeredgecolor='w',markeredgewidth=2,ls='-',lw=3,ms=14,
+                 marker = types[t],
                  label = r'{0} {1} {2:.2f}'.format(labels[i],r2noise_label,
                                                    m.R2noise))
         t+=1
     # Label axes and add the legend
     step=10**np.floor(np.log10(len(m.R2Array)))
-    ticklist = np.concatenate((np.arange(0,len(m.R2Array),step,dtype=int),vecs))
-    plt.xticks(ticklist,ticklist.astype(str))
+    #ticklist = np.concatenate((np.arange(0,len(m.R2Array),step,dtype=int),vecs))
+    #plt.xticks(ticklist,ticklist.astype(str))
+    for vec in vecs:
+        plt.text(vec+0.01*len(m.R2Array),0.02,'{0}'.format(vec))
     plt.ylabel(r'$R^2$',fontsize=22)
     plt.xlabel('number of eigenvectors')
     legend = plt.legend(loc='best',fontsize=18)
@@ -108,6 +112,23 @@ def plot_comb_eig(es):
         combwin =np.ma.masked_array(0.1*(np.sum(normwindows,axis=0)/np.max(np.sum(normwindows,axis=0)))-0.06,mask=np.zeros(7214).astype(bool))
         plt.plot(combwin,color='r')
         plt.plot(smoothMedian(e,numpix=100.),lw=3,color='k')
+        plt.xlim(0,7214)
+
+def plot_elem_eig(elem,es):
+    """
+    For each of the given eigenvectors, produce one plot with the eigenvector
+    and the combined window of all elements.
+    """
+    colours = plt.get_cmap('plasma')(np.linspace(0, 0.85, 3))
+    for e in es:
+        elemind = elems.index(elem)
+        plt.figure(figsize=(16,5))
+        plt.plot(e,color=colours[2],lw=3,label='eigenvector')
+        win = (0.1*(normwindows[elemind]/np.max(normwindows[elemind]))-0.04)
+        plt.plot(win,color=colours[1],lw=3,label='{0} window'.format(elem))
+        #plt.plot(smoothMedian(e,numpix=100.),lw=3,color='k')
+        legend=plt.legend(loc = 'best')
+        legend.get_frame().set_linewidth(0.0)
         plt.xlim(0,7214)
             
 def plot_eigenvector(es,labels):
