@@ -45,6 +45,7 @@ class eigenvector_project(empca_residuals):
                                  degree=degree)
         self.findResiduals(gen=False)
         self.stars = self.residuals
+        self.errs = np.median(self.spectra_errs,axis=1)
         self.pixelEMPCA(gen=False,savename=fname)
         self.eigvec = self.empcaModelWeight.eigvec
         self.coeff = self.empcaModelWeight.coeff
@@ -63,6 +64,8 @@ class eigenvector_project(empca_residuals):
             self.sections[i+1] = ((start,
                                    start+self.residuals.shape[0]))
             self.stars=np.concatenate((self.stars,self.residuals))
+            self.errs=np.concatenate((self.errs,
+                                      np.median(self.spectra_errs,axis=1)))
         
 
     def projection(self):
@@ -81,6 +84,7 @@ class eigenvector_project(empca_residuals):
 
         ax1:   x-axis to use
         ax2:   y-axis to use
+        bins:  number of bins in the histogram
         """
         H,xedges,yedges = np.histogram2d(self.coords[ax1],self.coords[ax2],
                                          bins=bins)
@@ -99,6 +103,13 @@ class eigenvector_project(empca_residuals):
         plt.ylabel('Projection on eigenvector {0}'.format(ax2+1))
 
     def find_clusters(self,algorithm=KMeans,**kwargs):
+        """
+        Locate clusters in data after it has been projected along eigenvectors.
+        
+        algorithm:   scikit-learn algorithm to use (KMeans, AffinityPropagation                      already imported)
+        **kwargs:    keyword arguments for chosen algorithm
+
+        """
         self.projection()
         cluster_find = algorithm(**kwargs)
         cluster_find.fit(self.coords.T)
@@ -106,6 +117,12 @@ class eigenvector_project(empca_residuals):
         self.labels = cluster_find.predict(self.coords.T)
 
     def sort_labels(self):
+        """
+
+        Reindex clusters by cluster population (cluster 0 has highest pop). 
+        Also sorts cluster centers accordingly
+
+        """
         clusterpop,binEdges=np.histogram(self.labels,bins=self.centers.shape[0])
         indbypop = clusterpop.argsort()[::-1]
         self.centers = self.centers[indbypop]
@@ -113,16 +130,32 @@ class eigenvector_project(empca_residuals):
             self.labels[star] = np.where(self.labels[star]==indbypop)[0][0]
 
     def known_clusters(self,sectioninds):
-        cluster_find = KMeans(n_clusters=1)
+        """
+        
+        Find centers of clusters known to exist by their indices in the
+        self.section dictionary.
+
+        sectionids:   list of keys in self.section to get indices from whole 
+                      star list to use as known clusters
+
+        """
         self.known_centers = np.zeros((len(sectioninds),len(self.eigvec)))
         i=0
         for ind in sectioninds:
             start,end = self.sections[ind]
-            cluster_find.fit(self.coords.T[start:end])
-            self.known_centers[i] = cluster_find.cluster_centers_
+            self.known_centers[i] = np.mean(self.coords.T[start:end])
             i+=1
             
     def known_check(self,sectioninds):
+        """
+        
+        Find distances between known cluster centers and the centers to which
+        the stars were assigned by the cluster-finding algorithm.
+
+        sectionids:   list of keys in self.section to get indices from whole 
+                      star list to use as known clusters.
+
+        """
         self.known_clusters(sectioninds)
         i=0
         for ind in sectioninds:
@@ -139,6 +172,10 @@ class eigenvector_project(empca_residuals):
                 distances[l] = assigneddist/realdist
             self.plotHistogram(distances,norm=False,
                                bins=len(np.unique(cluster_labels)))
+            if np.all(cluster_labels==cluster_labels[0]):
+                otherstars = len(np.where(self.labels==cluster_labels[0])[0])
+                otherstars -= len(cluster_labels)
+                print '{0} other stars in this cluster'.format(otherstars)
             i+=1
                 
                 
