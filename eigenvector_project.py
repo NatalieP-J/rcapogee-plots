@@ -23,7 +23,8 @@ class eigenvector_project(empca_residuals):
     
     """
     def __init__(self,sampleType,maskFilter,ask=True,degree=2,
-                 fname='madFalse_corr.pkl',useEMPCAres=True,numberSamples=1):
+                 fname='madFalse_corr.pkl',useEMPCAres=True,numberSamples=1
+                 direclist = []):
         """
         Fit a masked subsample.
         
@@ -52,14 +53,18 @@ class eigenvector_project(empca_residuals):
         self.sections = {}
         self.sections[0] = (0,self.residuals.shape[0])
         for i in range(numberSamples):
-            sample = raw_input('Sample type? ')
-            if sample =='rc' or sample=='red_clump':
-                sampleType='red_clump'
-            elif sample=='c' or sample=='clusters':
-                sampleType='clusters'
-            empca_residuals.__init__(self,sampleType,maskFilter,ask=True,
-                                     degree=degree)
-            self.findResiduals(gen=False)
+            if direclist == []:
+                sample = raw_input('Sample type? ')
+                if sample =='rc' or sample=='red_clump':
+                    sampleType='red_clump'
+                elif sample=='c' or sample=='clusters':
+                    sampleType='clusters'
+                empca_residuals.__init__(self,sampleType,maskFilter,ask=True,
+                                         degree=degree)
+                self.findResiduals(gen=False)
+            elif direclist != []:
+                self.residuals = np.load(direclist[i]+'/residuals.npy')
+                self.spectra_errs = np.load(direclist[i]+'/spectra_errs.npy')
             start = self.sections[i][1]+1
             self.sections[i+1] = ((start,
                                    start+self.residuals.shape[0]))
@@ -171,7 +176,8 @@ class eigenvector_project(empca_residuals):
                 realdist = np.sqrt(np.sum((point-known_center)**2))
                 distances[l] = assigneddist/realdist
             self.plotHistogram(distances,norm=False,
-                               bins=len(np.unique(cluster_labels)))
+                               bins=len(np.unique(distances)))
+            plt.xlim(0,1)
             if np.all(cluster_labels==cluster_labels[0]):
                 otherstars = len(np.where(self.labels==cluster_labels[0])[0])
                 otherstars -= len(cluster_labels)

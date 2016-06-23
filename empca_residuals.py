@@ -67,7 +67,7 @@ class empca_residuals(mask):
         self.polynomial = PolynomialFeatures(degree=degree)
         self.testM = self.makeMatrix(0)
 
-    def makeMatrix(self,pixel):
+    def makeMatrix(self,pixel,matrix='default'):
         """
         Find independent variable matrix
         
@@ -75,21 +75,23 @@ class empca_residuals(mask):
         
         Returns the matrix
         """
+        if matrix=='default':
+            matrix=self._sampleType
         # Find the number of unmasked stars at this pixel
         numberStars = len(self.spectra[:,pixel][self.unmasked[:,pixel]])
         
         # Create basic independent variable array
         indeps = np.zeros((numberStars,
-                           len(independentVariables[self._sampleType])))
+                           len(independentVariables[matrix])))
 
-        for i in range(len(independentVariables[self._sampleType])):
-            variable = independentVariables[self._sampleType][i]
+        for i in range(len(independentVariables[matrix])):
+            variable = independentVariables[matrix][i]
             indep = self.keywordMap[variable][self.unmasked[:,pixel]]
             indeps[:,i] = indep-np.median(indep)
         # use polynomial to produce matrix with all necessary columns
         return np.matrix(self.polynomial.fit_transform(indeps))
 
-    def findFit(self,pixel,eigcheck=False):
+    def findFit(self,pixel,eigcheck=False,givencoeffs=[],matrix='default'):
         """
         Fits polynomial to all spectra at a given pixel, weighted by spectra 
         uncertainties.
@@ -100,49 +102,53 @@ class empca_residuals(mask):
 
         """
         # find matrix for polynomial of independent values
-        indeps = self.makeMatrix(pixel)
+        indeps = self.makeMatrix(pixel,matrix=matrix)
         self.numparams = indeps.shape[1]
-        # calculate inverse covariance matrix
-        covInverse = np.diag(1./self.spectra_errs[:,pixel][self.unmasked[:,pixel]]**2)
-        # find matrix for spectra values
-        starsAtPixel = np.matrix(self.spectra[:,pixel][self.unmasked[:,pixel]])
-        
-        # transform to matrices that have been weighted by the inverse 
-        # covariance
-        newIndeps = np.dot(indeps.T,np.dot(covInverse,indeps))
 
-        # Degeneracy check
-        degen = False
-        if eigcheck:
-            eigvals,eigvecs = np.linalg.eig(newIndeps)
-            if any(np.fabs(eigvals)<1e-10) and indeps.shape[1] > self.degree+1:
-                print 'degenerate pixel ',pixel,' coeffs ',np.where(np.fabs(eigvals) < 1e-10)[0] 
-                degen = True
-                indeps = indeps.T[self.noncrossInds].T
+        if givencoeffs == []:
+            # calculate inverse covariance matrix
+            covInverse = np.diag(1./self.spectra_errs[:,pixel][self.unmasked[:,pixel]]**2)
+            # find matrix for spectra values
+            starsAtPixel = np.matrix(self.spectra[:,pixel][self.unmasked[:,pixel]])
+            
+            # transform to matrices that have been weighted by the inverse 
+            # covariance
+            newIndeps = np.dot(indeps.T,np.dot(covInverse,indeps))
+            
+            # Degeneracy check
+            degen = False
+            if eigcheck:
+                eigvals,eigvecs = np.linalg.eig(newIndeps)
+                if any(np.fabs(eigvals)<1e-10) and indeps.shape[1] > self.degree+1:
+                    print 'degenerate pixel ',pixel,' coeffs ',np.where(np.fabs(eigvals) < 1e-10)[0] 
+                    degen = True
+                    indeps = indeps.T[self.noncrossInds].T
         
-        newStarsAtPixel = np.dot(indeps.T,np.dot(covInverse,starsAtPixel.T))
-        invNewIndeps = np.linalg.inv(newIndeps)
-
-        # calculate fit coefficients
-        coeffs = np.dot(invNewIndeps,newStarsAtPixel)
-        #coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]
-        coeff_errs = np.array([np.sqrt(np.array(invNewIndeps)[i][i]) for i in range(newIndeps.shape[1])])
-        bestFit = indeps*coeffs
-        # If degeneracy, make coefficients into the correct shape
-        if degen:
-            newcoeffs = np.ma.masked_array(np.zeros(self.numparams),
-                                           mask = np.zeros(self.numparams))
-            newcoeff_errs = np.ma.masked_array(np.zeros(self.numparams),
+            newStarsAtPixel = np.dot(indeps.T,np.dot(covInverse,starsAtPixel.T))
+            invNewIndeps = np.linalg.inv(newIndeps)
+            # calculate fit coefficients
+            coeffs = np.dot(invNewIndeps,newStarsAtPixel)
+            #coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]
+            coeff_errs = np.array([np.sqrt(np.array(invNewIndeps)[i][i]) for i in range(newIndeps.shape[1])])
+            bestFit = indeps*coeffs
+            # If degeneracy, make coefficients into the correct shape
+            if degen:
+                newcoeffs = np.ma.masked_array(np.zeros(self.numparams),
                                                mask = np.zeros(self.numparams))
-            newcoeffs[self.noncrossInds] = coeffs
-            newcoeff_errs[self.noncrossInds] = coeff_errs
-            newcoeffs.mask[self.crossInds] = True
-            newcoeff_errs.mask[self.crossInds] = True
-            coeffs = newcoeffs
-            coeff_errs = newcoeff_errs
+                newcoeff_errs = np.ma.masked_array(np.zeros(self.numparams),
+                                                   mask = np.zeros(self.numparams))
+                newcoeffs[self.noncrossInds] = coeffs
+                newcoeff_errs[self.noncrossInds] = coeff_errs
+                newcoeffs.mask[self.crossInds] = True
+                newcoeff_errs.mask[self.crossInds] = True
+                coeffs = newcoeffs
+                coeff_errs = newcoeff_errs
+        elif givencoeffs != []:
+            coeffs,coeff_errs = givencoeffs
+            bestFit = indeps*coeffs
         return bestFit,coeffs.T,coeff_errs
 
-    def multiFit(self,minStarNum='default',eigcheck=False):
+    def multiFit(self,minStarNum='default',eigcheck=False,coeffs=None,matrix='default'):
         """
         Loop over all pixels and find fit. Mask where there aren't enough 
         stars to fit.
@@ -153,7 +159,7 @@ class empca_residuals(mask):
         
         """
         # create sample matrix to confirm the number of parameters
-        self.testM = self.makeMatrix(0)
+        self.testM = self.makeMatrix(0,matrix=matrix)
         self.numparams = self.testM.shape[1]
         
         # set minimum number of stars needed for the fit
@@ -169,22 +175,42 @@ class empca_residuals(mask):
                                                          self.numparams)))
         self.fitSpectra = np.ma.masked_array(np.zeros((self.spectra.shape)),
                                              mask = self.spectra.mask)
-        
-        # perform fit at all pixels with enough stars
-        for pixel in tqdm(range(aspcappix),desc='fit'):
-            if np.sum(self.unmasked[:,pixel].astype(int)) < self.minStarNum:
-                # if too many stars missing, update mask
-                self.fitSpectra[:,pixel].mask = np.ones(self.spectra.shape[1])
-                self.fitCoeffs[pixel].mask = np.ones(self.numparams)
-                self.fitCoeffErrs[pixel].mask = np.ones(self.numparams)
-                self.unmasked[:,pixel] = np.zeros(self.unmasked[:,pixel].shape)
-                self.masked[:,pixel] = np.ones(self.masked[:,pixel].shape)
-            else:
-                # if fit possible update arrays
-                fitSpectrum,coefficients,coefficient_uncertainty = self.findFit(pixel,eigcheck)
-                self.fitSpectra[:,pixel][self.unmasked[:,pixel]] = fitSpectrum
-                self.fitCoeffs[pixel] = coefficients
-                self.fitCoeffErrs[pixel] = coefficient_uncertainty
+            
+        if not coeffs:
+            
+            # perform fit at all pixels with enough stars
+            for pixel in tqdm(range(aspcappix),desc='fit'):
+                if np.sum(self.unmasked[:,pixel].astype(int)) < self.minStarNum:
+                    # if too many stars missing, update mask
+                    self.fitSpectra[:,pixel].mask = np.ones(self.spectra.shape[1])
+                    self.fitCoeffs[pixel].mask = np.ones(self.numparams)
+                    self.fitCoeffErrs[pixel].mask = np.ones(self.numparams)
+                    self.unmasked[:,pixel] = np.zeros(self.unmasked[:,pixel].shape)
+                    self.masked[:,pixel] = np.ones(self.masked[:,pixel].shape)
+                else:
+                    # if fit possible update arrays
+                    fitSpectrum,coefficients,coefficient_uncertainty = self.findFit(pixel,eigcheck,matrix=matrix)
+                    self.fitSpectra[:,pixel][self.unmasked[:,pixel]] = fitSpectrum
+                    self.fitCoeffs[pixel] = coefficients
+                    self.fitCoeffErrs[pixel] = coefficient_uncertainty
+        elif coeffs:
+            fmask = np.load(self.name+'/fitcoeffmask.npy')
+            self.fitCoeffs = np.ma.masked_array(np.load(self.name+'/fitcoeffs.npy'),mask=fmask)
+            self.fitCoeffErrs = np.ma.masked_array(np.load(self.name+'/fitcoefferrs.npy'),mask=fmask)
+            for pixel in tqdm(range(aspcappix),desc='fit'):
+                if np.sum(self.unmasked[:,pixel].astype(int)) < self.minStarNum:
+                    # if too many stars missing, update mask
+                    self.fitSpectra[:,pixel].mask = np.ones(self.spectra.shape[1])
+                    self.fitCoeffs[pixel].mask = np.ones(self.numparams)
+                    self.fitCoeffErrs[pixel].mask = np.ones(self.numparams)
+                    self.unmasked[:,pixel] = np.zeros(self.unmasked[:,pixel].shape)
+                    self.masked[:,pixel] = np.ones(self.masked[:,pixel].shape)
+                else:
+                     # if fit possible update arrays
+                    fitSpectrum,coefficients,coefficient_uncertainty = self.findFit(pixel,eigcheck,
+                                                                                    givencoeffs = [self.fitCoeffs[pixel],self.fitCoeffErrs[pixel]],
+                                                                                    matrix=matrix)
+                    self.fitSpectra[:,pixel][self.unmasked[:,pixel]] = fitSpectrum
 
         # update mask on input data
         self.applyMask()
@@ -265,7 +291,7 @@ class empca_residuals(mask):
             dof = self.numberStars - self.numparams - 1
         self.fitReducedChi = self.fitChiSquared/dof
     
-    def findResiduals(self,minStarNum='default',gen=True):
+    def findResiduals(self,minStarNum='default',gen=True,coeffs=None,matrix='default'):
         """
         Calculate residuals from polynomial fits.
         
@@ -274,8 +300,9 @@ class empca_residuals(mask):
                        of fit parameters plus one)
         
         """
+        self.name+='/'+coeffs+'/'
         if gen:
-            self.multiFit(minStarNum=minStarNum)
+            self.multiFit(minStarNum=minStarNum,coeffs=coeffs,matrix=matrix)
             self.residuals = self.spectra - self.fitSpectra 
             np.save(self.name+'/fitcoeffs.npy',self.fitCoeffs.data)
             np.save(self.name+'/fitcoeffmask.npy',self.fitCoeffs.mask)
