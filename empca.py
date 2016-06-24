@@ -33,7 +33,6 @@ import sys
 from scipy.sparse import dia_matrix
 import scipy.sparse.linalg
 import math
-import polyfit as pf
 
 class Model(object):
     """

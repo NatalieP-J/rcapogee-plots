@@ -88,9 +88,9 @@ class eigenvector_project(empca_residuals):
         """
         H,xedges,yedges = np.histogram2d(self.coords[ax1],self.coords[ax2],
                                          bins=bins)
-	# Reorient appropriately
-	H = np.rot90(H)
-	H = np.flipud(H)
+    	# Reorient appropriately
+    	H = np.rot90(H)
+    	H = np.flipud(H)
         Hmasked = np.ma.masked_where(H==0,H)
         plt.figure(figsize=(10,8))
         plt.pcolormesh(xedges,yedges,Hmasked,
