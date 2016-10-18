@@ -22,7 +22,7 @@ class starSample(object):
     read function.
     
     """
-    def __init__(self,sampleType):
+    def __init__(self,dataSource,sampleType):
         """
         Get properties for all stars that match the sample type
 
@@ -30,6 +30,13 @@ class starSample(object):
                       and independentVariables in data.py
         
         """
+        self._dataSource = dataSource
+        if self._dataSource == 'apogee':
+            DR = int(raw_input('Which data release? (Enter for 13): '))
+            if DR==12:
+                os.system('export RESULTS_VERS=v603')
+            if DR==13:
+                os.system('export RESULTS_VERS=l30e.2')
         self._sampleType = sampleType
         self._getProperties()
 
@@ -37,7 +44,7 @@ class starSample(object):
         """
         Get properties of all possible stars to be used.
         """
-        self.data = readfn[self._sampleType](dr='13')
+        self.data = readfn[self._dataSource][self._sampleType]
 
     def initArrays(self,stardata):
         """
@@ -172,6 +179,8 @@ class starSample(object):
             plt.close()
             
             
+
+
 class makeFilter(starSample):
     """
     Contains functions to create a filter and associated directory 

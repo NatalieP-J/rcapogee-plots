@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
+import statsmodels.nonparametric.smoothers_lowess as sm
 import access_spectrum as acs
 from empca import empca
 from mask_data import mask,maskFilter
@@ -19,6 +20,34 @@ font = {'family': 'serif',
 matplotlib.rc('font',**font)
 plt.ion()
 
+def smoothMedian(diag,frac=None,numpix=None):
+    """
+    Uses Locally Weighted Scatterplot Smoothing to smooth an array on 
+    each detector separately. Interpolates at masked pixels and concatenates 
+    the result.
+    
+    Returns the smoothed median value of the input array, with the same 
+    dimension.
+    """
+    mask = diag.mask==False
+    smoothmedian = np.zeros(diag.shape)
+    for i in range(len(detectors)-1):
+        xarray = np.arange(detectors[i],detectors[i+1])
+        yarray = diag[detectors[i]:detectors[i+1]]
+        array_mask = mask[detectors[i]:detectors[i+1]]
+        if frac:
+            low_smooth = sm.lowess(yarray[array_mask],xarray[array_mask],
+                                   frac=frac,it=3,return_sorted=False)
+        if numpix:
+            frac = float(numpix)/len(xarray)
+            low_smooth = sm.lowess(yarray[array_mask],xarray[array_mask],
+                                   frac=frac,it=3,return_sorted=False)
+        smooth_interp = sp.interpolate.interp1d(xarray[array_mask],
+                                                low_smooth,bounds_error=False)
+        smoothmedian[detectors[i]:detectors[i+1]] = smooth_interp(xarray)
+    nanlocs = np.where(np.isnan(smoothmedian))
+    smoothmedian[nanlocs] = 1
+    return smoothmedian
 
 
 class smallEMPCA(object):

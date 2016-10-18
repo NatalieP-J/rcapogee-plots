@@ -4,7 +4,6 @@ from apogee.tools import bitmask
 from read_clusterdata import read_caldata
 import statsmodels.nonparametric.smoothers_lowess as sm
 import scipy as sp
-#import window as wn
 import numpy as np
 import isodist
 import os
@@ -56,19 +55,13 @@ def rgsample(dr='13'):
     rgindx=indx*(data['METALS'] > -.8)
     return data[rgindx]
 
-# Chosen set of bits on which to mask
-badcombpixmask = bitmask.badpixmask()
-badcombpixmask += 2**bitmask.apogee_pixmask_int("SIG_SKYLINE")
-
-elems = ['C','N','O','Na','Mg','Al','Si','S','K','Ca','Ti','V','Mn','Fe','Ni']
-
 
 # Functions to access particular sample types
-readfn = {'clusters' : read_caldata,      # Sample of clusters
+readfn = {'apogee':{'clusters' : read_caldata,      # Sample of clusters
           'OCs': read_caldata,            # Sample of open clusters
           'GCs': read_caldata,            # Sample of globular clusters
           'red_clump' : apread.rcsample,  # Sample of red clump stars
-          'red_giant' : rgsample          # Sample of red giant stars
+          'red_giant' : rgsample}         # Sample of red giant stars
           }
 
 # List of accepted keys to do slice in
@@ -82,57 +75,12 @@ _upperKeys = ['max','m','Max','Maximum','maximum','']
 _lowerKeys = ['min','m','Min','Minimum','minimum','']
 
 # Specify which independent variables to use when fitting different sample types
-independentVariables = {'clusters':['TEFF'],
+independentVariables = {'apogee':{'clusters':['TEFF'],
                         'OCs':['TEFF'],
                         'GCs':['TEFF'],
                         'red_clump':['TEFF','LOGG','FE_H'],
-                        'red_giant':['TEFF','LOGG','FE_H']
+                        'red_giant':['TEFF','LOGG','FE_H']}
                     }
-
-# Store information about where element windows are
-# Track by element name
-"""
-elemwindows = {}
-# Track by array in order of periodic table
-normwindows = np.zeros((len(elems),aspcappix))
-e = 0
-for elem in elems:
-    w = wn.read(elem,dr=13,apStarWavegrid=False)
-    nw = np.ma.masked_array(w/np.sqrt(np.sum(w)))
-    elemwindows[elem] = w
-    normwindows[e] = nw
-    e+=1
-"""
-def pixel2element(arr):
-    """
-    Convert an array in pixel space to a corresponding array in pseudo-element 
-    space.
-
-    arr:   array to convert - must have one dimension equal to aspcappix
-
-    Returns reshaped array.
-    """
-    # Determine which direction the array matches with pixel space and dot it 
-    # with normalized element windows.
-    if arr.shape[1] == aspcappix:
-        return np.dot(arr,normwindows.T)
-    elif arr.shape[0] == aspcappix:
-        return np.dot(arr.T,normwindow.T)
-
-# Test parameters to use for testing the polynomial fit
-defaultparams={'red_clump':np.array([1.53796328e-07,3.80441208e-04,
-                                     2.04021066e-07,-2.63714534e-08,
-                                     -3.56518938e-08,-1.45798835e-06,
-                                     -1.67953566e-07,-7.07997832e-09,
-                                     1.92230060e-10,-1.23611443e-10]),
-               'clusters':np.ones(3)
-               }
-
-# Track what each coefficient corresponds to in polynomial fits
-coeff_inds = {'red_clump': ['const','Teff','logg','[Fe/H]','Teff^2','Teff*logg',
-                            'Teff*[Fe/H]','logg^2','logg*[Fe/H]','[Fe/H]^2'],
-              'clusters': ['const','Teff','Teff^2']
-              }
 
 
 # Pixels at which detectors transition for each wavegrid
