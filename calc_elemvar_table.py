@@ -25,11 +25,11 @@ def calc_elemvar_table(savename,_mywindows=False,_no_indiv_windows=False):
         # Now look at the windows for each element
         for elemc in elems:
             if not _no_indiv_windows:
-                si, ei= apwindow.waveregions(elemc,asIndex=True,pad=0,dr='12')
+                si, ei= apwindow.waveregions(elemc,asIndex=True,pad=0,dr='13')
             if _mywindows:
-                elemWeights= window.read(elemc,dr='12')
+                elemWeights= window.read(elemc,dr='13')
             else:
-                elemWeights= apwindow.read(elemc,dr='12')
+                elemWeights= apwindow.read(elemc,dr='13')
             elemWeights/= numpy.nansum(elemWeights)
             # Start with total
             col.append(numpy.sqrt(numpy.nansum((elemWeights\

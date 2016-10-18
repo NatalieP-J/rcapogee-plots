@@ -59,7 +59,7 @@ def read_meszarosgcdata(filename='../clusterdata/aj509073t2_mrt.txt'):
     data['FE_H'] = data['FEH']
     return data
 
-def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt'):
+def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt',dr='13'):
     """
     NAME:
        read_caldata

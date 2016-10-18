@@ -21,16 +21,28 @@ def bitsNotSet(bitmask,maskbits):
     return goodLocs_bool
 
 # Example mask filter function
-def maskFilter(sample):
+def maskFilter(sample,minstar=5):
     """
     Returns True where sample properties match conditions
     
     sample:   an object of mask class
+    minstar:  minimum number of unmasked stars required at a pixel for that 
+              pixel to remain unmasked
 
     """
+    # Artificially reduce SNR by increasing uncertainty where SNR is high
     sample.spectra_errs[sample._SNR>200] = sample.spectra[sample._SNR>200]/200.
+    sample._SNR = sample.spectra/sample.spectra_errs
+    # Breakdown badcombpixmask (from data.py) into each individual bit flag
     maskbits = bm.bits_set(badcombpixmask)
-    return (sample._SNR < 50.) | bitsNotSet(sample._bitmasks,maskbits)
+    # Mask where SNR low or where something flagged in bitmask
+    mask = (sample._SNR < 50.) | bitsNotSet(sample._bitmasks,maskbits)
+    # Calculate the number of masked stars at each pixel
+    flaggedstars = np.sum(mask,axis=0)
+    # Flag pixels where there aren't enough stars to do the fit
+    flaggedpix = flaggedstars > (sample.numberStars-minstar)
+    mask.T[flaggedpix]=True
+    return mask
 
 class mask(subStarSample):
     """
@@ -52,6 +64,8 @@ class mask(subStarSample):
         """
         subStarSample.__init__(self,sampleType,ask=ask)
         self._SNR = self.spectra/self.spectra_errs
+        # find indices that should be masked
+        self._maskHere = maskFilter(self,minstar=5)
         self.applyMask()
 
     def applyMask(self):
@@ -62,8 +76,6 @@ class mask(subStarSample):
         # create default mask arrays (mask nothing)
         self.masked = np.zeros(self.spectra.shape).astype(bool)
         self.unmasked = np.ones(self.spectra.shape).astype(bool)
-        # find indices that should be masked
-        self._maskHere = maskFilter(self)
         # update mask arrays
         self.masked[self._maskHere]= True
         self.unmasked[self._maskHere] = False

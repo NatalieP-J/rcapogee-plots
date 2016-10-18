@@ -37,7 +37,7 @@ class starSample(object):
         """
         Get properties of all possible stars to be used.
         """
-        self.data = readfn[self._sampleType]()
+        self.data = readfn[self._sampleType](dr='13')
 
     def initArrays(self,stardata):
         """
@@ -70,7 +70,7 @@ class starSample(object):
         """
         
         self.initArrays(stardata)
-        
+        missing = 0
         # Fill arrays for each star
         for star in tqdm(range(len(stardata)),desc='read star data'):
             LOC = stardata[star]['LOCATION_ID']
@@ -85,13 +85,28 @@ class starSample(object):
             self.fe_h[star] = np.ma.masked_array(FE_H)
             
             # Spectral data
-            self.spectra[star] = apread.aspcapStar(LOC,APO,ext=1,header=False, 
-                                                   aspcapWavegrid=True)
-            self.spectra_errs[star] = apread.aspcapStar(LOC,APO,ext=2,
-                                                        header=False, 
-                                                        aspcapWavegrid=True)
-            self._bitmasks[star] = apread.apStar(LOC,APO,ext=3, header=False, 
-                                                 aspcapWavegrid=True)[1] 
+            try:
+                self.spectra[star] = apread.aspcapStar(LOC,APO,ext=1,
+                                                       header=False,
+                                                       aspcapWavegrid=True)
+                self.spectra_errs[star] = apread.aspcapStar(LOC,APO,ext=2,
+                                                            header=False, 
+                                                            aspcapWavegrid=True)
+                self._bitmasks[star] = apread.apStar(LOC,APO,ext=3,
+                                                     header=False, 
+                                                     aspcapWavegrid=True)[1]
+            except IOError:
+                print 'Star {0} missing '.format(star)
+                self.spectra[star] = np.zeros(aspcappix)
+                self.spectra_errs[star] = np.ones(aspcappix)
+                self._bitmasks[star] = np.ones(aspcappix).astype(np.int16)
+                missing +=1
+
+            if LOGG<-1000 or TEFF<-1000 or FE_H<-1000:
+                self._bitmasks[star] = np.ones(aspcappix).astype(np.int16)
+
+        print 'Total {0} of {1} stars missing'.format(missing,len(stardata))
+                
             
     def show_sample_coverage(self):
         """
@@ -405,7 +420,6 @@ class subStarSample(makeFilter):
                       list of values.
 
         """
-        self.checkArrays()
         if isinstance(correction,(str)):
             correction = acs.pklread(correction)
         if isinstance(correction,(float,int)):
@@ -416,7 +430,6 @@ class subStarSample(makeFilter):
             if correction.shape != self.spectra_errs.shape:
                 correction = np.tile(correction,(self.spectra_errs.shape[0],1))
             self.spectra_errs = np.sqrt(correction*self.spectra_errs**2)
-        print 'Uncertainties corrected. Please call self.applyMask()'
             
     def uncorrectUncertainty(self,correction=None):
         """
@@ -426,7 +439,6 @@ class subStarSample(makeFilter):
                       May be a path to a pickled file, a float, or 
                       list of values.
         """
-        self.checkArrays()
         if isinstance(correction,(str)):
             correction = acs.pklread(correction)
         if isinstance(correction,(float,int)):
@@ -437,7 +449,6 @@ class subStarSample(makeFilter):
             if correction.shape != self.spectra_errs.shape:
                 correction = np.tile(correction,(self.spectra_errs.shape[0],1))
             self.spectra_errs = np.sqrt(self.spectra_errs**2/correction)
-        print 'Uncertainties corrected. Please call self.applyMask()'
 
     def imshow(self,plotData,saveName=None,title = '',xlabel='pixels',ylabel='stars',**kwargs):
         """

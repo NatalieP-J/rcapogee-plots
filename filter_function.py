@@ -2,6 +2,6 @@ import numpy as np
 
 def starFilter(data):
 	"""
-	clusters_CLUSTER_matchN2158
+	clusters_CLUSTER_matchN6819
 	"""
-	return (data['CLUSTER'] == "N2158")
+	return (data['CLUSTER'] == "N6819")

@@ -44,7 +44,7 @@ def bad(elem):
     HISTORY:
        2015-09-02 - Written - Bovy (UofT)
     """
-    si,ei= apwindow.waveregions(elem,asIndex=True,pad=0,dr='12')
+    si,ei= apwindow.waveregions(elem,asIndex=True,pad=0,dr='13')
     out= numpy.zeros(8575,dtype='bool')
     if elem.lower() == 'k': return out
     for ii,(s,e) in enumerate(zip(si,ei)):

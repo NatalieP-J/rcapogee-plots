@@ -300,7 +300,6 @@ class empca_residuals(mask):
                        of fit parameters plus one)
         
         """
-        self.name+='/'+coeffs+'/'
         if gen:
             self.multiFit(minStarNum=minStarNum,coeffs=coeffs,matrix=matrix)
             self.residuals = self.spectra - self.fitSpectra 
@@ -441,26 +440,32 @@ class empca_residuals(mask):
         self.spectra_errs[:] = self.old_spectra_errs
 
 
-    def findCorrection(self,cov,median=True,numpix=10.,frac=None):
+    def findCorrection(self,cov=None,median=True,numpix=10.,frac=None,
+                       savename='pickles/correction_factor.pkl'):
         """
         Calculates the diagonal of a square matrix and smooths it
         either over a fraction of the data or a number of elements,
         where number of elements takes precedence if both are set.
 
-        cov:      Square matrix
+        cov:      Square matrix. If unspecified, calculate from residuals and 
+                  uncertainties
         median:   If true, returns smoothed median, not raw diagonal
         numpix:   Number of elements to smooth over
         frac:     Fraction of data to smooth over
 
-        Returns the diagonal
+        Returns the diagonal of a covariance matrix
         """
+        if not cov:
+            cov = np.ma.cov(self.residuals.T/self.spectra_errs.T)
         diagonal = np.ma.masked_array([cov[i,i] for i in range(len(cov))],
                                       mask=[cov.mask[i,i] for i in 
                                             range(len(cov))])
         if median:
             median = smoothMedian(diagonal,frac=frac,numpix=float(numpix))
+            acs.pklwrite(savename,median)
             return median
         elif not median:
+            acs.pklwrite(savename,diagonal)
             return diagonal
 
     def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,mad=False,correction=None,savename=None,gen=True,numpix=None,weight=True):
@@ -503,6 +508,7 @@ class empca_residuals(mask):
             self.resizePixelEigvec(self.empcaModelWeight)
 
             self.uncorrectUncertainty(correction=correction)
+            self.applyMask()
             self.smallModel = smallEMPCA(self.empcaModelWeight,correction=correction)
             if savename:
                 acs.pklwrite(self.name+'/'+savename,self.smallModel)
