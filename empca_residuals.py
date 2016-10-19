@@ -11,6 +11,7 @@ from empca import empca
 from mask_data import mask,maskFilter
 from data_access import *
 import access_spectrum as acs 
+import os
 
 font = {'family': 'serif',
         'weight': 'normal',
@@ -174,8 +175,8 @@ class empca_residuals(mask):
                 coeff_errs = newcoeff_errs
         elif givencoeffs != []:
             coeffs,coeff_errs = givencoeffs
-            bestFit = indeps*coeffs
-        return bestFit,coeffs.T,coeff_errs
+            bestFit = indeps*np.matrix(coeffs).T
+        return bestFit,coeffs,coeff_errs
 
     def multiFit(self,minStarNum='default',eigcheck=False,coeffs=None,matrix='default'):
         """
@@ -223,9 +224,9 @@ class empca_residuals(mask):
                     self.fitCoeffs[pixel] = coefficients
                     self.fitCoeffErrs[pixel] = coefficient_uncertainty
         elif coeffs:
-            fmask = np.load(self.name+'/fitcoeffmask.npy')
-            self.fitCoeffs = np.ma.masked_array(np.load(self.name+'/fitcoeffs.npy'),mask=fmask)
-            self.fitCoeffErrs = np.ma.masked_array(np.load(self.name+'/fitcoefferrs.npy'),mask=fmask)
+            fmask = np.load(coeffs+'/fitcoeffmask.npy')
+            self.fitCoeffs = np.ma.masked_array(np.load(coeffs+'/fitcoeffs.npy'),mask=fmask)
+            self.fitCoeffErrs = np.ma.masked_array(np.load(coeffs+'/fitcoefferrs.npy'),mask=fmask)
             for pixel in tqdm(range(aspcappix),desc='fit'):
                 if np.sum(self.unmasked[:,pixel].astype(int)) < self.minStarNum:
                     # if too many stars missing, update mask
@@ -329,6 +330,10 @@ class empca_residuals(mask):
                        of fit parameters plus one)
         
         """
+        if coeffs:
+            self.name+='/'+coeffs+'/'
+            if not os.path.isdir(self.name):
+                os.system('mkdir -p {0}'.format(self.name))
         if gen:
             self.multiFit(minStarNum=minStarNum,coeffs=coeffs,matrix=matrix)
             self.residuals = self.spectra - self.fitSpectra 
