@@ -1,9 +1,9 @@
 import numpy as np
 import os
 from tqdm import tqdm
-import data
-reload(data)
-from data import *
+import data_access
+reload(data_access)
+from data_access import *
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import access_spectrum as acs
@@ -32,7 +32,10 @@ class starSample(object):
         """
         self._dataSource = dataSource
         if self._dataSource == 'apogee':
-            DR = int(raw_input('Which data release? (Enter for 13): '))
+            DR = raw_input('Which data release? (Enter for 13): ')
+            if DR=='':
+                DR='13'
+            DR=int(DR)
             if DR==12:
                 os.system('export RESULTS_VERS=v603')
             if DR==13:
@@ -44,7 +47,7 @@ class starSample(object):
         """
         Get properties of all possible stars to be used.
         """
-        self.data = readfn[self._dataSource][self._sampleType]
+        self.data = readfn[self._dataSource][self._sampleType]()
 
     def initArrays(self,stardata):
         """
@@ -186,7 +189,7 @@ class makeFilter(starSample):
     Contains functions to create a filter and associated directory 
     name for a starSample.
     """
-    def __init__(self,sampleType,ask=True):
+    def __init__(self,dataSource,sampleType,ask=True):
         """
         Sets up filter_function.py file to contain the appropriate function 
         and puts the save directory name in the docstring of the function.
@@ -198,7 +201,7 @@ class makeFilter(starSample):
                       filter_function.py
                       
         """
-        starSample.__init__(self,sampleType)
+        starSample.__init__(self,dataSource,sampleType)
         if ask:
             self.done = False
             print 'Type done at any prompt when finished'
@@ -363,7 +366,7 @@ class subStarSample(makeFilter):
     Given a filter function, defines a subsample of the total sample of stars.
     
     """
-    def __init__(self,sampleType,ask=True):
+    def __init__(self,dataSource,sampleType,ask=True):
         """
         Create a subsample according to a starFilter function
         
@@ -375,7 +378,7 @@ class subStarSample(makeFilter):
         
         """
         # Create starFilter
-        makeFilter.__init__(self,sampleType,ask=ask)
+        makeFilter.__init__(self,dataSource,sampleType,ask=ask)
         import filter_function
         reload(filter_function)
         from filter_function import starFilter

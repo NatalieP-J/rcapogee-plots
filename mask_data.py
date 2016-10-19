@@ -1,8 +1,8 @@
 import numpy as np
 from apogee.tools import bitmask as bm
-import data
-reload(data)
-from data import *
+import data_access
+reload(data_access)
+from data_access import *
 from star_sample import subStarSample
 
 def bitsNotSet(bitmask,maskbits):
@@ -20,7 +20,9 @@ def bitsNotSet(bitmask,maskbits):
         goodLocs_bool[bitind] = True
     return goodLocs_bool
 
-# Example mask filter function
+# Example mask filter function for APOGEE
+badcombpixmask = bitmask.badpixmask()
+badcombpixmask += 2**bitmask.apogee_pixmask_int("SIG_SKYLINE")
 def maskFilter(sample,minstar=5):
     """
     Returns True where sample properties match conditions
@@ -50,7 +52,7 @@ class mask(subStarSample):
     maskConditions function.
     
     """
-    def __init__(self,sampleType,maskFilter,ask=True):
+    def __init__(self,dataSource,sampleType,maskFilter,ask=True):
         """
         Mask a subsample according to a maskFilter function
         
@@ -62,7 +64,7 @@ class mask(subStarSample):
                       filter_function.py
         
         """
-        subStarSample.__init__(self,sampleType,ask=ask)
+        subStarSample.__init__(self,dataSource,sampleType,ask=ask)
         self._SNR = self.spectra/self.spectra_errs
         # find indices that should be masked
         self._maskHere = maskFilter(self,minstar=5)

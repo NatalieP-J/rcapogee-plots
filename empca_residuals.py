@@ -9,7 +9,7 @@ import statsmodels.nonparametric.smoothers_lowess as sm
 import access_spectrum as acs
 from empca import empca
 from mask_data import mask,maskFilter
-from data import *
+from data_access import *
 import access_spectrum as acs 
 
 font = {'family': 'serif',
@@ -76,7 +76,7 @@ class empca_residuals(mask):
     Contains functions to find polynomial fits.
     
     """
-    def __init__(self,sampleType,maskFilter,ask=True,degree=2):
+    def __init__(self,dataSource,sampleType,maskFilter,ask=True,degree=2):
         """
         Fit a masked subsample.
         
@@ -89,7 +89,7 @@ class empca_residuals(mask):
         degree:       degree of polynomial to fit
         
         """
-        mask.__init__(self,sampleType,maskFilter,ask=ask)
+        mask.__init__(self,dataSource,sampleType,maskFilter,ask=ask)
         self.degree = degree
         self.noncrossInds = ([0,1,2,3,4,7,9])
         self.crossInds = ([5,6,8],)
@@ -111,10 +111,10 @@ class empca_residuals(mask):
         
         # Create basic independent variable array
         indeps = np.zeros((numberStars,
-                           len(independentVariables[matrix])))
+                           len(independentVariables[self._dataSource][matrix])))
 
-        for i in range(len(independentVariables[matrix])):
-            variable = independentVariables[matrix][i]
+        for i in range(len(independentVariables[self._dataSource][matrix])):
+            variable = independentVariables[self._dataSource][matrix][i]
             indep = self.keywordMap[variable][self.unmasked[:,pixel]]
             indeps[:,i] = indep-np.median(indep)
         # use polynomial to produce matrix with all necessary columns
@@ -393,7 +393,7 @@ class empca_residuals(mask):
         ax.set_zlabel(elem3)
         if saveName:
             plt.savefig(self.name+'/'+saveName+'.png')
-
+    '''
 
     def testFit(self,errs=None,randomize=False, params=defaultparams, singlepix=None,minStarNum='default'):
 
@@ -467,7 +467,7 @@ class empca_residuals(mask):
         # Restore previous values
         self.spectra[:] = self.old_spectra
         self.spectra_errs[:] = self.old_spectra_errs
-
+    '''
 
     def findCorrection(self,cov=None,median=True,numpix=10.,frac=None,
                        savename='pickles/correction_factor.pkl'):
