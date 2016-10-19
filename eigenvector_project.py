@@ -2,18 +2,19 @@ import numpy as np
 from tqdm import tqdm
 import matplotlib
 import matplotlib.pyplot as plt
-from sklearn.cluster import AffinityPropagation,KMeans
+from sklearn.cluster import AffinityPropagation,KMeans,DBSCAN
 from mask_data import maskFilter
 from empca_residuals import empca_residuals,smallEMPCA
 
 
 font = {'family': 'serif',
-        'weight': 'normal',
-        'size'  :  20
+        'weight': 'bold',
+        'size'  :  24
 }
 
 matplotlib.rc('font',**font)
 plt.ion()
+
 
 class eigenvector_project(empca_residuals):
     """
@@ -23,7 +24,7 @@ class eigenvector_project(empca_residuals):
     
     """
     def __init__(self,sampleType,maskFilter,ask=True,degree=2,
-                 fname='madFalse_corr.pkl',useEMPCAres=True,numberSamples=1
+                 fname='madFalse_corr.pkl',useEMPCAres=True,numberSamples=1,
                  direclist = []):
         """
         Fit a masked subsample.
@@ -45,11 +46,13 @@ class eigenvector_project(empca_residuals):
         empca_residuals.__init__(self,sampleType,maskFilter,ask=ask,
                                  degree=degree)
         self.findResiduals(gen=False)
+        self.coeffs = self.name
         self.stars = self.residuals
         self.errs = np.median(self.spectra_errs,axis=1)
         self.pixelEMPCA(gen=False,savename=fname)
         self.eigvec = self.empcaModelWeight.eigvec
         self.coeff = self.empcaModelWeight.coeff
+        self.matrix = self._sampleType
         self.sections = {}
         self.sections[0] = (0,self.residuals.shape[0])
         for i in range(numberSamples):
@@ -61,7 +64,7 @@ class eigenvector_project(empca_residuals):
                     sampleType='clusters'
                 empca_residuals.__init__(self,sampleType,maskFilter,ask=True,
                                          degree=degree)
-                self.findResiduals(gen=False)
+                self.findResiduals(gen=True,coeffs=self.coeffs,matrix=self.matrix)
             elif direclist != []:
                 self.residuals = np.load(direclist[i]+'/residuals.npy')
                 self.spectra_errs = np.load(direclist[i]+'/spectra_errs.npy')
@@ -116,10 +119,13 @@ class eigenvector_project(empca_residuals):
 
         """
         self.projection()
-        cluster_find = algorithm(**kwargs)
-        cluster_find.fit(self.coords.T)
-        self.centers = cluster_find.cluster_centers_
-        self.labels = cluster_find.predict(self.coords.T)
+        self.cluster_find = algorithm(**kwargs)
+        self.cluster_find.fit(self.coords.T)
+        if not isinstance(self.cluster_find,DBSCAN):
+            self.centers = self.cluster_find.cluster_centers_
+            self.labels = self.cluster_find.predict(self.coords.T)
+        elif isinstance(self.cluster_find,DBSCAN):
+            self.labels = self.cluster_find.fit_predict(self.coords.T)
 
     def sort_labels(self):
         """
@@ -188,23 +194,43 @@ class eigenvector_project(empca_residuals):
         
 
     def plot_clusters(self,ax1=0,ax2=1,bins=200,knownclusters=None):
-        H,xedges,yedges = np.histogram2d(self.coords[ax1],self.coords[ax2],
-                                         bins=bins)
-	# Reorient appropriately
-	H = np.rot90(H)
-	H = np.flipud(H)
-        Hmasked = np.ma.masked_where(H==0,H)
         plt.figure(figsize=(10,8))
-        plt.pcolormesh(xedges,yedges,Hmasked,
-                       cmap = plt.get_cmap('plasma'))
         plt.xlabel('Projection on eigenvector {0}'.format(ax1+1))
         plt.ylabel('Projection on eigenvector {0}'.format(ax2+1))
-        cbar = plt.colorbar()
-        cbar.ax.set_ylabel('Number of stars')
-        plt.plot(self.centers[:,ax1],self.centers[:,ax2],'o',
-                 markerfacecolor='w',markeredgecolor='k',markeredgewidth=1,
-                 markersize=5)
+        if not isinstance(self.cluster_find,DBSCAN):
+            H,xedges,yedges = np.histogram2d(self.coords[ax1],self.coords[ax2],
+                                             bins=bins)
+            # Reorient appropriately
+            H = np.rot90(H)
+            H = np.flipud(H)
+            Hmasked = np.ma.masked_where(H==0,H)
+            plt.pcolormesh(xedges,yedges,Hmasked,
+                           cmap = plt.get_cmap('plasma'))
+            plt.plot(self.centers[:,ax1],self.centers[:,ax2],'o',
+                     markerfacecolor='w',markeredgecolor='k',markeredgewidth=1,
+                     markersize=5)
+            cbar = plt.colorbar()
+            cbar.ax.set_ylabel('Number of stars')
+        
+        elif isinstance(self.cluster_find,DBSCAN):
+            colors = plt.get_cmap('plasma')(np.linspace(0,0.8,len(np.unique(self.labels))))
+            i=0
+            for label in np.unique(self.labels):
+                if i==0:
+                    clustermembers = np.where(self.labels == label)
+                    plt.plot(self.coords[ax1].T[clustermembers],
+                            self.coords[ax2].T[clustermembers],'.',
+                            color=colors[i],markersize=4 )
+                elif i!=0:
+                    clustermembers = np.where(self.labels == label)
+                    plt.plot(self.coords[ax1].T[clustermembers],
+                            self.coords[ax2].T[clustermembers],'o',
+                            color=colors[i])
+
+                i+=1
+            
+        
         if knownclusters:
             plt.plot(self.known_centers[:,ax1],self.known_centers[:,ax2],'o',
                      markerfacecolor='r',markeredgecolor='k',markeredgewidth=1,
-                     markersize=5)
+                     markersize=10)
