@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
+import statsmodels.nonparametric.smoothers_lowess as sm
 import access_spectrum as acs
 from empca import empca
 from mask_data import mask,maskFilter
@@ -20,6 +21,34 @@ font = {'family': 'serif',
 matplotlib.rc('font',**font)
 plt.ion()
 
+def smoothMedian(diag,frac=None,numpix=None):
+    """
+    Uses Locally Weighted Scatterplot Smoothing to smooth an array on 
+    each detector separately. Interpolates at masked pixels and concatenates 
+    the result.
+    
+    Returns the smoothed median value of the input array, with the same 
+    dimension.
+    """
+    mask = diag.mask==False
+    smoothmedian = np.zeros(diag.shape)
+    for i in range(len(detectors)-1):
+        xarray = np.arange(detectors[i],detectors[i+1])
+        yarray = diag[detectors[i]:detectors[i+1]]
+        array_mask = mask[detectors[i]:detectors[i+1]]
+        if frac:
+            low_smooth = sm.lowess(yarray[array_mask],xarray[array_mask],
+                                   frac=frac,it=3,return_sorted=False)
+        if numpix:
+            frac = float(numpix)/len(xarray)
+            low_smooth = sm.lowess(yarray[array_mask],xarray[array_mask],
+                                   frac=frac,it=3,return_sorted=False)
+        smooth_interp = sp.interpolate.interp1d(xarray[array_mask],
+                                                low_smooth,bounds_error=False)
+        smoothmedian[detectors[i]:detectors[i+1]] = smooth_interp(xarray)
+    nanlocs = np.where(np.isnan(smoothmedian))
+    smoothmedian[nanlocs] = 1
+    return smoothmedian
 
 
 class smallEMPCA(object):
@@ -304,7 +333,7 @@ class empca_residuals(mask):
         if coeffs:
             self.name+='/'+coeffs+'/'
             if not os.path.isdir(self.name):
-                os.system('mkdir {0}'.format(self.name))
+                os.system('mkdir -p {0}'.format(self.name))
         if gen:
             self.multiFit(minStarNum=minStarNum,coeffs=coeffs,matrix=matrix)
             self.residuals = self.spectra - self.fitSpectra 
@@ -445,26 +474,32 @@ class empca_residuals(mask):
         self.spectra_errs[:] = self.old_spectra_errs
 
 
-    def findCorrection(self,cov,median=True,numpix=10.,frac=None):
+    def findCorrection(self,cov=None,median=True,numpix=10.,frac=None,
+                       savename='pickles/correction_factor.pkl'):
         """
         Calculates the diagonal of a square matrix and smooths it
         either over a fraction of the data or a number of elements,
         where number of elements takes precedence if both are set.
 
-        cov:      Square matrix
+        cov:      Square matrix. If unspecified, calculate from residuals and 
+                  uncertainties
         median:   If true, returns smoothed median, not raw diagonal
         numpix:   Number of elements to smooth over
         frac:     Fraction of data to smooth over
 
-        Returns the diagonal
+        Returns the diagonal of a covariance matrix
         """
+        if not cov:
+            cov = np.ma.cov(self.residuals.T/self.spectra_errs.T)
         diagonal = np.ma.masked_array([cov[i,i] for i in range(len(cov))],
                                       mask=[cov.mask[i,i] for i in 
                                             range(len(cov))])
         if median:
             median = smoothMedian(diagonal,frac=frac,numpix=float(numpix))
+            acs.pklwrite(savename,median)
             return median
         elif not median:
+            acs.pklwrite(savename,diagonal)
             return diagonal
 
     def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,mad=False,correction=None,savename=None,gen=True,numpix=None,weight=True):
@@ -507,6 +542,7 @@ class empca_residuals(mask):
             self.resizePixelEigvec(self.empcaModelWeight)
 
             self.uncorrectUncertainty(correction=correction)
+            self.applyMask()
             self.smallModel = smallEMPCA(self.empcaModelWeight,correction=correction)
             if savename:
                 acs.pklwrite(self.name+'/'+savename,self.smallModel)
