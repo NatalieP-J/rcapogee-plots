@@ -32,13 +32,13 @@ class starSample(object):
         """
         self._dataSource = dataSource
         if self._dataSource == 'apogee':
-            DR = raw_input('Which data release? (Enter for 13): ')
-            if DR=='':
-                DR='13'
-            DR=int(DR)
-            if DR==12:
+            self.DR = raw_input('Which data release? (Enter for 13): ')
+            if self.DR=='':
+                self.DR='13'
+            self.DR=int(self.DR)
+            if self.DR==12:
                 os.system('export RESULTS_VERS=v603')
-            if DR==13:
+            if self.DR==13:
                 os.system('export RESULTS_VERS=l30e.2')
         self._sampleType = sampleType
         self._getProperties()
@@ -47,7 +47,8 @@ class starSample(object):
         """
         Get properties of all possible stars to be used.
         """
-        self.data = readfn[self._dataSource][self._sampleType]()
+        if self.DR:
+            self.data = readfn[self._dataSource][self._sampleType](dr=str(self.DR))
 
     def initArrays(self,stardata):
         """
