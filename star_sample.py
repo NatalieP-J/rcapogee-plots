@@ -207,7 +207,7 @@ class makeFilter(starSample):
             self.done = False
             print 'Type done at any prompt when finished'
             # Start name and condition string
-            self.name = self._sampleType
+            self.name = self._sampleType+'_'+str(self.DR)
             self.condition = ''
             # Ask for new key conditions until the user signals done
             while not self.done:

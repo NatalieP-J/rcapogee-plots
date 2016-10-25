@@ -90,9 +90,17 @@ def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt',dr='13'):
     allvdata= apread.allVisit(raw=True)
     fibers= numpy.zeros((len(data),numpy.nanmax(alldata['NVISITS'])),
                         dtype='int')-1
+    inds = []
     for ii in range(len(data)):
-        if 'Pleiades' in data['CLUSTER'][ii]: continue
+        if 'Pleiades' in data['CLUSTER'][ii]: 
+            inds.append(0)
+            continue
         indx= alldata['APOGEE_ID'] == data['ID'][ii]
+        success = numpy.where(indx==True)[0]
+        if success.size==0 or success.size>1:
+            inds.append(0)
+        elif success.size==1:
+            inds.append(success[0])
         if numpy.sum(indx) == 0:
             raise ValueError('allStar match for %s not found ...' % (data['ID'][ii]))
         if len(list(set(alldata['LOCATION_ID'][indx]))) > 1:
@@ -102,12 +110,29 @@ def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt',dr='13'):
         snrs[ii] = alldata['SNR'][indx][0]
         for jj in range(alldata['NVISITS'][indx][0]):
             fibers[ii,jj]= allvdata[alldata['VISIT_PK'][indx][0,jj]]['FIBERID']
+    inds = (numpy.array(inds),)
     data['LOCATION_ID']= locids
     data['H']= hmags
     data['FIBERID']= fibers
     data['SNR'] = snrs
     data['APOGEE_ID'] = data['ID']
-    data['FE_H'] = data['FEH']
+    data['index'] = inds[0]
+    data['M_H'] = data['FEH']
+    data['C_H'] = alldata['C_H'][inds]
+    data['N_H'] = alldata['N_H'][inds]
+    data['O_H'] = alldata['O_H'][inds]
+    data['NA_H'] = alldata['NA_H'][inds]
+    data['MG_H'] = alldata['MG_H'][inds]
+    data['AL_H'] = alldata['AL_H'][inds]
+    data['SI_H'] = alldata['SI_H'][inds]
+    data['S_H'] = alldata['S_H'][inds]
+    data['K_H'] = alldata['K_H'][inds]
+    data['CA_H'] = alldata['CA_H'][inds]
+    data['TI_H'] = alldata['TI_H'][inds]
+    data['V_H'] = alldata['V_H'][inds]
+    data['MN_H'] = alldata['MN_H'][inds]
+    data['FE_H'] = alldata['FE_H'][inds]
+    data['NI_H'] = alldata['NI_H'][inds]
     return data
 
 def read_spectra(cluster,teffmin=4000.,teffmax=5000.,cont_type='cannon',
