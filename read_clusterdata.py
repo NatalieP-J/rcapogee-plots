@@ -86,6 +86,8 @@ def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt',dr='13'):
     locids= numpy.zeros(len(data),dtype='int')-1
     hmags= numpy.zeros(len(data),dtype='float')-1
     snrs = numpy.zeros(len(data),dtype='float')-1
+    ras= numpy.zeros(len(data),dtype='float')-1
+    decs= numpy.zeros(len(data),dtype='float')-1
     # and match to allVisit for the fibers that each star was observed in
     allvdata= apread.allVisit(raw=True)
     fibers= numpy.zeros((len(data),numpy.nanmax(alldata['NVISITS'])),
@@ -108,6 +110,8 @@ def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt',dr='13'):
         locids[ii]= alldata['LOCATION_ID'][indx][0]
         hmags[ii]= alldata['H'][indx][0]
         snrs[ii] = alldata['SNR'][indx][0]
+        ras[ii] = alldata['RA'][indx][0]
+        decs[ii] = alldata['DEC'][indx][0]
         for jj in range(alldata['NVISITS'][indx][0]):
             fibers[ii,jj]= allvdata[alldata['VISIT_PK'][indx][0,jj]]['FIBERID']
     inds = (numpy.array(inds),)
@@ -116,6 +120,8 @@ def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt',dr='13'):
     data['FIBERID']= fibers
     data['SNR'] = snrs
     data['APOGEE_ID'] = data['ID']
+    data['RA'] = ras
+    data['DEC'] = decs
     data['index'] = inds[0]
     data['M_H'] = data['FEH']
     data['C_H'] = alldata['C_H'][inds]
