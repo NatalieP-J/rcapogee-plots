@@ -35,11 +35,11 @@ class starSample(object):
             self.DR = raw_input('Which data release? (Enter for 13): ')
             if self.DR=='':
                 self.DR='13'
-            self.DR=int(self.DR)
-            if self.DR==12:
-                os.system('export RESULTS_VERS=v603')
-            if self.DR==13:
-                os.system('export RESULTS_VERS=l30e.2')
+            if self.DR=='12':
+                os.environ['RESULTS_VERS']='v603'
+            if self.DR=='13':
+                os.environ['RESULTS_VERS']='l30e.2'
+        os.system('echo RESULTS_VERS $RESULTS_VERS')
         self._sampleType = sampleType
         self._getProperties()
 
@@ -98,13 +98,14 @@ class starSample(object):
             # Spectral data
             try:
                 self.spectra[star] = apread.aspcapStar(LOC,APO,ext=1,
-                                                       header=False,
+                                                       header=False,dr=self.DR,
                                                        aspcapWavegrid=True)
                 self.spectra_errs[star] = apread.aspcapStar(LOC,APO,ext=2,
-                                                            header=False, 
+                                                            header=False,
+                                                            dr=self.DR,
                                                             aspcapWavegrid=True)
                 self._bitmasks[star] = apread.apStar(LOC,APO,ext=3,
-                                                     header=False, 
+                                                     header=False,dr=self.DR, 
                                                      aspcapWavegrid=True)[1]
             except IOError:
                 print 'Star {0} missing '.format(star)

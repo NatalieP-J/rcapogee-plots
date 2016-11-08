@@ -23,6 +23,7 @@ def bitsNotSet(bitmask,maskbits):
 # Example mask filter function for APOGEE
 badcombpixmask = bitmask.badpixmask()
 badcombpixmask += 2**bitmask.apogee_pixmask_int("SIG_SKYLINE")
+
 def maskFilter(sample,minstar=5):
     """
     Returns True where sample properties match conditions
