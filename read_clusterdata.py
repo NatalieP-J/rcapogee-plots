@@ -5,6 +5,7 @@ import sys
 import numpy
 import apogee.tools.read as apread
 from apogee.tools import bitmask
+import os
 try:
     from apogee.spec import continuum
 except RuntimeError:
@@ -82,14 +83,14 @@ def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt',dr='13'):
     data.rename_column('[M/H]C','FEH')
     data.rename_column('2MASS','ID')
     # Now match to allStar to get the location_ids
-    alldata= apread.allStar(raw=True)
+    alldata= apread.allStar(raw=True,dr=dr)
     locids= numpy.zeros(len(data),dtype='int')-1
     hmags= numpy.zeros(len(data),dtype='float')-1
     snrs = numpy.zeros(len(data),dtype='float')-1
     ras= numpy.zeros(len(data),dtype='float')-1
     decs= numpy.zeros(len(data),dtype='float')-1
     # and match to allVisit for the fibers that each star was observed in
-    allvdata= apread.allVisit(raw=True)
+    allvdata= apread.allVisit(raw=True,dr=dr)
     fibers= numpy.zeros((len(data),numpy.nanmax(alldata['NVISITS'])),
                         dtype='int')-1
     inds = []
@@ -124,21 +125,25 @@ def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt',dr='13'):
     data['DEC'] = decs
     data['index'] = inds[0]
     data['M_H'] = data['FEH']
-    data['C_H'] = alldata['C_H'][inds]
-    data['N_H'] = alldata['N_H'][inds]
-    data['O_H'] = alldata['O_H'][inds]
-    data['NA_H'] = alldata['NA_H'][inds]
-    data['MG_H'] = alldata['MG_H'][inds]
-    data['AL_H'] = alldata['AL_H'][inds]
-    data['SI_H'] = alldata['SI_H'][inds]
-    data['S_H'] = alldata['S_H'][inds]
-    data['K_H'] = alldata['K_H'][inds]
-    data['CA_H'] = alldata['CA_H'][inds]
-    data['TI_H'] = alldata['TI_H'][inds]
-    data['V_H'] = alldata['V_H'][inds]
-    data['MN_H'] = alldata['MN_H'][inds]
     data['FE_H'] = alldata['FE_H'][inds]
-    data['NI_H'] = alldata['NI_H'][inds]
+    if dr == '13':
+        rel = 'FE'
+    if dr != '13':
+        rel = 'H'
+    data['C_{0}'.format(rel)] = alldata['C_{0}'.format(rel)][inds]
+    data['N_{0}'.format(rel)] = alldata['N_{0}'.format(rel)][inds]
+    data['O_{0}'.format(rel)] = alldata['O_{0}'.format(rel)][inds]
+    data['NA_{0}'.format(rel)] = alldata['NA_{0}'.format(rel)][inds]
+    data['MG_{0}'.format(rel)] = alldata['MG_{0}'.format(rel)][inds]
+    data['AL_{0}'.format(rel)] = alldata['AL_{0}'.format(rel)][inds]
+    data['SI_{0}'.format(rel)] = alldata['SI_{0}'.format(rel)][inds]
+    data['S_{0}'.format(rel)] = alldata['S_{0}'.format(rel)][inds]
+    data['K_{0}'.format(rel)] = alldata['K_{0}'.format(rel)][inds]
+    data['CA_{0}'.format(rel)] = alldata['CA_{0}'.format(rel)][inds]
+    data['TI_{0}'.format(rel)] = alldata['TI_{0}'.format(rel)][inds]
+    data['V_{0}'.format(rel)] = alldata['V_{0}'.format(rel)][inds]
+    data['MN_{0}'.format(rel)] = alldata['MN_{0}'.format(rel)][inds]
+    data['NI_{0}'.format(rel)] = alldata['NI_{0}'.format(rel)][inds]
     return data
 
 def read_spectra(cluster,teffmin=4000.,teffmax=5000.,cont_type='cannon',
