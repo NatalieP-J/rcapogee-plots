@@ -109,7 +109,6 @@ class empca_residuals(mask):
             matrix=self._sampleType
         # Find the number of unmasked stars at this pixel
         numberStars = len(self.spectra[:,pixel][self.unmasked[:,pixel]])
-        
         # Create basic independent variable array
         indeps = np.zeros((numberStars,
                            len(independentVariables[self._dataSource][matrix])))
@@ -486,10 +485,13 @@ class empca_residuals(mask):
         Returns the diagonal of a covariance matrix
         """
         if not cov:
-            cov = np.ma.cov(self.residuals.T/self.spectra_errs.T)
-        diagonal = np.ma.masked_array([cov[i,i] for i in range(len(cov))],
-                                      mask=[cov.mask[i,i] for i in 
-                                            range(len(cov))])
+            arr = self.residuals.T/self.spectra_errs.T
+            cov = np.ma.cov(arr)
+        #diagonal = np.ma.masked_array([cov[i,i] for i in range(cov.shape[0])],
+        #                              mask=[cov.mask[i,i] for i in 
+        #                                    range(cov.shape[0])])
+        
+        diagonal = np.ma.diag(cov)
         if median:
             median = smoothMedian(diagonal,frac=frac,numpix=float(numpix))
             acs.pklwrite(savename,median)
