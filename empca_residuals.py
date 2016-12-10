@@ -470,7 +470,7 @@ class empca_residuals(mask):
     '''
 
     def findCorrection(self,cov=None,median=True,numpix=10.,frac=None,
-                       savename='pickles/correction_factor.pkl'):
+                       savename='pickles/correction_factor.pkl',tol=0.005):
         """
         Calculates the diagonal of a square matrix and smooths it
         either over a fraction of the data or a number of elements,
@@ -481,19 +481,20 @@ class empca_residuals(mask):
         median:   If true, returns smoothed median, not raw diagonal
         numpix:   Number of elements to smooth over
         frac:     Fraction of data to smooth over
+        tol:      Acceptable distance from 0, if greater than this, smooth to 
+                  adjacent values when median is True
 
         Returns the diagonal of a covariance matrix
         """
         if not cov:
             arr = self.residuals.T/self.spectra_errs.T
             cov = np.ma.cov(arr)
-        #diagonal = np.ma.masked_array([cov[i,i] for i in range(cov.shape[0])],
-        #                              mask=[cov.mask[i,i] for i in 
-        #                                    range(cov.shape[0])])
-        
         diagonal = np.ma.diag(cov)
         if median:
             median = smoothMedian(diagonal,frac=frac,numpix=float(numpix))
+            offtol = np.where(np.fabs(median)<tol)[0]
+            if offtol.shape > 0:
+                median[offtol] = median[offtol-1]
             acs.pklwrite(savename,median)
             return median
         elif not median:
