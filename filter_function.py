@@ -2,6 +2,6 @@ import numpy as np
 
 def starFilter(data):
 	"""
-	red_clump_13_TEFF_up4900.0_lo4700.0
+	red_clump_13_TEFF_up6011.0_lo4134.5
 	"""
-	return (data['TEFF'] < 4900.0) & (data['TEFF'] > 4700.0)
+	return (data['TEFF'] < 6011.0) & (data['TEFF'] > 4134.5)

@@ -360,7 +360,7 @@ class makeFilter(starSample):
         Removes all files from a specified directory.
 
         """
-        os.system('rm -rf {0}/*'.format(self.name))
+        os.system('rm -rf {0}/*.npy'.format(self.name))
 
 
 class subStarSample(makeFilter):
