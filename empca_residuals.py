@@ -70,6 +70,7 @@ class smallEMPCA(object):
         self.eigvec = model.eigvec
         self.coeff = model.coeff
         self.correction = correction
+        self.eigval = model.eigval
 
 
 class empca_residuals(mask):
@@ -489,6 +490,7 @@ class empca_residuals(mask):
         if not cov:
             arr = self.residuals.T/self.spectra_errs.T
             cov = np.ma.cov(arr)
+        self.cov=cov
         diagonal = np.ma.diag(cov)
         if median:
             median = smoothMedian(diagonal,frac=frac,numpix=float(numpix))
@@ -500,6 +502,11 @@ class empca_residuals(mask):
         elif not median:
             acs.pklwrite(savename,diagonal)
             return diagonal
+            
+    def findEigval(self,eigvec,matrix):
+        scaledEigvec = np.dot(np.dot(matrix.T,matrix),eigvec)
+        print scaledEigvec/eigvec, 
+        return scaledEigvec/eigvec[0]
 
     def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,mad=False,correction=None,savename=None,gen=True,numpix=None,weight=True):
         """
@@ -534,6 +541,13 @@ class empca_residuals(mask):
                                           mad=self.mad,randseed=randomSeed)    
 
             self.empcaModelWeight.mad = self.mad
+            # Calculate eigenvalues
+            self.empcaModelWeight.eigval = np.zeros(len(self.empcaModelWeight.eigvec))
+            for e in range(len(self.empcaModelWeight.eigvec)):
+                eigval = self.findEigval(self.empcaModelWeight.eigvec[e],
+                                         empcaResiduals.data)
+                self.empcaModelWeight.eigval[e] = eigval
+                
             # Find R2 and R2noise for this model, and resize eigenvectors appropriately
             self.setR2(self.empcaModelWeight)
             self.setDeltaR2(self.empcaModelWeight)

@@ -89,11 +89,6 @@ class Model(object):
         self._unmasked_data_var = N.var(self.data[ii])
         self._unmasked_data_mad2 = N.sum(N.median(N.fabs(self.data[ii]\
                                                       -N.median(self.data[ii])))**2.)
-        #nw = pf.normweights(weights)
-        #self._masked_data_var = N.var(self.data[ii]*N.sqrt(1./nw[ii]))
-        #self._masked_data_mad2 = N.sum(N.median(N.fabs(self.data*nw\
-        #                                              -N.median(self.data*nw)))**2.)
-                                         
         self.solve_coeffs()
         
     def solve_coeffs(self):

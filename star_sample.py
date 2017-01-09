@@ -464,7 +464,7 @@ class subStarSample(makeFilter):
                 correction = np.tile(correction,(self.spectra_errs.shape[0],1))
             self.spectra_errs = np.sqrt(self.spectra_errs**2/correction)
 
-    def imshow(self,plotData,saveName=None,title = '',xlabel='pixels',ylabel='stars',**kwargs):
+    def imshow(self,plotData,saveName=None,title = '',xlabel='pixels',ylabel='stars',zlabel='',**kwargs):
         """
         Creates a square 2D plot of some input array, with the 
         option to save it.
@@ -482,7 +482,7 @@ class subStarSample(makeFilter):
         plt.title(title)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
-        plt.colorbar()
+        plt.colorbar(label=zlabel)
         if saveName=='title':
             sname = title.split(' ')
             sname = '_'.join(sname)
