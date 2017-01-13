@@ -176,6 +176,24 @@ class Model(object):
         """Return the model using just eigvec i"""
         return N.outer(self.coeff[:, i], self.eigvec[i])
         
+    def eigval(self,nvec,mad=False):
+
+        if nvec is None:
+            mx = self.model
+        else:
+            mx = N.zeros(self.data.shape)
+            for i in range(nvec):
+                mx += self._model_vec(i)
+
+        d = mx - self.data
+
+        if mad:
+            med = N.median(d[self._unmasked])
+            Vdatai = N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)
+        elif not mad:
+            Vdatai = N.var(d[self._unmasked])
+        return Vdatai
+
     def R2vec(self, i,mad=False):
         """
         Return fraction of data variance which is explained by vector i.
