@@ -488,10 +488,12 @@ class empca_residuals(mask):
 
         Returns the diagonal of a covariance matrix
         """
-        if not cov:
+        if isinstance(cov,(list,np.ndarray)):
+            self.cov=cov
+        if not isinstance(cov,(list,np.ndarray)):
             arr = self.residuals.T/self.spectra_errs.T
             cov = np.ma.cov(arr)
-        self.cov=cov
+            self.cov=cov
         diagonal = np.ma.diag(cov)
         if median:
             median = smoothMedian(diagonal,frac=frac,numpix=float(numpix))

@@ -176,23 +176,31 @@ class Model(object):
         """Return the model using just eigvec i"""
         return N.outer(self.coeff[:, i], self.eigvec[i])
         
-    def eigval(self,nvec,mad=False):
+    def eigval(self,nvec=None,mad=False):
 
         if nvec is None:
-            mx = self.model
+            return 0
         else:
             mx = N.zeros(self.data.shape)
+            mx_1 = N.zeros(self.data.shape)
+            c = 0
             for i in range(nvec):
                 mx += self._model_vec(i)
+                if c < nvec-1:
+                    mx_1 += self._model_vec(i)
+                c+=1
+            d = mx - self.data
+            d_1 = mx_1 - self.data
 
-        d = mx - self.data
-
-        if mad:
-            med = N.median(d[self._unmasked])
-            Vdatai = N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)
-        elif not mad:
-            Vdatai = N.var(d[self._unmasked])
-        return Vdatai
+            if mad:
+                med = N.median(d[self._unmasked])
+                Vdatai = N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)
+                med_1 = N.median(d_1[self._unmasked])
+                Vdata_1 = N.sum(N.median(N.fabs(d_1-med_1)[self._unmasked])**2.)
+            elif not mad:
+                Vdatai = N.var(d[self._unmasked])
+                Vdata_1 = N.var(d_1[self._unmasked])
+            return Vdata_1-Vdatai
 
     def R2vec(self, i,mad=False):
         """
