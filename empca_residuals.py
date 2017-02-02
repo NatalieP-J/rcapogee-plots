@@ -72,7 +72,8 @@ class smallEMPCA(object):
         self.coeff = model.coeff
         self.correction = correction
         self.eigval = model.eigvals
-
+        self.data = model.data
+        self.weights = model.weights
 
 class empca_residuals(mask):
     """
