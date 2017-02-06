@@ -73,6 +73,8 @@ class Model(object):
         model fit.
         """
         self.data = data
+        self.datamean = N.mean(self.data,axis=0)
+        self.data -= self.datamean
         self.weights = weights
 
         self.nobs = data.shape[0]
@@ -174,7 +176,10 @@ class Model(object):
         
     def _model_vec(self, i):
         """Return the model using just eigvec i"""
-        return N.outer(self.coeff[:, i], self.eigvec[i])
+        if i==0:
+            return N.outer(self.coeff[:, i], self.eigvec[i])+self.datamean
+        elif i!=0:
+            return N.outer(self.coeff[:, i], self.eigvec[i])
         
     def eigval(self,nvec=None,mad=False):
 
@@ -351,7 +356,6 @@ def empca(data, weights=None, deltR2=0,niter=25, nvec=5, smooth=0, randseed=1, s
     for k in range(niter):
         model.solve_coeffs()
         model.solve_eigenvectors(smooth=smooth)
-        model.solve_coeffs()
         R2_new = model.R2(mad=mad)
         R2diff = N.fabs(R2_new-R2_old)
         R2_old = R2_new
