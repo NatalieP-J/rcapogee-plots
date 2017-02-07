@@ -267,22 +267,21 @@ class empca_residuals(mask):
         sortd = indep.argsort()
         fitindep = np.arange(np.floor((min(indep)-100)/100.)*100,np.ceil((max(indep)+100)/100.)*100,100)
         fit = np.dot(np.matrix([np.ones(len(fitindep)),fitindep,fitindep**2]).T,self.fitCoeffs[pixel].T)
-        colors = plt.get_cmap('plasma')(np.linspace(0, 0.8, len(indep)))
-        unmasked = np.where(self.spectra[:,pixel][sortd].mask==False)
+        #colors = plt.get_cmap('plasma')(np.linspace(0, 0.8, len(indep)))
+        unmasked = np.where(self.spectra[:,pixel].mask==False)
         # Plot a fit line and errorbar points of data
         plt.plot(fitindep,fit,lw=3,color='k',
                  label='$f(s,T_{\mathrm{eff}}$)')
-        print len(indep[sortd][unmasked])
-        print sortd
-        print unmasked
-        for i in range(len(indep[sortd][unmasked])):
-            plt.errorbar(indep[sortd][unmasked][i],
-                         self.spectra[:,pixel][sortd][unmasked][i],
-                         markerfacecolor=colors[i],fmt='o',
-                         markeredgecolor='w',markeredgewidth=1.5,
-                         ecolor = colors[i],capsize=5,elinewidth=3,
-                         markersize=8,
-                         yerr=self.spectra_errs[:,pixel][sortd][unmasked][i])
+        #print len(indep[sortd][unmasked])
+        #print sortd
+        #for i in range(len(indep[sortd][unmasked])):
+        plt.errorbar(indep,
+                     self.spectra[:,pixel][unmasked],
+                     markerfacecolor='b',fmt='o',
+                     markeredgecolor='w',markeredgewidth=1.5,
+                     ecolor = 'b',capsize=5,elinewidth=3,
+                     markersize=8,
+                     yerr=self.spectra_errs[:,pixel][unmasked])
         plt.ylabel('stellar flux $F_p(s)$',fontsize=20)
         plt.xticks([])
         plt.ylim(0.6,1.1)
@@ -293,21 +292,21 @@ class empca_residuals(mask):
         # Plot residuals of the fit
         plt.subplot2grid((3,1),(2,0))
         plt.axhline(0,lw=3,color='k')
-        for i in range(len(indep[sortd][unmasked])):
-            plt.errorbar(indep[sortd][unmasked][i],
-                         self.residuals[:,pixel][sortd][unmasked][i],
-                         markerfacecolor=colors[i],fmt='o',
-                         markeredgecolor='w',markeredgewidth=1.5,
-                         ecolor = colors[i],capsize=5,elinewidth=3,
-                         markersize=8,
-                         yerr=self.spectra_errs[:,pixel][sortd][unmasked][i])
+        #for i in range(len(indep[sortd][unmasked])):
+        plt.errorbar(indep,
+                     self.residuals[:,pixel][unmasked],
+                     markerfacecolor='b',fmt='o',
+                     markeredgecolor='w',markeredgewidth=1.5,
+                     ecolor = 'b',capsize=5,elinewidth=3,
+                     markersize=8,
+                     yerr=self.spectra_errs[:,pixel][unmasked])
         plt.ylabel('residuals $\delta_p(s)$ ',fontsize=20)
         plt.xlabel(xlabel,fontsize=20)
-        plt.ylim(-0.1,0.1)
+        plt.ylim(-0.15,0.15)
         plt.xlim(np.floor((min(indep)-100)/100.)*100+100,
                  np.ceil((max(indep)+100)/100.)*100-100)
-        plt.yticks(np.arange(-0.1,0.2,0.1),
-                   np.arange(-0.1,0.2,0.1).astype(str))
+        plt.yticks(np.arange(-0.1,0.15,0.1),
+                   np.arange(-0.1,0.15,0.1).astype(str))
         plt.subplots_adjust(hspace=0)
 
     def fitStatistic(self):
@@ -529,14 +528,14 @@ class empca_residuals(mask):
             self.deltR2 = deltR2
             # Find pixels with enough stars to do EMPCA
             self.goodPixels=([i for i in range(aspcappix) if np.sum(self.residuals[:,i].mask) < self.residuals.shape[0]-self.minStarNum],)
-            empcaResiduals = self.residuals.T[self.goodPixels].T
+            self.empcaResiduals = self.residuals.T[self.goodPixels].T
             
             # Calculate weights that just mask missing elements
-            unmasked = (empcaResiduals.mask==False)
+            unmasked = (self.empcaResiduals.mask==False)
             errorWeights = unmasked.astype(float)
             if weight:
                 errorWeights[unmasked] = 1./((self.spectra_errs.T[self.goodPixels].T[unmasked])**2)
-            self.empcaModelWeight = empca(empcaResiduals.data,weights=errorWeights,
+            self.empcaModelWeight = empca(self.empcaResiduals.data,weights=errorWeights,
                                           nvec=self.nvecs,deltR2=self.deltR2,
                                           mad=self.mad,randseed=randomSeed)    
 

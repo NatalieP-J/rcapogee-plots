@@ -75,6 +75,7 @@ class Model(object):
         self.data = data
         self.datamean = N.mean(self.data,axis=0)
         self.data -= self.datamean
+        self.meanstack = N.tile(self.datamean,(self.data.shape[0],1))
         self.weights = weights
 
         self.nobs = data.shape[0]
@@ -174,12 +175,12 @@ class Model(object):
         """
         return self.chi2() / self.dof
         
-    def _model_vec(self, i):
+    def _model_vec(self, i, addmean=False):
         """Return the model using just eigvec i"""
-        if i==0:
-            return N.outer(self.coeff[:, i], self.eigvec[i])+self.datamean
-        elif i!=0:
+        if not addmean:
             return N.outer(self.coeff[:, i], self.eigvec[i])
+        elif addmean:
+            return N.outer(self.coeff[:, i], self.eigvec[i])+self.meanstack
         
     def eigval(self,nvec=None,mad=False):
 
