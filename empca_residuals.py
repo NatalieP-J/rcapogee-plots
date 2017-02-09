@@ -67,6 +67,7 @@ class smallEMPCA(object):
         self.R2Array = model.R2Array
         self.R2noise = model.R2noise
         self.Vnoise = model.Vnoise
+        self.Vdata = model.Vdata
         self.mad = model.mad
         self.eigvec = model.eigvec
         self.coeff = model.coeff
