@@ -81,7 +81,7 @@ class empca_residuals(mask):
     Contains functions to find polynomial fits.
     
     """
-    def __init__(self,dataSource,sampleType,maskFilter,ask=True,degree=2):
+    def __init__(self,dataSource,sampleType,maskFilter,ask=True,degree=2,frac=1):
         """
         Fit a masked subsample.
         
@@ -94,7 +94,7 @@ class empca_residuals(mask):
         degree:       degree of polynomial to fit
         
         """
-        mask.__init__(self,dataSource,sampleType,maskFilter,ask=ask)
+        mask.__init__(self,dataSource,sampleType,maskFilter,ask=ask,frac=frac)
         self.degree = degree
         self.noncrossInds = ([0,1,2,3,4,7,9])
         self.crossInds = ([5,6,8],)
@@ -318,9 +318,9 @@ class empca_residuals(mask):
         self.fitChiSquared = np.ma.sum((self.spectra-self.fitSpectra)**2/self.spectra_errs**2,axis=0)
         # Calculate degrees of freedom
         if isinstance(self.fitCoeffs.mask,np.ndarray):
-            dof = self.numberStars - np.sum(self.fitCoeffs.mask==False,axis=1) - 1
+            dof = self.numberStars() - np.sum(self.fitCoeffs.mask==False,axis=1) - 1
         else:
-            dof = self.numberStars - self.numparams - 1
+            dof = self.numberStars() - self.numparams - 1
         self.fitReducedChi = self.fitChiSquared/dof
     
     def findResiduals(self,minStarNum='default',gen=True,coeffs=None,matrix='default'):

@@ -43,7 +43,7 @@ def maskFilter(sample,minstar=5):
     # Calculate the number of masked stars at each pixel
     flaggedstars = np.sum(mask,axis=0)
     # Flag pixels where there aren't enough stars to do the fit
-    flaggedpix = flaggedstars > (sample.numberStars-minstar)
+    flaggedpix = flaggedstars > (sample.numberStars()-minstar)
     mask.T[flaggedpix]=True
     return mask
 
@@ -53,7 +53,7 @@ class mask(subStarSample):
     maskConditions function.
     
     """
-    def __init__(self,dataSource,sampleType,maskFilter,ask=True):
+    def __init__(self,dataSource,sampleType,maskFilter,ask=True,frac=1):
         """
         Mask a subsample according to a maskFilter function
         
@@ -65,7 +65,7 @@ class mask(subStarSample):
                       filter_function.py
         
         """
-        subStarSample.__init__(self,dataSource,sampleType,ask=ask)
+        subStarSample.__init__(self,dataSource,sampleType,ask=ask,frac=frac)
         self._SNR = self.spectra/self.spectra_errs
         # find indices that should be masked
         self._maskHere = maskFilter(self,minstar=5)
