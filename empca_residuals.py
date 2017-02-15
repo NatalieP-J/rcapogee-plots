@@ -57,13 +57,14 @@ class smallEMPCA(object):
     Class to contain crucial EMPCA-related objects.
 
     """
-    def __init__(self,model,correction=None):
+    def __init__(self,model,correction=None,savename=None):
         """
         Set all relevant data for the EMPCA.
 
         model:        EMPCA model object
         correction:   information about correction used on data
         """
+        self.savename = savename
         self.R2Array = model.R2Array
         self.R2noise = model.R2noise
         self.Vnoise = model.Vnoise
@@ -75,6 +76,34 @@ class smallEMPCA(object):
         self.eigval = model.eigvals
         self.data = model.data
         self.weights = model.weights
+        self.cleararrays()
+
+    def cleararrays(self):
+        """
+        Clear memory allocation for bigger arrays by writing them to file if self.savename is set
+        """
+        if self.savename:
+            np.savez_compressed('{0}_data.npz'.format(self.savename),eigval=self.eigval,
+                                eigvec=self.eigvec,coeff=self.coeff,
+                                data=self.data,weights=self.weights)
+        del self.eigval
+        del self.eigvec
+        del self.coeff
+        del self.data
+        del self.weights
+
+    def getarrays(self):
+        """
+        Read out arrays
+        """
+        if self.savename:
+            arc = np.load('{0}_data.npz'.format(self.savename))
+
+            self.eigval = arc['eigval']
+            self.eigvec = arc['eigvec']
+            self.coeff = arc['coeff']
+            self.data = arc['data']
+            self.weights = arc['weights']
 
 class empca_residuals(mask):
     """
@@ -555,7 +584,7 @@ class empca_residuals(mask):
 
             self.uncorrectUncertainty(correction=correction)
             self.applyMask()
-            self.smallModel = smallEMPCA(self.empcaModelWeight,correction=correction)
+            self.smallModel = smallEMPCA(self.empcaModelWeight,correction=correction,savename=savename)
             if savename:
                 acs.pklwrite(self.name+'/'+savename,self.smallModel)
 
