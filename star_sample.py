@@ -1,4 +1,4 @@
-import numpy as np
+7import numpy as np
 import os
 from tqdm import tqdm
 import data_access
@@ -32,14 +32,14 @@ class starSample(object):
         """
         self._dataSource = dataSource
         if self._dataSource == 'apogee':
-            DR = raw_input('Which data release? (Enter for 13): ')
-            if DR=='':
-                DR='13'
-            DR=int(DR)
-            if DR==12:
-                os.system('export RESULTS_VERS=v603')
-            if DR==13:
-                os.system('export RESULTS_VERS=l30e.2')
+            self.DR = raw_input('Which data release? (Enter for 13): ')
+            if self.DR=='':
+                self.DR='13'
+            if self.DR=='12':
+                os.environ['RESULTS_VERS']='v603'
+            if self.DR=='13':
+                os.environ['RESULTS_VERS']='l30e.2'
+        os.system('echo RESULTS_VERS $RESULTS_VERS')
         self._sampleType = sampleType
         self._getProperties()
 
@@ -47,7 +47,8 @@ class starSample(object):
         """
         Get properties of all possible stars to be used.
         """
-        self.data = readfn[self._dataSource][self._sampleType]()
+        if self.DR:
+            self.data = readfn[self._dataSource][self._sampleType](dr=str(self.DR))
 
     def initArrays(self,stardata):
         """
@@ -97,13 +98,14 @@ class starSample(object):
             # Spectral data
             try:
                 self.spectra[star] = apread.aspcapStar(LOC,APO,ext=1,
-                                                       header=False,
+                                                       header=False,dr=self.DR,
                                                        aspcapWavegrid=True)
                 self.spectra_errs[star] = apread.aspcapStar(LOC,APO,ext=2,
-                                                            header=False, 
+                                                            header=False,
+                                                            dr=self.DR,
                                                             aspcapWavegrid=True)
                 self._bitmasks[star] = apread.apStar(LOC,APO,ext=3,
-                                                     header=False, 
+                                                     header=False,dr=self.DR, 
                                                      aspcapWavegrid=True)[1]
             except IOError:
                 print 'Star {0} missing '.format(star)
@@ -206,7 +208,7 @@ class makeFilter(starSample):
             self.done = False
             print 'Type done at any prompt when finished'
             # Start name and condition string
-            self.name = self._sampleType
+            self.name = self._sampleType+'_'+str(self.DR)
             self.condition = ''
             # Ask for new key conditions until the user signals done
             while not self.done:
@@ -358,7 +360,7 @@ class makeFilter(starSample):
         Removes all files from a specified directory.
 
         """
-        os.system('rm -rf {0}/*'.format(self.name))
+        os.system('rm -rf {0}/*.npy'.format(self.name))
 
 
 class subStarSample(makeFilter):
@@ -462,7 +464,7 @@ class subStarSample(makeFilter):
                 correction = np.tile(correction,(self.spectra_errs.shape[0],1))
             self.spectra_errs = np.sqrt(self.spectra_errs**2/correction)
 
-    def imshow(self,plotData,saveName=None,title = '',xlabel='pixels',ylabel='stars',**kwargs):
+    def imshow(self,plotData,saveName=None,title = '',xlabel='pixels',ylabel='stars',zlabel='',**kwargs):
         """
         Creates a square 2D plot of some input array, with the 
         option to save it.
@@ -480,7 +482,7 @@ class subStarSample(makeFilter):
         plt.title(title)
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
-        plt.colorbar()
+        plt.colorbar(label=zlabel)
         if saveName=='title':
             sname = title.split(' ')
             sname = '_'.join(sname)

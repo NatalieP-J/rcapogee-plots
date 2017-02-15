@@ -1,5 +1,6 @@
-import matplotlib.pyplot as plt
 import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import numpy as np
 from astropy.coordinates import SkyCoord
 import astropy.units as u
@@ -13,9 +14,10 @@ font = {'family': 'serif',
 }
 
 matplotlib.rc('font',**font)
+
 plt.ion()
 
-def comp_R2(ms,direc=None,
+def comp_R2(ms,direc=None,savename=None,
             labels = ['raw sample,','corrected \nsample,','M.A.D.,']):
     """
     Plot comparison of R^2 arrays for different models.
@@ -30,7 +32,6 @@ def comp_R2(ms,direc=None,
     plt.figure(figsize = (10,8))
     # Find equally spaced colours from the plasma colourmap
     colors = plt.get_cmap('plasma')(np.linspace(0, 0.8, len(ms)))
-    print colors
     # Choose linestypes and markertypes
     types = ['o','s','^']
     start = 0
@@ -58,8 +59,8 @@ def comp_R2(ms,direc=None,
             crossvec = crossvec[0][0]-1
             if crossvec < 0:
                 crossvec=0
-            #plt.axvline(crossvec,0,m.R2Array[crossvec],color=colors[i],
-            #            linestyle='-',lw=3)
+            plt.axvline(crossvec,0,m.R2Array[crossvec],color=colors[i],
+                        linestyle='-',lw=2)
             vecs = np.append(vecs,crossvec)
         nummarker = np.min([len(m.R2Array),10])
         if nummarker < len(m.R2Array):
@@ -81,13 +82,16 @@ def comp_R2(ms,direc=None,
     step=10**np.floor(np.log10(len(m.R2Array)))
     #ticklist = np.concatenate((np.arange(0,len(m.R2Array),step,dtype=int),vecs))
     #plt.xticks(ticklist,ticklist.astype(str))
-    #for vec in vecs:
-    #    plt.text(vec+0.01*len(m.R2Array),0.02,'{0}'.format(vec))
+    for vec in vecs:
+        plt.text(vec+0.01*len(m.R2Array),0.02,'{0}'.format(vec))
     plt.ylabel(r'$\mathbf{R}^2$',fontsize=font['size']+2)
     plt.xlabel('n',fontsize=font['size']+2)
     legend = plt.legend(loc='best',fontsize=font['size']-2)
     legend.get_frame().set_linewidth(0.0)
-    
+    if not savename:
+        savename = '{0}/R2_comp.png'.format(direc)
+    plt.savefig(savename)
+        
 
 def plot_big_eig(es):
     """

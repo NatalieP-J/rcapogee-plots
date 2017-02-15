@@ -73,6 +73,9 @@ class Model(object):
         model fit.
         """
         self.data = data
+        self.datamean = N.mean(self.data,axis=0)
+        self.data -= self.datamean
+        self.meanstack = N.tile(self.datamean,(self.data.shape[0],1))
         self.weights = weights
 
         self.nobs = data.shape[0]
@@ -89,11 +92,6 @@ class Model(object):
         self._unmasked_data_var = N.var(self.data[ii])
         self._unmasked_data_mad2 = N.sum(N.median(N.fabs(self.data[ii]\
                                                       -N.median(self.data[ii])))**2.)
-        #nw = pf.normweights(weights)
-        #self._masked_data_var = N.var(self.data[ii]*N.sqrt(1./nw[ii]))
-        #self._masked_data_mad2 = N.sum(N.median(N.fabs(self.data*nw\
-        #                                              -N.median(self.data*nw)))**2.)
-                                         
         self.solve_coeffs()
         
     def solve_coeffs(self):
@@ -177,10 +175,39 @@ class Model(object):
         """
         return self.chi2() / self.dof
         
-    def _model_vec(self, i):
+    def _model_vec(self, i, addmean=False):
         """Return the model using just eigvec i"""
-        return N.outer(self.coeff[:, i], self.eigvec[i])
+        if not addmean:
+            return N.outer(self.coeff[:, i], self.eigvec[i])
+        elif addmean:
+            return N.outer(self.coeff[:, i], self.eigvec[i])+self.meanstack
         
+    def eigval(self,nvec=None,mad=False):
+
+        if nvec is None:
+            return 0
+        else:
+            mx = N.zeros(self.data.shape)
+            mx_1 = N.zeros(self.data.shape)
+            c = 0
+            for i in range(nvec):
+                mx += self._model_vec(i)
+                if c < nvec-1:
+                    mx_1 += self._model_vec(i)
+                c+=1
+            d = mx - self.data
+            d_1 = mx_1 - self.data
+
+            if mad:
+                med = N.median(d[self._unmasked])
+                Vdatai = N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)
+                med_1 = N.median(d_1[self._unmasked])
+                Vdata_1 = N.sum(N.median(N.fabs(d_1-med_1)[self._unmasked])**2.)
+            elif not mad:
+                Vdatai = N.var(d[self._unmasked])
+                Vdata_1 = N.var(d_1[self._unmasked])
+            return Vdata_1-Vdatai
+
     def R2vec(self, i,mad=False):
         """
         Return fraction of data variance which is explained by vector i.

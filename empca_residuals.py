@@ -66,11 +66,15 @@ class smallEMPCA(object):
         """
         self.R2Array = model.R2Array
         self.R2noise = model.R2noise
+        self.Vnoise = model.Vnoise
+        self.Vdata = model.Vdata
         self.mad = model.mad
         self.eigvec = model.eigvec
         self.coeff = model.coeff
         self.correction = correction
-
+        self.eigval = model.eigvals
+        self.data = model.data
+        self.weights = model.weights
 
 class empca_residuals(mask):
     """
@@ -109,7 +113,6 @@ class empca_residuals(mask):
             matrix=self._sampleType
         # Find the number of unmasked stars at this pixel
         numberStars = len(self.spectra[:,pixel][self.unmasked[:,pixel]])
-        
         # Create basic independent variable array
         indeps = np.zeros((numberStars,
                            len(independentVariables[self._dataSource][matrix])))
@@ -265,22 +268,21 @@ class empca_residuals(mask):
         sortd = indep.argsort()
         fitindep = np.arange(np.floor((min(indep)-100)/100.)*100,np.ceil((max(indep)+100)/100.)*100,100)
         fit = np.dot(np.matrix([np.ones(len(fitindep)),fitindep,fitindep**2]).T,self.fitCoeffs[pixel].T)
-        colors = plt.get_cmap('plasma')(np.linspace(0, 0.8, len(indep)))
-        unmasked = np.where(self.spectra[:,pixel][sortd].mask==False)
+        #colors = plt.get_cmap('plasma')(np.linspace(0, 0.8, len(indep)))
+        unmasked = np.where(self.spectra[:,pixel].mask==False)
         # Plot a fit line and errorbar points of data
         plt.plot(fitindep,fit,lw=3,color='k',
                  label='$f(s,T_{\mathrm{eff}}$)')
-        print len(indep[sortd][unmasked])
-        print sortd
-        print unmasked
-        for i in range(len(indep[sortd][unmasked])):
-            plt.errorbar(indep[sortd][unmasked][i],
-                         self.spectra[:,pixel][sortd][unmasked][i],
-                         markerfacecolor=colors[i],fmt='o',
-                         markeredgecolor='w',markeredgewidth=1.5,
-                         ecolor = colors[i],capsize=5,elinewidth=3,
-                         markersize=8,
-                         yerr=self.spectra_errs[:,pixel][sortd][unmasked][i])
+        #print len(indep[sortd][unmasked])
+        #print sortd
+        #for i in range(len(indep[sortd][unmasked])):
+        plt.errorbar(indep,
+                     self.spectra[:,pixel][unmasked],
+                     markerfacecolor='b',fmt='o',
+                     markeredgecolor='w',markeredgewidth=1.5,
+                     ecolor = 'b',capsize=5,elinewidth=3,
+                     markersize=8,
+                     yerr=self.spectra_errs[:,pixel][unmasked])
         plt.ylabel('stellar flux $F_p(s)$',fontsize=20)
         plt.xticks([])
         plt.ylim(0.6,1.1)
@@ -291,21 +293,21 @@ class empca_residuals(mask):
         # Plot residuals of the fit
         plt.subplot2grid((3,1),(2,0))
         plt.axhline(0,lw=3,color='k')
-        for i in range(len(indep[sortd][unmasked])):
-            plt.errorbar(indep[sortd][unmasked][i],
-                         self.residuals[:,pixel][sortd][unmasked][i],
-                         markerfacecolor=colors[i],fmt='o',
-                         markeredgecolor='w',markeredgewidth=1.5,
-                         ecolor = colors[i],capsize=5,elinewidth=3,
-                         markersize=8,
-                         yerr=self.spectra_errs[:,pixel][sortd][unmasked][i])
+        #for i in range(len(indep[sortd][unmasked])):
+        plt.errorbar(indep,
+                     self.residuals[:,pixel][unmasked],
+                     markerfacecolor='b',fmt='o',
+                     markeredgecolor='w',markeredgewidth=1.5,
+                     ecolor = 'b',capsize=5,elinewidth=3,
+                     markersize=8,
+                     yerr=self.spectra_errs[:,pixel][unmasked])
         plt.ylabel('residuals $\delta_p(s)$ ',fontsize=20)
         plt.xlabel(xlabel,fontsize=20)
-        plt.ylim(-0.1,0.1)
+        plt.ylim(-0.15,0.15)
         plt.xlim(np.floor((min(indep)-100)/100.)*100+100,
                  np.ceil((max(indep)+100)/100.)*100-100)
-        plt.yticks(np.arange(-0.1,0.2,0.1),
-                   np.arange(-0.1,0.2,0.1).astype(str))
+        plt.yticks(np.arange(-0.1,0.15,0.1),
+                   np.arange(-0.1,0.15,0.1).astype(str))
         plt.subplots_adjust(hspace=0)
 
     def fitStatistic(self):
@@ -471,7 +473,7 @@ class empca_residuals(mask):
     '''
 
     def findCorrection(self,cov=None,median=True,numpix=10.,frac=None,
-                       savename='pickles/correction_factor.pkl'):
+                       savename='pickles/correction_factor.pkl',tol=0.005):
         """
         Calculates the diagonal of a square matrix and smooths it
         either over a fraction of the data or a number of elements,
@@ -482,21 +484,29 @@ class empca_residuals(mask):
         median:   If true, returns smoothed median, not raw diagonal
         numpix:   Number of elements to smooth over
         frac:     Fraction of data to smooth over
+        tol:      Acceptable distance from 0, if greater than this, smooth to 
+                  adjacent values when median is True
 
         Returns the diagonal of a covariance matrix
         """
-        if not cov:
-            cov = np.ma.cov(self.residuals.T/self.spectra_errs.T)
-        diagonal = np.ma.masked_array([cov[i,i] for i in range(len(cov))],
-                                      mask=[cov.mask[i,i] for i in 
-                                            range(len(cov))])
+        if isinstance(cov,(list,np.ndarray)):
+            self.cov=cov
+        if not isinstance(cov,(list,np.ndarray)):
+            arr = self.residuals.T/self.spectra_errs.T
+            cov = np.ma.cov(arr)
+            self.cov=cov
+        diagonal = np.ma.diag(cov)
         if median:
             median = smoothMedian(diagonal,frac=frac,numpix=float(numpix))
+            offtol = np.where(np.fabs(median)<tol)[0]
+            if offtol.shape > 0:
+                median[offtol] = median[offtol-1]
             acs.pklwrite(savename,median)
             return median
         elif not median:
             acs.pklwrite(savename,diagonal)
             return diagonal
+                    
 
     def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,mad=False,correction=None,savename=None,gen=True,numpix=None,weight=True):
         """
@@ -519,18 +529,24 @@ class empca_residuals(mask):
             self.deltR2 = deltR2
             # Find pixels with enough stars to do EMPCA
             self.goodPixels=([i for i in range(aspcappix) if np.sum(self.residuals[:,i].mask) < self.residuals.shape[0]-self.minStarNum],)
-            empcaResiduals = self.residuals.T[self.goodPixels].T
+            self.empcaResiduals = self.residuals.T[self.goodPixels].T
             
             # Calculate weights that just mask missing elements
-            unmasked = (empcaResiduals.mask==False)
+            unmasked = (self.empcaResiduals.mask==False)
             errorWeights = unmasked.astype(float)
             if weight:
                 errorWeights[unmasked] = 1./((self.spectra_errs.T[self.goodPixels].T[unmasked])**2)
-            self.empcaModelWeight = empca(empcaResiduals.data,weights=errorWeights,
+            self.empcaModelWeight = empca(self.empcaResiduals.data,weights=errorWeights,
                                           nvec=self.nvecs,deltR2=self.deltR2,
                                           mad=self.mad,randseed=randomSeed)    
 
             self.empcaModelWeight.mad = self.mad
+            
+            # Calculate eigenvalues
+            self.empcaModelWeight.eigvals = np.zeros(len(self.empcaModelWeight.eigvec))
+            for e in range(len(self.empcaModelWeight.eigvec)):
+                self.empcaModelWeight.eigvals[e] = self.empcaModelWeight.eigval(e+1)
+
             # Find R2 and R2noise for this model, and resize eigenvectors appropriately
             self.setR2(self.empcaModelWeight)
             self.setDeltaR2(self.empcaModelWeight)

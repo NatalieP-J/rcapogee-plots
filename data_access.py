@@ -45,7 +45,7 @@ APOGEE_PIXMASK={0:"BADPIX", # Pixel marked as BAD in bad pixel mask
                 } 
 
 def rgsample(dr='13'):
-    data= apread.allStar(main=True,exclude_star_bad=True,exclude_star_warn=True,rmdups=True)
+    data= apread.allStar(main=True,exclude_star_bad=True,exclude_star_warn=True,dr=dr)#rmdups=True,dr=dr)
     jk= data['J0']-data['K0']
     z= isodist.FEH2Z(data['METALS'],zsolar=0.017)
     z[z > 0.024]= 0.024

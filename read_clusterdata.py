@@ -5,6 +5,7 @@ import sys
 import numpy
 import apogee.tools.read as apread
 from apogee.tools import bitmask
+import os
 try:
     from apogee.spec import continuum
 except RuntimeError:
@@ -82,17 +83,27 @@ def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt',dr='13'):
     data.rename_column('[M/H]C','FEH')
     data.rename_column('2MASS','ID')
     # Now match to allStar to get the location_ids
-    alldata= apread.allStar(raw=True)
+    alldata= apread.allStar(raw=True,dr=dr)
     locids= numpy.zeros(len(data),dtype='int')-1
     hmags= numpy.zeros(len(data),dtype='float')-1
     snrs = numpy.zeros(len(data),dtype='float')-1
+    ras= numpy.zeros(len(data),dtype='float')-1
+    decs= numpy.zeros(len(data),dtype='float')-1
     # and match to allVisit for the fibers that each star was observed in
-    allvdata= apread.allVisit(raw=True)
+    allvdata= apread.allVisit(raw=True,dr=dr)
     fibers= numpy.zeros((len(data),numpy.nanmax(alldata['NVISITS'])),
                         dtype='int')-1
+    inds = []
     for ii in range(len(data)):
-        if 'Pleiades' in data['CLUSTER'][ii]: continue
+        if 'Pleiades' in data['CLUSTER'][ii]: 
+            inds.append(0)
+            continue
         indx= alldata['APOGEE_ID'] == data['ID'][ii]
+        success = numpy.where(indx==True)[0]
+        if success.size==0 or success.size>1:
+            inds.append(0)
+        elif success.size==1:
+            inds.append(success[0])
         if numpy.sum(indx) == 0:
             raise ValueError('allStar match for %s not found ...' % (data['ID'][ii]))
         if len(list(set(alldata['LOCATION_ID'][indx]))) > 1:
@@ -100,14 +111,39 @@ def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt',dr='13'):
         locids[ii]= alldata['LOCATION_ID'][indx][0]
         hmags[ii]= alldata['H'][indx][0]
         snrs[ii] = alldata['SNR'][indx][0]
+        ras[ii] = alldata['RA'][indx][0]
+        decs[ii] = alldata['DEC'][indx][0]
         for jj in range(alldata['NVISITS'][indx][0]):
             fibers[ii,jj]= allvdata[alldata['VISIT_PK'][indx][0,jj]]['FIBERID']
+    inds = (numpy.array(inds),)
     data['LOCATION_ID']= locids
     data['H']= hmags
     data['FIBERID']= fibers
     data['SNR'] = snrs
     data['APOGEE_ID'] = data['ID']
-    data['FE_H'] = data['FEH']
+    data['RA'] = ras
+    data['DEC'] = decs
+    data['index'] = inds[0]
+    data['M_H'] = data['FEH']
+    data['FE_H'] = alldata['FE_H'][inds]
+    if dr == '13':
+        rel = 'FE'
+    if dr != '13':
+        rel = 'H'
+    data['C_{0}'.format(rel)] = alldata['C_{0}'.format(rel)][inds]
+    data['N_{0}'.format(rel)] = alldata['N_{0}'.format(rel)][inds]
+    data['O_{0}'.format(rel)] = alldata['O_{0}'.format(rel)][inds]
+    data['NA_{0}'.format(rel)] = alldata['NA_{0}'.format(rel)][inds]
+    data['MG_{0}'.format(rel)] = alldata['MG_{0}'.format(rel)][inds]
+    data['AL_{0}'.format(rel)] = alldata['AL_{0}'.format(rel)][inds]
+    data['SI_{0}'.format(rel)] = alldata['SI_{0}'.format(rel)][inds]
+    data['S_{0}'.format(rel)] = alldata['S_{0}'.format(rel)][inds]
+    data['K_{0}'.format(rel)] = alldata['K_{0}'.format(rel)][inds]
+    data['CA_{0}'.format(rel)] = alldata['CA_{0}'.format(rel)][inds]
+    data['TI_{0}'.format(rel)] = alldata['TI_{0}'.format(rel)][inds]
+    data['V_{0}'.format(rel)] = alldata['V_{0}'.format(rel)][inds]
+    data['MN_{0}'.format(rel)] = alldata['MN_{0}'.format(rel)][inds]
+    data['NI_{0}'.format(rel)] = alldata['NI_{0}'.format(rel)][inds]
     return data
 
 def read_spectra(cluster,teffmin=4000.,teffmax=5000.,cont_type='cannon',
