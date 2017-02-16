@@ -1,4 +1,4 @@
-7import numpy as np
+import numpy as np
 import os
 from tqdm import tqdm
 import data_access
@@ -406,7 +406,8 @@ class subStarSample(makeFilter):
             np.random.seed(self.seed)
             inds = np.random.randint(0,self.numberStars(),size=self.frac*self.numberStars())
             self.matchingData = self.matchingData[inds]
-            self.name = '{0}/seed{1}_frac{2}/'.format(self.seed,self.frac)
+            self.name = '{0}/seed{1}_frac{2}/'.format(self.name,self.seed,self.frac)
+            self.getDirectory()
             return 1
 
     

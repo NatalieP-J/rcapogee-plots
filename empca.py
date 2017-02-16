@@ -73,10 +73,13 @@ class Model(object):
         model fit.
         """
         self.data = data
-        self.datamean = N.mean(self.data,axis=0)
+        self.weights = weights
+
+        self.weighted_data = self.data*self.weights
+        self.weighted_data[self.weighted_data!=0]/=N.sqrt(self.weights[self.weighted_data!=0]**2)
+        self.datamean = N.mean(self.weighted_data,axis=0)
         self.data -= self.datamean
         self.meanstack = N.tile(self.datamean,(self.data.shape[0],1))
-        self.weights = weights
 
         self.nobs = data.shape[0]
         self.nvar = data.shape[1]

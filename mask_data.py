@@ -24,7 +24,7 @@ def bitsNotSet(bitmask,maskbits):
 badcombpixmask = bitmask.badpixmask()
 badcombpixmask += 2**bitmask.apogee_pixmask_int("SIG_SKYLINE")
 
-def maskFilter(sample,minstar=5):
+def maskFilter(sample,minstar=5,badcombpixmask=4351):
     """
     Returns True where sample properties match conditions
     
@@ -53,7 +53,8 @@ class mask(subStarSample):
     maskConditions function.
     
     """
-    def __init__(self,dataSource,sampleType,maskFilter,ask=True,frac=1):
+    def __init__(self,dataSource,sampleType,maskFilter,ask=True,badcombpixmask=4251,
+                 frac=1):
         """
         Mask a subsample according to a maskFilter function
         
@@ -68,7 +69,7 @@ class mask(subStarSample):
         subStarSample.__init__(self,dataSource,sampleType,ask=ask,frac=frac)
         self._SNR = self.spectra/self.spectra_errs
         # find indices that should be masked
-        self._maskHere = maskFilter(self,minstar=5)
+        self._maskHere = maskFilter(self,minstar=5,badcombpixmask=badcombpixmask)
         self.applyMask()
 
     def applyMask(self):
