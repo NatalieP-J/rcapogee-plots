@@ -53,8 +53,8 @@ class mask(subStarSample):
     maskConditions function.
     
     """
-    def __init__(self,dataSource,sampleType,maskFilter,ask=True,badcombpixmask=4251,
-                 frac=1):
+    def __init__(self,dataSource,sampleType,maskFilter,ask=True,datadir='.',
+                 badcombpixmask=4251,frac=1):
         """
         Mask a subsample according to a maskFilter function
         
@@ -66,7 +66,7 @@ class mask(subStarSample):
                       filter_function.py
         
         """
-        subStarSample.__init__(self,dataSource,sampleType,ask=ask,frac=frac)
+        subStarSample.__init__(self,dataSource,sampleType,ask=ask,datadir=datadir,frac=frac)
         self._SNR = self.spectra/self.spectra_errs
         # find indices that should be masked
         self._maskHere = maskFilter(self,minstar=5,badcombpixmask=badcombpixmask)

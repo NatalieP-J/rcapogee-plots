@@ -135,7 +135,7 @@ class starSample(object):
         print 'Total {0} of {1} stars missing'.format(missing,len(stardata))
                 
             
-    def show_sample_coverage(self):
+    def show_sample_coverage(self,coords=True,phi_ind='RC_GALPHI',r_ind='RC_GALR',z_ind='RC_GALZ'):
         """
         Plots the sample in Galacto-centric cylindrical coordinates.
 
@@ -147,10 +147,11 @@ class starSample(object):
         # Set up polar axes
         pol = plt.subplot(122,projection='polar')
         
-        # Find location data
-        phi = self.data['RC_GALPHI']
-        r = self.data['RC_GALR']
-        z = self.data['RC_GALZ']
+        if coords:
+            # Find location data
+            phi = self.data[phi_ind]
+            r = self.data[r_ind]
+            z = self.data[z_ind]
         
         # Plot data
         car.plot(r,z,'ko',markersize=2,alpha=0.2)
@@ -206,7 +207,7 @@ class makeFilter(starSample):
     Contains functions to create a filter and associated directory 
     name for a starSample.
     """
-    def __init__(self,dataSource,sampleType,ask=True):
+    def __init__(self,dataSource,sampleType,ask=True,datadir='.'):
         """
         Sets up filter_function.py file to contain the appropriate function 
         and puts the save directory name in the docstring of the function.
@@ -223,7 +224,7 @@ class makeFilter(starSample):
             self.done = False
             print 'Type done at any prompt when finished'
             # Start name and condition string
-            self.name = self._sampleType+'_'+str(self.DR)
+            self.name = datadir+'/'+self._sampleType+'_'+str(self.DR)
             self.condition = ''
             # Ask for new key conditions until the user signals done
             while not self.done:
@@ -232,7 +233,7 @@ class makeFilter(starSample):
             # If conditions not set, recursively call init
             if self.condition == '':
                 print 'No conditions set'
-                self.__init__(sampleType,ask=True)
+                self.__init__(dataSource,sampleType,ask=True)
             # When conditions set, trim trailing ampersand
             self.condition = self.condition[:-2]
             # Write the new filter function to file
@@ -252,6 +253,7 @@ class makeFilter(starSample):
                 print 'filter_function.py does not contain the required starFilter function.'
                 self.__init__(sampleType,ask=True)
         self.getDirectory()
+        self.copyFilter()
             
     def _basicStructure(self):
         """
@@ -283,12 +285,36 @@ class makeFilter(starSample):
                     # Add string form of the matching condition and 
                     # update the name
                     self.name+='_match'+match[1]
-                    self.condition += ' (data[\'{0}\'] == "{1}") &'.format(key,match[1])
+                    andor = raw_input('And/or? ')
+                    if andor == 'and' or andor=='a' or andor=='&':
+                        self.condition += ' (data[\'{0}\'] == "{1}") &'.format(key,match[1])
+                    elif andor == 'or' or andor=='o' or andor=='|':
+                        self.condition += ' (data[\'{0}\'] == "{1}") |'.format(key,match[1])
+                    elif andor == 'done':
+                        self.condition += ' (data[\'{0}\'] == "{1}") &'.format\
+(key,match[1])
+                        self.done==True
+                        break
+                    else:
+                        print 'Invalid choice of "and" or "or", using "or" by default'
+                        self.condition += ' (data[\'{0}\'] == "{1}") |'.format(key,match[1])
                 elif match[0]=='s':
                     # Add string form of the slicing condition and 
                     # update the name
                     self.name+='_up'+str(match[1])+'_lo'+str(match[2])
-                    self.condition += ' (data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2}) &'.format(key,match[1],match[2])
+                    andor = raw_input('And/or? ')
+                    if andor == 'and' or andor=='a' or andor=='&':
+                        self.condition += ' (data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2}) &'.format(key,match[1],match[2])
+                    elif andor == 'or' or andor=='o' or andor=='|':
+                        self.condition += ' ((data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2})) |'.format(key,match[1],match[2])
+                    elif andor =='done':
+                        self.condition += ' ((data[\'{0}\'] < {1}) & (data[\'{\
+0}\'] > {2})) &'.format(key,match[1],match[2])
+                        self.done==True
+                        break
+                    else:
+                        print 'Invalid choice of "and" or "or", using "or" by default'
+                        self.condition += ' ((data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2})) |'.format(key,match[1],match[2])
             # If key not accepted, make recursive call
             elif key not in keyList and key != 'done':
                 print 'Got a bad key. Try choosing one of ',keyList
@@ -358,7 +384,7 @@ class makeFilter(starSample):
 
         # Invalid entry condition
         else:
-            print 'Please type m, s or a'
+            print 'Please type match, slice or all'
             self._match(key)
         
     def getDirectory(self):
@@ -367,7 +393,7 @@ class makeFilter(starSample):
         
         """
         if not os.path.isdir(self.name):
-            os.system('mkdir {0}'.format(self.name))
+            os.system('mkdir -p {0}/'.format(self.name))
         return
 
     def directoryClean(self):
@@ -377,13 +403,18 @@ class makeFilter(starSample):
         """
         os.system('rm -rf {0}/*.npy'.format(self.name))
 
+    def filterCopy(self):
+        """
+        Copies filter function to data directory.
+        """
+        os.system('cp filter_function.py {0}/'.format(self.name))
 
 class subStarSample(makeFilter):
     """
     Given a filter function, defines a subsample of the total sample of stars.
     
     """
-    def __init__(self,dataSource,sampleType,ask=True,frac=1):
+    def __init__(self,dataSource,sampleType,ask=True,datadir='.',frac=1):
         """
         Create a subsample according to a starFilter function
         
@@ -395,7 +426,7 @@ class subStarSample(makeFilter):
         
         """
         # Create starFilter
-        makeFilter.__init__(self,dataSource,sampleType,ask=ask)
+        makeFilter.__init__(self,dataSource,sampleType,ask=ask,datadir=datadir)
         import filter_function
         reload(filter_function)
         from filter_function import starFilter

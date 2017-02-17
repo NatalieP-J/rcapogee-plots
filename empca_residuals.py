@@ -81,8 +81,8 @@ class empca_residuals(mask):
     Contains functions to find polynomial fits.
     
     """
-    def __init__(self,dataSource,sampleType,maskFilter,ask=True,frac=1,
-                 badcombpixmask=4351,degree=2):
+    def __init__(self,dataSource,sampleType,maskFilter,ask=True,datadir='.',
+                 frac=1,badcombpixmask=4351,degree=2):
         """
         Fit a masked subsample.
         
@@ -95,8 +95,8 @@ class empca_residuals(mask):
         degree:       degree of polynomial to fit
         
         """
-        mask.__init__(self,dataSource,sampleType,maskFilter,ask=ask,frac=frac,
-                      badcombpixmask=badcombpixmask)
+        mask.__init__(self,dataSource,sampleType,maskFilter,ask=ask,datadir=datadir,
+                      frac=frac,badcombpixmask=badcombpixmask)
         self.degree = degree
         self.noncrossInds = ([0,1,2,3,4,7,9])
         self.crossInds = ([5,6,8],)
