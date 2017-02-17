@@ -207,7 +207,7 @@ class makeFilter(starSample):
     Contains functions to create a filter and associated directory 
     name for a starSample.
     """
-    def __init__(self,dataSource,sampleType,ask=True,datadir='.'):
+    def __init__(self,dataSource,sampleType,ask=True,datadir='.',func=None):
         """
         Sets up filter_function.py file to contain the appropriate function 
         and puts the save directory name in the docstring of the function.
@@ -241,19 +241,22 @@ class makeFilter(starSample):
             f.write(self._basicStructure()+self.condition)
             f.close()
         elif not ask:
-            # Import existing filter function. If function doesn't exist, 
-            # recursively call init
-            try:
-                import filter_function
-                reload(filter_function)
-                from filter_function import starFilter
-                self.name = starFilter.__doc__.split('\n')[-2]
-                self.name = self.name.split('\t')[-1]
-            except ImportError:
-                print 'filter_function.py does not contain the required starFilter function.'
-                self.__init__(sampleType,ask=True)
+            if callable(func):
+                starFilter=func
+            elif not callable(func):
+                # Import existing filter function. If function doesn't exist, 
+                # recursively call init
+                try:
+                    import filter_function
+                    reload(filter_function)
+                    from filter_function import starFilter
+                    self.name = starFilter.__doc__.split('\n')[-2]
+                    self.name = self.name.split('\t')[-1]
+                except ImportError:
+                    print 'filter_function.py does not contain the required starFilter function.'
+                    self.__init__(dataSource,sampleType,ask=True)
         self.getDirectory()
-        self.copyFilter()
+        self.filterCopy()
             
     def _basicStructure(self):
         """

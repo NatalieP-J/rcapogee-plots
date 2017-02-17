@@ -373,6 +373,7 @@ class empca_residuals(mask):
             np.save(self.name+'/fitcoefferrs.npy',self.fitCoeffErrs.data)
             np.save(self.name+'/fitspectra.npy',self.fitSpectra.data)
             np.save(self.name+'/residuals.npy',self.residuals.data)
+            np.save(self.name+'/mask.npy',self.masked)
         if not gen:
             self.testM = self.makeMatrix(0)
             self.minStarNum = self.testM.shape[1]+1
