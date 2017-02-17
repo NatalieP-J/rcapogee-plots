@@ -129,7 +129,7 @@ class starSample(object):
                 self._bitmasks[star] = np.ones(aspcappix).astype(np.int16)
                 missing +=1
 
-            if LOGG<-1000 or TEFF<-1000 or FE_H<-1000:
+            if LOGG<-1000 or TEFF<-1000 or FE_H<-1000 or self.data[star]['SIGFIB'] < 0 or self.data[star]['MEANFIB'] < 0:
                 self._bitmasks[star] = np.ones(aspcappix).astype(np.int16)
 
         print 'Total {0} of {1} stars missing'.format(missing,len(stardata))
