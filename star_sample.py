@@ -49,6 +49,21 @@ class starSample(object):
         """
         if self.DR:
             self.data = readfn[self._dataSource][self._sampleType](dr=str(self.DR))
+            if self.DR=='12':
+                fib = np.load('/geir_data/scr/price-jones/Data/supplemental_apogeeDR12/fiberinfo.npy')
+                import numpy.lib.recfunctions as rfunc
+                self.data = rfunc.append_fields(self.data,('MEANFIB','SIGFIB'),data=(np.zeros(len(self.data)),np.zeros(len(self.data))),dtypes=('f4','f4'),usemask=False)
+                meanfib =  dict(zip(fib['APOGEE_ID'],fib['MEANFIB']))
+                sigfib = dict(zip(fib['APOGEE_ID'],fib['SIGFIB']))
+                self.data['MEANFIB'] = np.array([meanfib[apoid] for apoid in self.data['APOGEE_ID']])
+                self.data['SIGFIB'] = np.array([sigfib[apoid] for apoid in self.data['APOGEE_ID']])
+                #for i in range(len(self.data)):
+                #    k = np.where(self.data['APOGEE_ID'][i] == fib['APOGEE_ID'])
+                    #print k
+                    #if len(k[0]) > 1:
+                    #    k = (np.array([k[0][0]]),)
+                    #self.data['MEANFIB'][i] = fib['MEANFIB'][k]
+                    #self.data['SIGFIB'][i] = fib['SIGFIB'][k]
 
     def initArrays(self,stardata):
         """

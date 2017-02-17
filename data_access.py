@@ -67,7 +67,7 @@ readfn = {'apogee':{'clusters' : read_caldata,      # Sample of clusters
 # List of accepted keys to do slice in
 keyList = ['RA','DEC','GLON','GLAT','TEFF','LOGG','TEFF_ERR','LOGG_ERR',
             'AL_H','CA_H','C_H','FE_H','K_H','MG_H','MN_H','NA_H','NI_H',
-            'N_H','O_H','SI_H','S_H','TI_H','V_H','CLUSTER']
+            'N_H','O_H','SI_H','S_H','TI_H','V_H','CLUSTER','MEANFIB','SIGFIB']
 keyList.sort()
 
 # List of accepted keys for upper and lower limits
