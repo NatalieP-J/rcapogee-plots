@@ -75,6 +75,37 @@ class smallEMPCA(object):
         self.eigval = model.eigvals
         self.data = model.data
         self.weights = model.weights
+        self.cleararrays()
+
+    def cleararrays(self):
+        """                                                                    
+        Clear memory allocation for bigger arrays by writing them to file if 
+        self.savename is set                                                            
+        """
+        if self.savename:
+            np.savez_compressed('{0}_data.npz'.format(self.savename),
+                                eigval=self.eigval,eigvec=self.eigvec,
+                                coeff=self.coeff,data=self.data,
+                                weights=self.weights)
+        del self.eigval
+        del self.eigvec
+        del self.coeff
+        del self.data
+        del self.weights
+
+    def getarrays(self):
+        """                                                                    
+        Read out arrays                                                        
+        """
+        if self.savename:
+            arc = np.load('{0}_data.npz'.format(self.savename))
+
+            self.eigval = arc['eigval']
+            self.eigvec = arc['eigvec']
+            self.coeff = arc['coeff']
+            self.data = arc['data']
+            self.weights = arc['weights']
+
 
 class empca_residuals(mask):
     """
