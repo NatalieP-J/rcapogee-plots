@@ -67,6 +67,17 @@ class mask(subStarSample):
         
         """
         subStarSample.__init__(self,dataSource,sampleType,ask=ask,datadir=datadir,frac=frac)
+        if isinstance(badcombpixmask,list):
+            badcombpixmask=np.array(badcombpixmask)
+        if isinstance(badcombpixmask,np.ndarray):
+            if isinstance(badcombpixmask[0],str):
+                badcombpixmask = 0
+                for b in badcombpixmask:
+                    badcombpixmask = np.sum(2**bitmask.apogee_pixmask_int(b))
+            elif isinstance(badcombpixmask[0],int):
+                badcombpixmask = np.sum(2**badcombpixmask)
+        self.name+='/bm{0}'.format(badcombpixmask)
+        self.getDirectory()
         self._SNR = self.spectra/self.spectra_errs
         # find indices that should be masked
         self._maskHere = maskFilter(self,minstar=5,badcombpixmask=badcombpixmask)

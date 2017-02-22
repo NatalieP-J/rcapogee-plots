@@ -57,7 +57,7 @@ class smallEMPCA(object):
     Class to contain crucial EMPCA-related objects.
 
     """
-    def __init__(self,model,correction=None):
+    def __init__(self,model,correction=None,savename=None):
         """
         Set all relevant data for the EMPCA.
 
@@ -75,6 +75,7 @@ class smallEMPCA(object):
         self.eigval = model.eigvals
         self.data = model.data
         self.weights = model.weights
+        self.savename= savename
         self.cleararrays()
 
     def cleararrays(self):
@@ -84,7 +85,8 @@ class smallEMPCA(object):
         """
         if self.savename:
             np.savez_compressed('{0}_data.npz'.format(self.savename),
-                                eigval=self.eigval,eigvec=self.eigvec,
+                                eigval=self.eigval,eigvec=self.eigvec.data,
+                                eigvecmask = self.eigvec.mask,
                                 coeff=self.coeff,data=self.data,
                                 weights=self.weights)
         del self.eigval
@@ -101,7 +103,8 @@ class smallEMPCA(object):
             arc = np.load('{0}_data.npz'.format(self.savename))
 
             self.eigval = arc['eigval']
-            self.eigvec = arc['eigvec']
+            self.eigvec = np.ma.masked_array(arc['eigvec'],
+                                             mask=arc['eigvecmask'])
             self.coeff = arc['coeff']
             self.data = arc['data']
             self.weights = arc['weights']
@@ -589,7 +592,7 @@ class empca_residuals(mask):
 
             self.uncorrectUncertainty(correction=correction)
             self.applyMask()
-            self.smallModel = smallEMPCA(self.empcaModelWeight,correction=correction)
+            self.smallModel = smallEMPCA(self.empcaModelWeight,correction=correction,savename=self.name+'/'+savename)
             if savename:
                 acs.pklwrite(self.name+'/'+savename,self.smallModel)
 

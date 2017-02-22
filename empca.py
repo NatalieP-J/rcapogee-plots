@@ -34,6 +34,15 @@ from scipy.sparse import dia_matrix
 import scipy.sparse.linalg
 import math
 
+def MAD(arr):
+    return N.median((arr-N.median(arr))**2) 
+
+def mean_med(arr):
+    meds = N.median(arr,axis=1)
+    medarr = N.tile(meds,(arr.shape[0],1))
+    medsub = N.median((arr-medsub)**2,axis=0)
+    return N.mean(medsub)
+    
 class Model(object):
     """
     A wrapper class for storing data, eigenvectors, and coefficients.
@@ -154,10 +163,22 @@ class Model(object):
                 self.eigvec[k] -=  c * self.eigvec[kx]
                     
             self.eigvec[k] /= norm(self.eigvec[k])
-        
+        self.rank_eigvec()
+
         #- Recalculate model
         self.solve_model()
            
+    def rank_eigvec(self):
+        """
+        Sort eigenvectors by the fraction of variance they explain.
+        """
+        vars = N.zeros(len(self.eigvec))
+        for i in range(len(self.eigvec)):
+            vars[i] = self.R2vec(i)
+        order = N.argsort(vars)[::-1]
+        self.eigvec = self.eigvec[order]
+        self.coeff = self.coeff.T[order].T
+
     def solve_model(self):
         """
         Uses eigenvectors and coefficients to model data
@@ -229,6 +250,10 @@ class Model(object):
         else:
             return 1.0 - N.var(d[self._unmasked]) / self._unmasked_data_var
         
+    def mad_calc(self,d):
+        med = N.median(d[self._unmasked])
+        return N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)
+
     def R2(self, nvec=None,mad=False):
         """
         Return fraction of data variance which is explained by the first
