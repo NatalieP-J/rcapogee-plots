@@ -59,7 +59,7 @@ class Model(object):
     
     Not yet implemented: eigenvalues, mean subtraction/bookkeeping
     """
-    def __init__(self, eigvec, data, weights):
+    def __init__(self, eigvec, data, weights,varfunc=N.var):
         """
         Create a Model object with eigenvectors, data, and weights.
         
@@ -73,6 +73,7 @@ class Model(object):
         self.nvec = eigvec.shape[0]
         
         self.set_data(data, weights)
+        self.varfunc=varfunc
 
         
     def set_data(self, data, weights):
@@ -101,9 +102,12 @@ class Model(object):
         
         #- Cache variance of unmasked data
         self._unmasked = ii
-        self._unmasked_data_var = N.var(self.data[ii])
-        self._unmasked_data_mad2 = N.sum(N.median(N.fabs(self.data[ii]\
-                                                      -N.median(self.data[ii])))**2.)
+        self._unmasked_data_var = self.varfunc(self.data[ii])
+        #self._unmasked_data_var = N.var(self.data[ii])
+        #self._unmasked_data_mad2 = MAD(self.data[ii])
+        #self._unmasked_data_newmad = mean_mad2(self.data[ii])
+        #self._unmasked_data_mad2 = N.sum(N.median(N.fabs(self.data[ii]\
+        #                                              -N.median(self.data[ii])))**2.)
         self.solve_coeffs()
         
     def solve_coeffs(self):
@@ -179,6 +183,21 @@ class Model(object):
         self.eigvec = self.eigvec[order]
         self.coeff = self.coeff.T[order].T
 
+    def check_orthogonality(self):
+        """
+        Check that all eigenvectors are orthogonal
+        """
+        self.orthog_check = zeros(len(self.eigvec)**2-len(self.eigvec))
+        k = 0
+        pairs = []
+        for i in range(len(self.eigvec)):
+            for j in range(len(self.eigvec)):
+                if i!=j:
+                    self.orthog_check[k] = np.dot(self.eigvec[i],self.eigvec[j])
+                    self.orthog_check_pairs.append('({0},{1})'.format(i+1,j+1))
+                    k+=1
+        return np.sum(self.orthog_check)
+
     def solve_model(self):
         """
         Uses eigenvectors and coefficients to model data
@@ -221,15 +240,19 @@ class Model(object):
                 c+=1
             d = mx - self.data
             d_1 = mx_1 - self.data
-
-            if mad:
-                med = N.median(d[self._unmasked])
-                Vdatai = N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)
-                med_1 = N.median(d_1[self._unmasked])
-                Vdata_1 = N.sum(N.median(N.fabs(d_1-med_1)[self._unmasked])**2.)
-            elif not mad:
-                Vdatai = N.var(d[self._unmasked])
-                Vdata_1 = N.var(d_1[self._unmasked])
+            Vdatai = self.varfunc(d[self._unmasked])
+            Vdata_1 = self.varfunc(d[self._unmasked])
+            
+            #if mad:
+                #med = N.median(d[self._unmasked])
+             #   Vdatai = MAD(d[self._unmasked])
+                #Vdatai = N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)
+                #med_1 = N.median(d_1[self._unmasked])
+              #  Vdata_1 = MAD(d_1[self._unmasked])
+                #Vdata_1 = N.sum(N.median(N.fabs(d_1-med_1)[self._unmasked])**2.)
+            #elif not mad:
+            #    Vdatai = N.var(d[self._unmasked])
+            #    Vdata_1 = N.var(d_1[self._unmasked])
             return Vdata_1-Vdatai
 
     def R2vec(self, i,mad=False):
@@ -242,18 +265,16 @@ class Model(object):
         """
         
         d = self._model_vec(i) - self.data
-        if mad:
-            med= N.median(d[self._unmasked])
-            return 1.0 - \
-                N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)\
-                /(self._unmasked_data_mad2*1.4826**2)
-        else:
-            return 1.0 - N.var(d[self._unmasked]) / self._unmasked_data_var
+        return 1.0 - self.varfunc(d[self._unmasked])/self._unmasked_data_var
+        #if mad:
+            #med= N.median(d[self._unmasked])
+            #return 1.0 - \
+            #    N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)\
+            #    /(self._unmasked_data_mad2*1.4826**2)
+        #    return 1.0 - MAD(d[self._unmasked])/self._unmasked_data_mad2
+        #else:
+        #    return 1.0 - N.var(d[self._unmasked]) / self._unmasked_data_var
         
-    def mad_calc(self,d):
-        med = N.median(d[self._unmasked])
-        return N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)
-
     def R2(self, nvec=None,mad=False):
         """
         Return fraction of data variance which is explained by the first
@@ -273,19 +294,21 @@ class Model(object):
         d = mx - self.data
 
         #- Only consider R2 for unmasked data
-        if mad:
-            med= N.median(d[self._unmasked])
+        #if mad:
+            #med= N.median(d[self._unmasked])
             #print 'med',med
             #print 'median',N.median(-self.data[self._unmasked])
             #print 'num',N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)
             #print 'den',self._unmasked_data_mad2 
             #print 'max',N.amax(N.fabs(mx))
-            return 1.0 - \
-                N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)/\
-                (self._unmasked_data_mad2)        
-        else:
-            return 1.0 - N.var(d[self._unmasked]) / self._unmasked_data_var
-                
+            #return 1.0 - \
+            #    N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)/\
+            #    (self._unmasked_data_mad2)
+        #    return 1.0 - MAD(d[self._unmasked])/self._unmasked_data_mad2
+        #else:
+        #    return 1.0 - N.var(d[self._unmasked]) / self._unmasked_data_var
+        return 1.0 - self.varfunc(d[self._unmasked])/self._unmasked_data_var         
+       
 def _random_orthonormal(nvec, nvar, seed=1):
     """
     Return array of random orthonormal vectors A[nvec, nvar] 
