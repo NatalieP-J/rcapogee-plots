@@ -34,14 +34,16 @@ from scipy.sparse import dia_matrix
 import scipy.sparse.linalg
 import math
 
-def MAD(arr):
-    return N.median((arr-N.median(arr))**2) 
+k = 1.4826 #scaling factor that makes MAD=variance in Gaussian case
 
-def mean_med(arr):
-    meds = N.median(arr,axis=1)
+def MAD(arr):
+    return k**2*N.ma.median((arr-N.ma.median(arr))**2)[0] 
+
+def meanMed(arr):
+    meds = N.ma.median(arr,axis=0)
     medarr = N.tile(meds,(arr.shape[0],1))
-    medsub = N.median((arr-medsub)**2,axis=0)
-    return N.mean(medsub)
+    medsub = N.ma.median((arr-medarr)**2,axis=0)
+    return k**2*N.ma.mean(medsub)
     
 class Model(object):
     """
@@ -59,7 +61,7 @@ class Model(object):
     
     Not yet implemented: eigenvalues, mean subtraction/bookkeeping
     """
-    def __init__(self, eigvec, data, weights,varfunc=N.var):
+    def __init__(self, eigvec, data, weights,varfunc=N.ma.var):
         """
         Create a Model object with eigenvectors, data, and weights.
         
@@ -71,9 +73,8 @@ class Model(object):
         """
         self.eigvec = eigvec
         self.nvec = eigvec.shape[0]
-        
+        self.varfunc = varfunc
         self.set_data(data, weights)
-        self.varfunc=varfunc
 
         
     def set_data(self, data, weights):
@@ -102,13 +103,16 @@ class Model(object):
         
         #- Cache variance of unmasked data
         self._unmasked = ii
-        self._unmasked_data_var = self.varfunc(self.data[ii])
+        self._unmasked_data_var = self.varfunc(self.mask_data(self.data))
         #self._unmasked_data_var = N.var(self.data[ii])
         #self._unmasked_data_mad2 = MAD(self.data[ii])
         #self._unmasked_data_newmad = mean_mad2(self.data[ii])
         #self._unmasked_data_mad2 = N.sum(N.median(N.fabs(self.data[ii]\
         #                                              -N.median(self.data[ii])))**2.)
         self.solve_coeffs()
+
+    def mask_data(self,arr):
+        return N.ma.masked_array(arr,mask=self.weights==0)
         
     def solve_coeffs(self):
         """
@@ -225,7 +229,7 @@ class Model(object):
         elif addmean:
             return N.outer(self.coeff[:, i], self.eigvec[i])+self.meanstack
         
-    def eigval(self,nvec=None,mad=False):
+    def eigval(self,nvec=None):
 
         if nvec is None:
             return 0
@@ -240,8 +244,8 @@ class Model(object):
                 c+=1
             d = mx - self.data
             d_1 = mx_1 - self.data
-            Vdatai = self.varfunc(d[self._unmasked])
-            Vdata_1 = self.varfunc(d[self._unmasked])
+            Vdatai = self.varfunc(self.mask_data(d))
+            Vdata_1 = self.varfunc(self.mask_data(d_1))
             
             #if mad:
                 #med = N.median(d[self._unmasked])
@@ -255,7 +259,7 @@ class Model(object):
             #    Vdata_1 = N.var(d_1[self._unmasked])
             return Vdata_1-Vdatai
 
-    def R2vec(self, i,mad=False):
+    def R2vec(self, i):
         """
         Return fraction of data variance which is explained by vector i.
 
@@ -265,7 +269,7 @@ class Model(object):
         """
         
         d = self._model_vec(i) - self.data
-        return 1.0 - self.varfunc(d[self._unmasked])/self._unmasked_data_var
+        return 1.0 - self.varfunc(self.mask_data(d))/self._unmasked_data_var
         #if mad:
             #med= N.median(d[self._unmasked])
             #return 1.0 - \
@@ -275,7 +279,7 @@ class Model(object):
         #else:
         #    return 1.0 - N.var(d[self._unmasked]) / self._unmasked_data_var
         
-    def R2(self, nvec=None,mad=False):
+    def R2(self, nvec=None):
         """
         Return fraction of data variance which is explained by the first
         nvec vectors.  Default is R2 for all vectors.
@@ -307,7 +311,7 @@ class Model(object):
         #    return 1.0 - MAD(d[self._unmasked])/self._unmasked_data_mad2
         #else:
         #    return 1.0 - N.var(d[self._unmasked]) / self._unmasked_data_var
-        return 1.0 - self.varfunc(d[self._unmasked])/self._unmasked_data_var         
+        return 1.0 - self.varfunc(self.mask_data(d))/self._unmasked_data_var         
        
 def _random_orthonormal(nvec, nvar, seed=1):
     """
@@ -359,7 +363,7 @@ def _solve(A, b, w):
     
 #-------------------------------------------------------------------------
 
-def empca(data, weights=None, deltR2=0,niter=25, nvec=5, smooth=0, randseed=1, silent=False, mad=True):
+def empca(data, weights=None, deltR2=0,niter=25, nvec=5, smooth=0, randseed=1, silent=False, varfunc=N.var):
     """
     Iteratively solve data[i] = Sum_j: c[i,j] p[j] using weights
     
@@ -397,7 +401,7 @@ def empca(data, weights=None, deltR2=0,niter=25, nvec=5, smooth=0, randseed=1, s
     #- Starting random guess
     eigvec = _random_orthonormal(nvec, nvar, seed=randseed)
     
-    model = Model(eigvec, data, weights)
+    model = Model(eigvec, data, weights,varfunc=varfunc)
     model.solve_coeffs()
     
     if not silent:
@@ -408,12 +412,12 @@ def empca(data, weights=None, deltR2=0,niter=25, nvec=5, smooth=0, randseed=1, s
     for k in range(niter):
         model.solve_coeffs()
         model.solve_eigenvectors(smooth=smooth)
-        R2_new = model.R2(mad=mad)
+        R2_new = model.R2()
         R2diff = N.fabs(R2_new-R2_old)
         R2_old = R2_new
         if not silent:
             print 'EMPCA %2d/%2d  %15.8f %15.8f' % \
-                (k+1, niter, model.R2(mad=mad), model.rchi2())
+                (k+1, niter, model.R2(), model.rchi2())
             sys.stdout.flush()
         if R2diff < deltR2:
             break
@@ -422,7 +426,7 @@ def empca(data, weights=None, deltR2=0,niter=25, nvec=5, smooth=0, randseed=1, s
     model.solve_coeffs()
 
     if not silent:
-        print "R2:", model.R2(mad=mad)
+        print "R2:", model.R2()
     
     return model
 

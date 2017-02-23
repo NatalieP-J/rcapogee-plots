@@ -7,7 +7,7 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
 import statsmodels.nonparametric.smoothers_lowess as sm
 import access_spectrum as acs
-from empca import empca
+from empca import empca,MAD,meanMed
 from mask_data import mask,maskFilter
 from data_access import *
 import access_spectrum as acs 
@@ -51,6 +51,20 @@ def smoothMedian(diag,frac=None,numpix=None):
     return smoothmedian
 
 
+def getsmallEMPCAarrays(model):
+     """                                                                                 
+     Read out arrays                                                                     
+     """
+     if model.savename:
+         arc = np.load('{0}_data.npz'.format(model.savename))
+        
+         model.eigval = arc['eigval']
+         model.eigvec = np.ma.masked_array(arc['eigvec'],
+                                          mask=arc['eigvecmask'])
+         model.coeff = arc['coeff']
+         model.data = arc['data']
+         model.weights = arc['weights']
+         
 class smallEMPCA(object):
     """
     
@@ -68,7 +82,6 @@ class smallEMPCA(object):
         self.R2noise = model.R2noise
         self.Vnoise = model.Vnoise
         self.Vdata = model.Vdata
-        self.mad = model.mad
         self.eigvec = model.eigvec
         self.coeff = model.coeff
         self.correction = correction
@@ -545,7 +558,7 @@ class empca_residuals(mask):
             return diagonal
                     
 
-    def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,mad=False,correction=None,savename=None,gen=True,numpix=None,weight=True):
+    def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,varfunc=np.ma.var,correction=None,savename=None,gen=True,numpix=None,weight=True):
         """
         Calculates EMPCA on residuals in pixel space.
 
@@ -561,7 +574,6 @@ class empca_residuals(mask):
             self.numpix=numpix
             self.correctUncertainty(correction=correction)
             self.applyMask()
-            self.mad = mad
             self.nvecs = nvecs
             self.deltR2 = deltR2
             # Find pixels with enough stars to do EMPCA
@@ -575,10 +587,8 @@ class empca_residuals(mask):
                 errorWeights[unmasked] = 1./((self.spectra_errs.T[self.goodPixels].T[unmasked])**2)
             self.empcaModelWeight = empca(self.empcaResiduals.data,weights=errorWeights,
                                           nvec=self.nvecs,deltR2=self.deltR2,
-                                          mad=self.mad,randseed=randomSeed)    
+                                          randseed=randomSeed,varfunc=varfunc)    
 
-            self.empcaModelWeight.mad = self.mad
-            
             # Calculate eigenvalues
             self.empcaModelWeight.eigvals = np.zeros(len(self.empcaModelWeight.eigvec))
             for e in range(len(self.empcaModelWeight.eigvec)):
@@ -607,14 +617,15 @@ class empca_residuals(mask):
         # Create R2 array
         R2Array = np.zeros(vecs+1)
         for vec in range(vecs+1):
-            R2Array[vec] = model.R2(vec,mad=self.mad)
+            R2Array[vec] = model.R2(vec)
         # Add R2 array to model
         model.R2Array = R2Array
 
     def setDeltaR2(self,model):
         """
         """
-        return (np.roll(model.R2Array,-1)-model.R2Array)[:-1]
+        self.setR2(model)
+        model.DeltaR2 = (np.roll(model.R2Array,-1)-model.R2Array)[:-1]
 
     def resizePixelEigvec(self,model):
         """
@@ -655,11 +666,7 @@ class empca_residuals(mask):
         model:   EMPCA model
 
         """
-        # Determine which variance to use
-        if self.mad:
-            model.Vdata = model._unmasked_data_mad2*1.4826**2
-        elif not self.mad:
-            model.Vdata = model._unmasked_data_var
+        model.Vdata = model._unmasked_data_var
         # Calculate data noise
         model.Vnoise = np.mean(1./(model.weights[model.weights!=0]))
         # Calculate R2noise
