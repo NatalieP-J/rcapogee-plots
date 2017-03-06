@@ -415,7 +415,7 @@ class subStarSample(makeFilter):
     Given a filter function, defines a subsample of the total sample of stars.
     
     """
-    def __init__(self,dataSource,sampleType,ask=True,datadir='.',frac=1):
+    def __init__(self,dataSource,sampleType,ask=True,datadir='.'):
         """
         Create a subsample according to a starFilter function
         
@@ -435,27 +435,11 @@ class subStarSample(makeFilter):
         self._matchingStars = starFilter(self.data)
         self.matchingData = self.data[self._matchingStars]
         #self.numberStars = len(self.matchingData)
-        self.frac = frac
-        self.jackknife()
         self.checkArrays()
 
     def numberStars(self):
         return len(self.matchingData)
         
-    def jackknife(self):
-        """
-        Take a random subselection of the sample
-        """
-        if self.frac==1:
-            return 0
-        elif self.frac != 1:
-            self.seed = np.random.randint(0,100)
-            np.random.seed(self.seed)
-            inds = np.random.randint(0,self.numberStars(),size=self.frac*self.numberStars())
-            self.matchingData = self.matchingData[inds]
-            self.name = '{0}/seed{1}_frac{2}/'.format(self.name,self.seed,self.frac)
-            self.getDirectory()
-            return 1
 
     
     def checkArrays(self):

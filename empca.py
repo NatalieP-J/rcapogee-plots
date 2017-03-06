@@ -37,9 +37,27 @@ import math
 k = 1.4826 #scaling factor that makes MAD=variance in Gaussian case
 
 def MAD(arr):
+    """
+    An example function that can be used to calculate the variance using the
+    median absolute deviation
+     Inputs
+       - arr: a masked array with shape [nobs, nvar]
+     Outputs
+       - variance: a 1D scalar
+    
+    """
     return k**2*N.ma.median((arr-N.ma.median(arr))**2)[0] 
 
 def meanMed(arr):
+    """                                                                        
+    An example function that can be used to calculate the variance using the   
+    median absolute deviation                                                  
+     Inputs                                                                    
+       - arr: a masked array with shape [nobs, nvar]                           
+     Outputs                                                                   
+       - variance: a 1D scalar
+    """
+
     meds = N.ma.median(arr,axis=0)
     medarr = N.tile(meds,(arr.shape[0],1))
     medsub = N.ma.median((arr-medarr)**2,axis=0)
@@ -104,11 +122,6 @@ class Model(object):
         #- Cache variance of unmasked data
         self._unmasked = ii
         self._unmasked_data_var = self.varfunc(self.mask_data(self.data))
-        #self._unmasked_data_var = N.var(self.data[ii])
-        #self._unmasked_data_mad2 = MAD(self.data[ii])
-        #self._unmasked_data_newmad = mean_mad2(self.data[ii])
-        #self._unmasked_data_mad2 = N.sum(N.median(N.fabs(self.data[ii]\
-        #                                              -N.median(self.data[ii])))**2.)
         self.solve_coeffs()
 
     def mask_data(self,arr):
@@ -147,8 +160,6 @@ class Model(object):
             for j in range(self.nvar):
                 w = self.weights[:, j]
                 x = data[:, j]
-                # self.eigvec[k, j] = c.dot(w*x) / c.dot(w*c)
-                # self.eigvec[k, j] = w.dot(c*x) / w.dot(c*c)
                 cw = c*w
                 self.eigvec[k, j] = x.dot(cw) / c.dot(cw)
                                                 
@@ -156,11 +167,6 @@ class Model(object):
                 self.eigvec[k] = smooth(self.eigvec[k])
 
             #- Remove this vector from the data before continuing with next
-            #? Alternate: Resolve for coefficients before subtracting?
-            #- Loop replaced with equivalent N.outer(c,v) call (faster)
-            # for i in range(self.nobs):
-            #     data[i] -= self.coeff[i,k] * self.eigvec[k]
-                                
             data -= N.outer(self.coeff[:,k], self.eigvec[k])    
 
         #- Renormalize and re-orthogonalize the answer
@@ -191,6 +197,7 @@ class Model(object):
         """
         Check that all eigenvectors are orthogonal
         """
+        # Create an array to hold results for pairs not including (i,i)
         self.orthog_check = zeros(len(self.eigvec)**2-len(self.eigvec))
         k = 0
         pairs = []
@@ -246,17 +253,6 @@ class Model(object):
             d_1 = mx_1 - self.data
             Vdatai = self.varfunc(self.mask_data(d))
             Vdata_1 = self.varfunc(self.mask_data(d_1))
-            
-            #if mad:
-                #med = N.median(d[self._unmasked])
-             #   Vdatai = MAD(d[self._unmasked])
-                #Vdatai = N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)
-                #med_1 = N.median(d_1[self._unmasked])
-              #  Vdata_1 = MAD(d_1[self._unmasked])
-                #Vdata_1 = N.sum(N.median(N.fabs(d_1-med_1)[self._unmasked])**2.)
-            #elif not mad:
-            #    Vdatai = N.var(d[self._unmasked])
-            #    Vdata_1 = N.var(d_1[self._unmasked])
             return Vdata_1-Vdatai
 
     def R2vec(self, i):
@@ -265,20 +261,11 @@ class Model(object):
 
         Notes:
           - Does *not* correct for degrees of freedom.
-          - Not robust to data outliers.
         """
         
         d = self._model_vec(i) - self.data
         return 1.0 - self.varfunc(self.mask_data(d))/self._unmasked_data_var
-        #if mad:
-            #med= N.median(d[self._unmasked])
-            #return 1.0 - \
-            #    N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)\
-            #    /(self._unmasked_data_mad2*1.4826**2)
-        #    return 1.0 - MAD(d[self._unmasked])/self._unmasked_data_mad2
-        #else:
-        #    return 1.0 - N.var(d[self._unmasked]) / self._unmasked_data_var
-        
+                
     def R2(self, nvec=None):
         """
         Return fraction of data variance which is explained by the first
@@ -286,7 +273,6 @@ class Model(object):
         
         Notes:
           - Does *not* correct for degrees of freedom.
-          - Not robust to data outliers.
         """
         if nvec is None:
             mx = self.model
@@ -297,20 +283,7 @@ class Model(object):
             
         d = mx - self.data
 
-        #- Only consider R2 for unmasked data
-        #if mad:
-            #med= N.median(d[self._unmasked])
-            #print 'med',med
-            #print 'median',N.median(-self.data[self._unmasked])
-            #print 'num',N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)
-            #print 'den',self._unmasked_data_mad2 
-            #print 'max',N.amax(N.fabs(mx))
-            #return 1.0 - \
-            #    N.sum(N.median(N.fabs(d-med)[self._unmasked])**2.)/\
-            #    (self._unmasked_data_mad2)
-        #    return 1.0 - MAD(d[self._unmasked])/self._unmasked_data_mad2
-        #else:
-        #    return 1.0 - N.var(d[self._unmasked]) / self._unmasked_data_var
+        # Only consider R2 for unmasked data
         return 1.0 - self.varfunc(self.mask_data(d))/self._unmasked_data_var         
        
 def _random_orthonormal(nvec, nvar, seed=1):
@@ -342,12 +315,6 @@ def _solve(A, b, w):
     b : 1D array length A.shape[0]
     w : 1D array same length as b
     """
-  
-    #- Apply weights
-    # nvar = len(w)
-    # W = dia_matrix((w, 0), shape=(nvar, nvar))
-    # bx = A.T.dot( W.dot(b) )
-    # Ax = A.T.dot( W.dot(A) )
     
     b = A.T.dot( w*b )
     A = A.T.dot( (A.T * w).T )
@@ -355,7 +322,6 @@ def _solve(A, b, w):
     if isinstance(A, scipy.sparse.spmatrix):
         x = scipy.sparse.linalg.spsolve(A, b)
     else:
-        # x = N.linalg.solve(A, b)
         x = N.linalg.lstsq(A, b)[0]
         
     return x

@@ -129,7 +129,8 @@ class empca_residuals(mask):
     
     """
     def __init__(self,dataSource,sampleType,maskFilter,ask=True,datadir='.',
-                 frac=1,badcombpixmask=4351,degree=2):
+                 subsamples=1,badcombpixmask=4351,minSNR=50,degree=2,
+                 varfuncs = [np.ma.var,MAD,meanMed],nvecs=5,**kwargs):
         """
         Fit a masked subsample.
         
@@ -142,13 +143,96 @@ class empca_residuals(mask):
         degree:       degree of polynomial to fit
         
         """
-        mask.__init__(self,dataSource,sampleType,maskFilter,ask=ask,datadir=datadir,
-                      frac=frac,badcombpixmask=badcombpixmask)
+        mask.__init__(self,dataSource,sampleType,maskFilter,ask=ask,
+                      minSNR=minSNR,datadir=datadir,
+                      badcombpixmask=badcombpixmask)
         self.degree = degree
-        self.noncrossInds = ([0,1,2,3,4,7,9])
-        self.crossInds = ([5,6,8],)
+        self.subsamples = subsamples
         self.polynomial = PolynomialFeatures(degree=degree)
         self.testM = self.makeMatrix(0)
+        self.jackknife(varfuncs,nvecs=nvecs,minsnr=minSNR,**kwargs)
+
+    def jackknife(self,varfuncs=[np.ma.var],nvecs=5,minsnr=50,**kwargs):
+        """                                                                     
+        Take a random subselection of the sample                                
+        """
+        if self.subsamples==1:
+            self.findResiduals()
+            for v in varfuncs:
+                self.pixelEMPCA(varfunc=v,savename='eig{0}_minSNR{1}_corrNone_{2}.pkl'.format(nvecs,minsnr,v.__name__),**kwargs)
+            self.directoryClean()
+
+
+        elif self.subsamples!=1:
+            self.seed = np.random.randint(0,100)
+            np.random.seed(self.seed)
+            self.filterData = np.copy(self.matchingData)
+            self.originalteff = np.ma.copy(self.teff)
+            self.originallogg = np.ma.copy(self.logg)
+            self.originalfe_h = np.ma.copy(self.fe_h)
+            self.originalspectra = np.ma.copy(self.spectra)
+            self.originalspectra_errs = np.ma.copy(self.spectra_errs)
+            self.originalbitmasks = np.copy(self._bitmasks)
+            self.originalmaskHere = np.copy(self._maskHere)
+            self.originalname = np.copy(self.name)
+            inds = np.random.randint(0,self.subsamples,
+                                     size=self.numberStars())
+            R2Arrays = np.zeros((len(varfuncs)*(self.subsamples+1),nvecs+1))
+            labels = []
+            k = 0
+            for i in range(self.subsamples):
+                self.matchingData = self.filterData[inds==i]
+                self.teff = self.originalteff[inds==i]
+                self.logg = self.originallogg[inds==i]
+                self.fe_h = self.originalfe_h[inds==i]
+                self.spectra = self.originalspectra[inds==i]
+                self.spectra_errs = self.originalspectra_errs[inds==i]
+                self._bitmasks = self.originalbitmasks[inds==i]
+                self._maskHere = self.originalmaskHere[inds==i]
+                self.applyMask()
+                self.name = '{0}/seed{1}_subsample{2}of{3}/'.format(self.originalname,self.seed,i+1,self.subsamples)
+                self.getDirectory()
+                
+                self.findResiduals()
+                for v in varfuncs:
+                    self.pixelEMPCA(varfunc=v,
+                                    savename='eig{0}_minSNR{1}_corrNone_{2}.pkl'.format(nvecs,minsnr,v.__name__),**kwargs)
+                    R2Arrays[k] = self.empcaModelWeight.R2Array
+                    labels.append('subsample {0}, {1} stars, func {2}'.format(i+1,self.numberStars(),v.__name__))
+                    k+=1
+                self.directoryClean()
+            self.teff = self.originalteff
+            self.logg = self.originallogg
+            self.fe_h = self.originalfe_h
+            self.spectra = self.originalspectra
+            self.spectra_errs = self.originalspectra_errs
+            self._bitmasks = self.originalbitmasks
+            self._maskHere = self.originalmaskHere
+            self.applyMask()
+            self.findResiduals()
+            for v in varfuncs:
+                self.pixelEMPCA(varfunc=v,
+                                savename='eig{0}_minSNR{1}_corrNone_{2}.pkl\
+'.format(nvecs,minsnr,v.__name__),**kwargs)
+                R2Arrays[k] = self.empcaModelWeight.R2Array
+                labels.append('full sample, func {0}'.format(v.__name__))
+                k+=1
+            self.R2compare(R2Arrays,labels)
+
+            
+    
+    def R2compare(self,R2Arrays,labels):
+        colors = plt.get_cmap('plasma')(np.linspace(0,0.85,len(labels)))
+        plt.figure(figsize=(10,8))
+        for i in range(len(labels)):
+            plt.plot(R2Arrays[i],lw=4,color=colors[i],label=labels[i])
+        plt.ylim(0,1)
+        plt.xlim(-1,len(R2Arrays)+1)
+        plt.ylabel('$R^2$',fontsize=20)
+        plt.xlabel('n')
+        legend = plt.legend(loc='best')
+        plt.savefig('{0}/seed{1}_R2comp.pdf'.format(self.name,self.seed))
+                                        
 
     def makeMatrix(self,pixel,matrix='default'):
         """
