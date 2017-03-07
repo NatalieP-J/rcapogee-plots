@@ -175,9 +175,20 @@ class empca_residuals(mask):
             self.originalbitmasks = np.copy(self._bitmasks)
             self.originalmaskHere = np.copy(self._maskHere)
             self.originalname = np.copy(self.name)
-            inds = np.random.randint(0,self.subsamples,
-                                     size=self.numberStars())
+            #inds = np.random.randint(0,self.subsamples,
+            #                         size=self.numberStars())
+            inds = np.zeros((self.numberStars()))-1
+            subnum = self.numberStars()/self.subsamples
+            firstgroup = np.random.randint(0,self.numberStars(),size=subnum)
+            inds[firstgroup] = 0
+            for i in range(1,self.subsamples):
+                group = np.random.choice(np.where(inds==-1)[0],size=subnum,replace=False)
+                inds[group] = i
+            leftovers = [i for i in range(self.numberStars()) if inds[i]==-1]
+            if leftovers != []:
+                inds[leftovers] = 0
             R2Arrays = np.zeros((len(varfuncs)*(self.subsamples+1),nvecs+1))
+            R2noises = np.zeros((len(varfuncs)*(self.subsamples+1)))
             labels = []
             k = 0
             for i in range(self.subsamples):
@@ -198,9 +209,14 @@ class empca_residuals(mask):
                     self.pixelEMPCA(varfunc=v,
                                     savename='eig{0}_minSNR{1}_corrNone_{2}.pkl'.format(nvecs,minsnr,v.__name__),**kwargs)
                     R2Arrays[k] = self.empcaModelWeight.R2Array
-                    labels.append('subsample {0}, {1} stars, func {2}'.format(i+1,self.numberStars(),v.__name__))
+                    R2noises[k] = self.empcaModelWeight.R2noise
+                    eigvec = np.where(self.empcaModelWeight.R2Array > self.empcaModelWeight.R2noise)[0][0]-1
+                    if eigvec < 0:
+                        eigvec=0
+                    labels.append('subsamp {0}, {1} stars, func {2} - {3} vec'.format(i+1,self.numberStars(),v.__name__,eigvec))
                     k+=1
                 self.directoryClean()
+            self.matchingData = self.filterData
             self.teff = self.originalteff
             self.logg = self.originallogg
             self.fe_h = self.originalfe_h
@@ -215,22 +231,27 @@ class empca_residuals(mask):
                                 savename='eig{0}_minSNR{1}_corrNone_{2}.pkl\
 '.format(nvecs,minsnr,v.__name__),**kwargs)
                 R2Arrays[k] = self.empcaModelWeight.R2Array
-                labels.append('full sample, func {0}'.format(v.__name__))
+                R2noises[k] = self.empcaModelWeight.R2noise
+                eigvec = np.where(self.empcaModelWeight.R2Array > self.empcaModelWeight.R2noise)[0][0]-1
+                if eigvec <0:
+                    eigvec=0
+                labels.append('full samp, func {0} - {1} vec'.format(v.__name__,eigvec))
                 k+=1
-            self.R2compare(R2Arrays,labels)
+            self.R2compare(R2Arrays,R2noises,labels)
 
             
     
-    def R2compare(self,R2Arrays,labels):
+    def R2compare(self,R2Arrays,R2noises,labels):
         colors = plt.get_cmap('plasma')(np.linspace(0,0.85,len(labels)))
         plt.figure(figsize=(10,8))
         for i in range(len(labels)):
             plt.plot(R2Arrays[i],lw=4,color=colors[i],label=labels[i])
+            plt.axhline(R2noises[i],lw=3,ls='--',color=colors[i])
         plt.ylim(0,1)
-        plt.xlim(-1,len(R2Arrays)+1)
+        plt.xlim(-1,len(R2Arrays[0]))
         plt.ylabel('$R^2$',fontsize=20)
         plt.xlabel('n')
-        legend = plt.legend(loc='best')
+        legend = plt.legend(loc='best',fontsize = 13)
         plt.savefig('{0}/seed{1}_R2comp.pdf'.format(self.name,self.seed))
                                         
 
