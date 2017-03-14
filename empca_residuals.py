@@ -13,13 +13,14 @@ from data_access import *
 import access_spectrum as acs 
 import os
 
+testmode = False
+
 font = {'family': 'serif',
         'weight': 'normal',
         'size'  :  20
 }
 
 matplotlib.rc('font',**font)
-plt.ion()
 
 def smoothMedian(diag,frac=None,numpix=None):
     """
@@ -150,22 +151,46 @@ class empca_residuals(mask):
         self.subsamples = subsamples
         self.polynomial = PolynomialFeatures(degree=degree)
         self.testM = self.makeMatrix(0)
-        self.jackknife(varfuncs,nvecs=nvecs,minsnr=minSNR,**kwargs)
+        self.varfuncs = varfuncs
+        self.nvecs = nvecs
+        if testmode:
+            self.jackknife(**kwargs)
 
-    def jackknife(self,varfuncs=[np.ma.var],nvecs=5,minsnr=50,**kwargs):
+    def jackknife(self,**kwargs):
         """                                                                     
-        Take a random subselection of the sample                                
+        Take self.subsamples random subsamples of the original data set and
+        run EMPCA.
+
+        Takes kwargs for pixelEMPCA
+
+        Creates a plot comparing R^2 statistics for the subsamples.
+
         """
         if self.subsamples==1:
             self.findResiduals()
-            for v in varfuncs:
-                self.pixelEMPCA(varfunc=v,savename='eig{0}_minSNR{1}_corrNone_{2}.pkl'.format(nvecs,minsnr,v.__name__),**kwargs)
+            R2Arrays = np.zeros((len(self.varfuncs),self.nvecs+1))
+            R2noises = np.zeros((len(self.varfuncs)))
+            crossvecs = np.zeros((len(self.varfuncs)))
+            for v in self.varfuncs:
+                self.pixelEMPCA(varfunc=v,nvecs=self.nvecs,savename='eig{0}_minSNR{1}_corrNone_{2}.pkl'.format(self.nvecs,self.minSNR,v.__name__),**kwargs)
+                R2Arrays[k] = self.empcaModelWeight.R2Array
+                R2noises[k] = self.empcaModelWeight.R2noise
+                crossvec = np.where(self.empcaModelWeight.R2Array > self.empcaModelWeight.R2noise)[0]
+                if crossvec.shape[0] == 0:
+                    crossvecs[k] = -1
+                elif crossvec.shape[0] != 0:
+                    crossvecs[k] = crossvec[0]-1
+                    if crossvecs[k] <0:
+                        crossvecs[k]=0
+
             self.directoryClean()
 
 
         elif self.subsamples!=1:
+            # pick seed to initialize randomization for reproducibility
             self.seed = np.random.randint(0,100)
             np.random.seed(self.seed)
+            # make copies of original data to use for slicing
             self.filterData = np.copy(self.matchingData)
             self.originalteff = np.ma.copy(self.teff)
             self.originallogg = np.ma.copy(self.logg)
@@ -175,47 +200,68 @@ class empca_residuals(mask):
             self.originalbitmasks = np.copy(self._bitmasks)
             self.originalmaskHere = np.copy(self._maskHere)
             self.originalname = np.copy(self.name)
-            #inds = np.random.randint(0,self.subsamples,
-            #                         size=self.numberStars())
-            inds = np.zeros((self.numberStars()))-1
-            subnum = self.numberStars()/self.subsamples
-            firstgroup = np.random.randint(0,self.numberStars(),size=subnum)
-            inds[firstgroup] = 0
-            for i in range(1,self.subsamples):
-                group = np.random.choice(np.where(inds==-1)[0],size=subnum,replace=False)
-                inds[group] = i
-            leftovers = [i for i in range(self.numberStars()) if inds[i]==-1]
-            if leftovers != []:
-                inds[leftovers] = 0
-            R2Arrays = np.zeros((len(varfuncs)*(self.subsamples+1),nvecs+1))
-            R2noises = np.zeros((len(varfuncs)*(self.subsamples+1)))
-            labels = []
-            k = 0
+            # initialize array that assigns each star to a group from 0
+            # to self.subsamples-1
+            self.inds = np.zeros((self.numberStars()))-1
+            # number of stars in each subsample
+            subnum = self.numberStars()/self.subsamples 
+            # randomly choose stars to belong to each subsample
             for i in range(self.subsamples):
-                self.matchingData = self.filterData[inds==i]
-                self.teff = self.originalteff[inds==i]
-                self.logg = self.originallogg[inds==i]
-                self.fe_h = self.originalfe_h[inds==i]
-                self.spectra = self.originalspectra[inds==i]
-                self.spectra_errs = self.originalspectra_errs[inds==i]
-                self._bitmasks = self.originalbitmasks[inds==i]
-                self._maskHere = self.originalmaskHere[inds==i]
+                group = np.random.choice(np.where(self.inds==-1)[0],size=subnum,replace=False)
+                self.inds[group] = i
+            # distribute leftover stars one at a time to each subsample
+            leftovers = [i for i in range(self.numberStars()) if self.inds[i]==-1]
+            if leftovers != []:
+                k = 0
+                for i in leftovers:
+                    self.inds[i] = k
+                    k+=1
+            # create arrays to hold R^2 statistics and their labels
+            R2Arrays = np.zeros((len(self.varfuncs)*(self.subsamples+1),
+                                 self.nvecs+1))
+            R2noises = np.zeros((len(self.varfuncs)*(self.subsamples+1)))
+            crossvecs = np.zeros((len(self.varfuncs)*(self.subsamples+1)))
+            labels = []
+            k = 0 # index to track progress through R2arrays/R2noises/labels
+            for i in range(self.subsamples):
+                # pick out relevant subset for this subsample
+                self.matchingData = self.filterData[self.inds==i]
+                self.teff = self.originalteff[self.inds==i]
+                self.logg = self.originallogg[self.inds==i]
+                self.fe_h = self.originalfe_h[self.inds==i]
+                self.spectra = self.originalspectra[self.inds==i]
+                self.spectra_errs = self.originalspectra_errs[self.inds==i]
+                self._bitmasks = self.originalbitmasks[self.inds==i]
+                self._maskHere = self.originalmaskHere[self.inds==i]
+                # update mask
                 self.applyMask()
+                # update savefile location and make the directory if needed
                 self.name = '{0}/seed{1}_subsample{2}of{3}/'.format(self.originalname,self.seed,i+1,self.subsamples)
                 self.getDirectory()
-                
+                # calculate fit on subsample
                 self.findResiduals()
-                for v in varfuncs:
-                    self.pixelEMPCA(varfunc=v,
-                                    savename='eig{0}_minSNR{1}_corrNone_{2}.pkl'.format(nvecs,minsnr,v.__name__),**kwargs)
+                # run EMPCA for various ways of calculating variance
+                for v in self.varfuncs:
+                    self.pixelEMPCA(varfunc=v,nvecs=self.nvecs,
+                                    savename='eig{0}_minSNR{1}_corrNone_{2}.pkl'.format(self.nvecs,self.minSNR,v.__name__),**kwargs)
+                    # update statistics arrays
                     R2Arrays[k] = self.empcaModelWeight.R2Array
                     R2noises[k] = self.empcaModelWeight.R2noise
-                    eigvec = np.where(self.empcaModelWeight.R2Array > self.empcaModelWeight.R2noise)[0][0]-1
-                    if eigvec < 0:
-                        eigvec=0
-                    labels.append('subsamp {0}, {1} stars, func {2} - {3} vec'.format(i+1,self.numberStars(),v.__name__,eigvec))
+                    # find number of eigenvectors where R^2 crosses R^2 noise
+                    crossvec = np.where(self.empcaModelWeight.R2Array > self.empcaModelWeight.R2noise)[0]
+                    if crossvec.shape[0] == 0:
+                        crossvecs[k] = -1
+                    elif crossvec.shape[0] != 0:
+                        crossvecs[k] = crossvec[0]-1
+                        if crossvecs[k] <0:
+                            crossvecs[k]=0
+
+                    # create label for comparison plot
+                    labels.append('subsamp {0}, {1} stars, func {2} - {3} vec'.format(i+1,self.numberStars(),v.__name__,crossvecs[k]))
                     k+=1
+                # remove *.npy files
                 self.directoryClean()
+            # restore original arrays
             self.matchingData = self.filterData
             self.teff = self.originalteff
             self.logg = self.originallogg
@@ -224,36 +270,101 @@ class empca_residuals(mask):
             self.spectra_errs = self.originalspectra_errs
             self._bitmasks = self.originalbitmasks
             self._maskHere = self.originalmaskHere
+            self.name = str(self.originalname)
+            # update mask
             self.applyMask()
+            # calculate fit from full sample
             self.findResiduals()
-            for v in varfuncs:
-                self.pixelEMPCA(varfunc=v,
+            # run EMPCA for various ways of calculating the variance
+            for v in self.varfuncs:
+                self.pixelEMPCA(varfunc=v,nvecs=self.nvecs,
                                 savename='eig{0}_minSNR{1}_corrNone_{2}.pkl\
-'.format(nvecs,minsnr,v.__name__),**kwargs)
+'.format(self.nvecs,self.minSNR,v.__name__),**kwargs)
+                # update statistics arrays
                 R2Arrays[k] = self.empcaModelWeight.R2Array
                 R2noises[k] = self.empcaModelWeight.R2noise
-                eigvec = np.where(self.empcaModelWeight.R2Array > self.empcaModelWeight.R2noise)[0][0]-1
-                if eigvec <0:
-                    eigvec=0
-                labels.append('full samp, func {0} - {1} vec'.format(v.__name__,eigvec))
+                # find where R^2 crosses R^2 noise
+                crossvec = np.where(self.empcaModelWeight.R2Array > self.empcaModelWeight.R2noise)[0]
+                if crossvec.shape[0] == 0:
+                    crossvecs[k] = -1
+                elif crossvec.shape[0] != 0:
+                    crossvecs[k] = crossvec[0]-1
+                    if crossvecs[k] <0:
+                        crossvecs[k]=0
+                # create label for comparison plot
+                labels.append('full samp, func {0} - {1} vec'.format(v.__name__,crossvecs[k]))
                 k+=1
-            self.R2compare(R2Arrays,R2noises,labels)
+            # make comparison plot
+        self.R2compare(R2Arrays,R2noises,crossvecs,labels,funcsort=True)
+        self.R2compare(R2Arrays,R2noises,crossvecs,labels,funcsort=False)
 
             
     
-    def R2compare(self,R2Arrays,R2noises,labels):
+    def R2compare(self,R2Arrays,R2noises,crossvecs,labels,funcsort=True):
+        # sort arrays to group the same functions rather than same samples
+        if funcsort:
+            newR2 = np.zeros(R2Arrays.shape)
+            newR2n = np.zeros(R2noises.shape)
+            newvec = np.zeros(crossvecs.shape)
+            newlab = []
+            k = 0
+            for i in range(len(self.varfuncs)):
+                print k,newR2.shape, R2Arrays.shape
+                newR2[k:k+self.subsamples+1] = R2Arrays[i::len(self.varfuncs)]
+                newR2n[k:k+self.subsamples+1] = R2noises[i::len(self.varfuncs)]
+                newvec[k:k+self.subsamples+1] = crossvecs[i::len(self.varfuncs)]
+                newlab.append(labels[i::len(self.varfuncs)])
+                k += self.subsamples+1
+            R2Arrays = newR2
+            R2noises = newR2n
+            crossvecs = newvec
+            labels = [item for sublist in newlab for item in sublist]
         colors = plt.get_cmap('plasma')(np.linspace(0,0.85,len(labels)))
+        if (self.subsamples+1)*len(self.varfuncs) < 10:
+            plt.figure(figsize=(10,8))
+            for i in range(len(labels)):
+                plt.plot(R2Arrays[i],lw=4,color=colors[i],label=labels[i])
+                plt.axhline(R2noises[i],lw=3,ls='--',color=colors[i])
+            plt.ylim(0,1)
+            plt.xlim(-1,len(R2Arrays[0]))
+            plt.ylabel('$R^2$',fontsize=20)
+            plt.xlabel('n')
+            legend = plt.legend(loc='best',fontsize = 13)
+            plt.savefig('{0}/seed{1}_R2comp.png'.format(self.name,self.seed))
         plt.figure(figsize=(10,8))
+        plt.subplot(111)
+        plt.imshow(R2Arrays,cmap = 'viridis',interpolation = 'nearest',
+                   aspect = R2Arrays.shape[1]/float(R2Arrays.shape[0]),
+                   vmin=0,vmax=1.0)
+        k = 0
         for i in range(len(labels)):
-            plt.plot(R2Arrays[i],lw=4,color=colors[i],label=labels[i])
-            plt.axhline(R2noises[i],lw=3,ls='--',color=colors[i])
-        plt.ylim(0,1)
-        plt.xlim(-1,len(R2Arrays[0]))
-        plt.ylabel('$R^2$',fontsize=20)
-        plt.xlabel('n')
-        legend = plt.legend(loc='best',fontsize = 13)
-        plt.savefig('{0}/seed{1}_R2comp.pdf'.format(self.name,self.seed))
-                                        
+            ymin = i*(1./len(labels))
+            ymax = ymin + (1./len(labels))
+            plt.axvline(crossvecs[i],ymin=ymin,ymax=ymax,color='w',lw=2)
+            if not funcsort:
+                if i == k*len(self.varfuncs):
+                    if k!=0:
+                        plt.axhline(i-0.5,color='w',lw=2,ls='--')
+                    k+=1
+            elif funcsort:
+                if i == k*(self.subsamples+1):
+                    if k!=0:
+                        plt.axhline(i-0.5,color='w',lw=2,ls='--')
+                    k+=1
+        shortlabels = [i[:-10] for i in labels]
+        if (self.subsamples+1) > 10:
+            few = np.floor(np.log10(self.subsamples+1))
+        else:
+            few = 1
+        plt.yticks(np.arange(len(labels))[::few],shortlabels[::-1][::few],fontsize=12)
+        plt.xlim(-0.5,self.nvecs+0.5)
+        plt.xlabel('$n$')
+        plt.colorbar(label='$R^2$')
+        plt.tight_layout()
+        if funcsort:
+            plt.savefig('{0}/seed{1}_fsort_2D_R2comp.png'.format(self.name,self.seed))
+        elif not funcsort:
+            plt.savefig('{0}/seed{1}_2D_R2comp.png'.format(self.name,self.seed))
 
     def makeMatrix(self,pixel,matrix='default'):
         """

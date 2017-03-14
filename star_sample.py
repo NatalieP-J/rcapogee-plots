@@ -4,6 +4,8 @@ from tqdm import tqdm
 import data_access
 reload(data_access)
 from data_access import *
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import access_spectrum as acs

@@ -79,8 +79,9 @@ class mask(subStarSample):
         self.name+='/bm{0}'.format(badcombpixmask)
         self.getDirectory()
         self._SNR = self.spectra/self.spectra_errs
+        self.minSNR = minSNR
         # find indices that should be masked
-        self._maskHere = maskFilter(self,minstar=5,minSNR=minSNR,
+        self._maskHere = maskFilter(self,minstar=5,minSNR=self.minSNR,
                                     badcombpixmask=badcombpixmask)
         self.applyMask()
 
