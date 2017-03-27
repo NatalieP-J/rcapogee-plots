@@ -2,6 +2,7 @@ import numpy as np
 from tqdm import tqdm
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
 from mpl_toolkits.mplot3d import Axes3D
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
@@ -12,6 +13,7 @@ from mask_data import mask,maskFilter
 from data_access import *
 import access_spectrum as acs 
 import os
+from galpy.util import multi as ml
 
 testmode = False
 
@@ -63,8 +65,6 @@ def getsmallEMPCAarrays(model):
          model.eigvec = np.ma.masked_array(arc['eigvec'],
                                           mask=arc['eigvecmask'])
          model.coeff = arc['coeff']
-         model.data = arc['data']
-         model.weights = arc['weights']
          
 class smallEMPCA(object):
     """
@@ -87,8 +87,6 @@ class smallEMPCA(object):
         self.coeff = model.coeff
         self.correction = correction
         self.eigval = model.eigvals
-        self.data = model.data
-        self.weights = model.weights
         self.savename= savename
         self.cleararrays()
 
@@ -101,28 +99,10 @@ class smallEMPCA(object):
             np.savez_compressed('{0}_data.npz'.format(self.savename),
                                 eigval=self.eigval,eigvec=self.eigvec.data,
                                 eigvecmask = self.eigvec.mask,
-                                coeff=self.coeff,data=self.data,
-                                weights=self.weights)
+                                coeff=self.coeff)
         del self.eigval
         del self.eigvec
         del self.coeff
-        del self.data
-        del self.weights
-
-    def getarrays(self):
-        """                                                                    
-        Read out arrays                                                        
-        """
-        if self.savename:
-            arc = np.load('{0}_data.npz'.format(self.savename))
-
-            self.eigval = arc['eigval']
-            self.eigvec = np.ma.masked_array(arc['eigvec'],
-                                             mask=arc['eigvecmask'])
-            self.coeff = arc['coeff']
-            self.data = arc['data']
-            self.weights = arc['weights']
-
 
 class empca_residuals(mask):
     """
@@ -154,9 +134,105 @@ class empca_residuals(mask):
         self.varfuncs = varfuncs
         self.nvecs = nvecs
         if testmode:
+            self.division = False
             self.jackknife(**kwargs)
 
-    def jackknife(self,**kwargs):
+    def sample_wrapper(self,i):
+        """
+        Runs many subsamples of full sample choice.
+
+        If self.division is True, define the subsample as 
+        where the randomly assigned sample numbers match i
+        If self.division is False, define the subsamples as 
+        where the randomly assigned sample numbers do not match i
+        
+        """
+        # Select ith subsample and update arrays
+        if self.division:
+            self.matchingData = self.filterData[self.inds==i]
+            self.teff = self.originalteff[self.inds==i]
+            self.logg = self.originallogg[self.inds==i]
+            self.fe_h = self.originalfe_h[self.inds==i]
+            self.spectra = self.originalspectra[self.inds==i]
+            self.spectra_errs = self.originalspectra_errs[self.inds==i]
+            self._bitmasks = self.originalbitmasks[self.inds==i]
+            self._maskHere = self.originalmaskHere[self.inds==i]
+        if not self.division:
+            self.matchingData = self.filterData[self.inds!=i]
+            self.teff = self.originalteff[self.inds!=i]
+            self.logg = self.originallogg[self.inds!=i]
+            self.fe_h = self.originalfe_h[self.inds!=i]
+            self.spectra = self.originalspectra[self.inds!=i]
+            self.spectra_errs = self.originalspectra_errs[self.inds!=i]
+            self._bitmasks = self.originalbitmasks[self.inds!=i]
+            self._maskHere = self.originalmaskHere[self.inds!=i]
+        # Update mask
+        self.applyMask()
+        # Update name
+        self.name = '{0}/seed{1}_subsample{2}of{3}/'.format(self.originalname,
+                                                            self.seed,i+1,
+                                                            self.subsamples)
+        # Create directory and solve fits
+        self.getDirectory()
+        self.findResiduals()
+        # Create output arrays to hold EMPCA results for each variance function
+        self.R2As = np.zeros((len(self.varfuncs),self.nvecs+1))
+        self.R2ns = np.zeros((len(self.varfuncs)))
+        self.cvcs = np.zeros((len(self.varfuncs)))
+        self.labs = np.zeros((len(self.varfuncs)),dtype='S100')
+        # Store information about which sample you're on
+        self.samplenum = i+1
+        # Call EMPCA solver for all variance functions in parallel
+        stat = ml.parallel_map(self.EMPCA_wrapper,range(len(self.varfuncs)))
+        # Unpack results of running in parallel and store
+        for s in range(len(stat)):
+            R2A,R2n,cvc,lab = stat[s]
+            self.R2As[s] = R2A
+            self.R2ns[s] = R2n
+            self.cvcs[s] = cvc
+            self.labs[s] = lab
+        # Clear arrays from memory
+        del self.matchingData 
+        del self.filterData
+        del self.teff
+        del self.originalteff
+        del self.logg
+        del self.originallogg
+        del self.fe_h
+        del self.originalfe_h
+        del self.spectra 
+        del self.originalspectra
+        del self.spectra_errs 
+        del self.originalspectra_errs
+        del self._bitmasks
+        del self.originalbitmasks
+        del self._maskHere 
+        del self.originalmaskHere
+        return self
+
+    def EMPCA_wrapper(self,v):
+        """
+        Run EMPCA for vth variance function and compute statistics.
+        """
+        # run EMPCA
+        self.pixelEMPCA(varfunc=self.varfuncs[v],nvecs=self.nvecs,
+                        savename='eig{0}_minSNR{1}_corrNone_{2}.pkl'.format(self.nvecs,self.minSNR,self.varfuncs[v].__name__))
+        # Find R^2 values
+        R2A = self.empcaModelWeight.R2Array
+        R2n = self.empcaModelWeight.R2noise
+        # Find where R^2 intersects R^2_noise
+        crossvec = np.where(self.empcaModelWeight.R2Array > self.empcaModelWeight.R2noise)[0]
+        if crossvec.shape[0] == 0:
+            cvc = -1
+        elif crossvec.shape[0] != 0:
+            cvc = crossvec[0]-1
+            if cvc <0:
+                cvc=0
+        # Create label for sample
+        lab = 'subsamp {0}, {1} stars, func {2} - {3} vec'.format(self.samplenum,self.numberStars(),self.varfuncs[v].__name__,cvc)
+        return (R2A,R2n,cvc,lab)
+
+    def samplesplit(self):
         """                                                                     
         Take self.subsamples random subsamples of the original data set and
         run EMPCA.
@@ -166,31 +242,31 @@ class empca_residuals(mask):
         Creates a plot comparing R^2 statistics for the subsamples.
 
         """
+        # If no subsamples, just run regular EMCPA
         if self.subsamples==1:
             self.findResiduals()
             R2Arrays = np.zeros((len(self.varfuncs),self.nvecs+1))
             R2noises = np.zeros((len(self.varfuncs)))
             crossvecs = np.zeros((len(self.varfuncs)))
-            for v in self.varfuncs:
-                self.pixelEMPCA(varfunc=v,nvecs=self.nvecs,savename='eig{0}_minSNR{1}_corrNone_{2}.pkl'.format(self.nvecs,self.minSNR,v.__name__),**kwargs)
-                R2Arrays[k] = self.empcaModelWeight.R2Array
-                R2noises[k] = self.empcaModelWeight.R2noise
-                crossvec = np.where(self.empcaModelWeight.R2Array > self.empcaModelWeight.R2noise)[0]
-                if crossvec.shape[0] == 0:
-                    crossvecs[k] = -1
-                elif crossvec.shape[0] != 0:
-                    crossvecs[k] = crossvec[0]-1
-                    if crossvecs[k] <0:
-                        crossvecs[k]=0
-
+            labels = np.zeros(len(self.varfuncs),dtype='S100')
+            self.samplenum=1
+            # Call EMPCA solver for all variance functions in parallel
+            stat = ml.parallel_map(self.EMPCA_wrapper,range(len(self.varfuncs)))
+            # Unpack results of running in parallel and store
+            for s in range(len(stat)):
+                R2A,R2n,cvc,lab = stat[s]
+                R2Arrays[s] = R2A
+                R2noises[s] = R2n
+                crossvecs[s] = cvc
+                labels[s] = lab
             self.directoryClean()
-
-
+            
+        # If subsamples, run EMPCA on many subsamples
         elif self.subsamples!=1:
-            # pick seed to initialize randomization for reproducibility
+            # Pick seed to initialize randomization for reproducibility
             self.seed = np.random.randint(0,100)
             np.random.seed(self.seed)
-            # make copies of original data to use for slicing
+            # Make copies of original data to use for slicing
             self.filterData = np.copy(self.matchingData)
             self.originalteff = np.ma.copy(self.teff)
             self.originallogg = np.ma.copy(self.logg)
@@ -200,68 +276,40 @@ class empca_residuals(mask):
             self.originalbitmasks = np.copy(self._bitmasks)
             self.originalmaskHere = np.copy(self._maskHere)
             self.originalname = np.copy(self.name)
-            # initialize array that assigns each star to a group from 0
-            # to self.subsamples-1
+            # Initialize array that assigns each star to a group from 0
+            # To self.subsamples-1
             self.inds = np.zeros((self.numberStars()))-1
-            # number of stars in each subsample
+            # Number of stars in each subsample
             subnum = self.numberStars()/self.subsamples 
-            # randomly choose stars to belong to each subsample
+            # Randomly choose stars to belong to each subsample
             for i in range(self.subsamples):
                 group = np.random.choice(np.where(self.inds==-1)[0],size=subnum,replace=False)
                 self.inds[group] = i
-            # distribute leftover stars one at a time to each subsample
+            # Distribute leftover stars one at a time to each subsample
             leftovers = [i for i in range(self.numberStars()) if self.inds[i]==-1]
             if leftovers != []:
                 k = 0
                 for i in leftovers:
                     self.inds[i] = k
                     k+=1
-            # create arrays to hold R^2 statistics and their labels
+            # Create arrays to hold R^2 statistics and their labels
             R2Arrays = np.zeros((len(self.varfuncs)*(self.subsamples+1),
                                  self.nvecs+1))
             R2noises = np.zeros((len(self.varfuncs)*(self.subsamples+1)))
             crossvecs = np.zeros((len(self.varfuncs)*(self.subsamples+1)))
-            labels = []
-            k = 0 # index to track progress through R2arrays/R2noises/labels
-            for i in range(self.subsamples):
-                # pick out relevant subset for this subsample
-                self.matchingData = self.filterData[self.inds==i]
-                self.teff = self.originalteff[self.inds==i]
-                self.logg = self.originallogg[self.inds==i]
-                self.fe_h = self.originalfe_h[self.inds==i]
-                self.spectra = self.originalspectra[self.inds==i]
-                self.spectra_errs = self.originalspectra_errs[self.inds==i]
-                self._bitmasks = self.originalbitmasks[self.inds==i]
-                self._maskHere = self.originalmaskHere[self.inds==i]
-                # update mask
-                self.applyMask()
-                # update savefile location and make the directory if needed
-                self.name = '{0}/seed{1}_subsample{2}of{3}/'.format(self.originalname,self.seed,i+1,self.subsamples)
-                self.getDirectory()
-                # calculate fit on subsample
-                self.findResiduals()
-                # run EMPCA for various ways of calculating variance
-                for v in self.varfuncs:
-                    self.pixelEMPCA(varfunc=v,nvecs=self.nvecs,
-                                    savename='eig{0}_minSNR{1}_corrNone_{2}.pkl'.format(self.nvecs,self.minSNR,v.__name__),**kwargs)
-                    # update statistics arrays
-                    R2Arrays[k] = self.empcaModelWeight.R2Array
-                    R2noises[k] = self.empcaModelWeight.R2noise
-                    # find number of eigenvectors where R^2 crosses R^2 noise
-                    crossvec = np.where(self.empcaModelWeight.R2Array > self.empcaModelWeight.R2noise)[0]
-                    if crossvec.shape[0] == 0:
-                        crossvecs[k] = -1
-                    elif crossvec.shape[0] != 0:
-                        crossvecs[k] = crossvec[0]-1
-                        if crossvecs[k] <0:
-                            crossvecs[k]=0
-
-                    # create label for comparison plot
-                    labels.append('subsamp {0}, {1} stars, func {2} - {3} vec'.format(i+1,self.numberStars(),v.__name__,crossvecs[k]))
-                    k+=1
-                # remove *.npy files
-                self.directoryClean()
-            # restore original arrays
+            labels = np.zeros((len(self.varfuncs)*(self.subsamples+1)),dtype='S100')
+            # Run all samples in parallel
+            stats = ml.parallel_map(self.sample_wrapper, range(self.subsamples+1))
+            # Unpack information from parallel runs into appropriate arrays
+            k = 0
+            for s in range(len(stats)):
+                model = stats[s]
+                R2Arrays[k:k+len(self.varfuncs)] = model.R2As
+                R2noises[k:k+len(self.varfuncs)] = model.R2ns
+                crossvecs[k:k+len(self.varfuncs)] = model.cvcs
+                labels[k:k+len(self.varfuncs)] = model.labs
+                k+=len(self.varfuncs)
+            # Restore original arrays
             self.matchingData = self.filterData
             self.teff = self.originalteff
             self.logg = self.originallogg
@@ -271,37 +319,43 @@ class empca_residuals(mask):
             self._bitmasks = self.originalbitmasks
             self._maskHere = self.originalmaskHere
             self.name = str(self.originalname)
-            # update mask
+            # Update mask
             self.applyMask()
-            # calculate fit from full sample
-            self.findResiduals()
-            # run EMPCA for various ways of calculating the variance
-            for v in self.varfuncs:
-                self.pixelEMPCA(varfunc=v,nvecs=self.nvecs,
-                                savename='eig{0}_minSNR{1}_corrNone_{2}.pkl\
-'.format(self.nvecs,self.minSNR,v.__name__),**kwargs)
-                # update statistics arrays
-                R2Arrays[k] = self.empcaModelWeight.R2Array
-                R2noises[k] = self.empcaModelWeight.R2noise
-                # find where R^2 crosses R^2 noise
-                crossvec = np.where(self.empcaModelWeight.R2Array > self.empcaModelWeight.R2noise)[0]
-                if crossvec.shape[0] == 0:
-                    crossvecs[k] = -1
-                elif crossvec.shape[0] != 0:
-                    crossvecs[k] = crossvec[0]-1
-                    if crossvecs[k] <0:
-                        crossvecs[k]=0
-                # create label for comparison plot
-                labels.append('full samp, func {0} - {1} vec'.format(v.__name__,crossvecs[k]))
-                k+=1
-            # make comparison plot
+            # Calculate uncertainty on number of eigenvectors.
+            # NOT RIGHT YET
+            avgvec = np.mean(crossvecs)
+            varvec = ((len(crossvecs)-1)/len(crossvecs))*np.sum(crossvecs-avgvec)
+            self.numeigvec = avgvec
+            self.numeigvec_std = np.sqrt(varvec)
+            numeigvec_file = np.array([self.numeigvec,self.numeigvec_std])
+            numeigvec_file.tofile('{0}/seed{1}_numeigvec.npy'.format(self.name,self.name))
+        # Make plots sorting by function
         self.R2compare(R2Arrays,R2noises,crossvecs,labels,funcsort=True)
         self.R2compare(R2Arrays,R2noises,crossvecs,labels,funcsort=False)
 
             
     
     def R2compare(self,R2Arrays,R2noises,crossvecs,labels,funcsort=True):
-        # sort arrays to group the same functions rather than same samples
+        """
+        Make plots comparing R2 values for different samples and different 
+        functions. If there are less than 10 subsamples (including each
+        variance function as a different sample), this plots a 1D comparison
+        of R^2 values as a function of eigenvector number. Regardless of the
+        number of subsamples, this plots a 2D comparison of R^2.
+
+        R2Arrays:    An array of R2 values with size number of samples by 
+                     number of eigenvectors
+        R2noises:    An array of R2noise values with size number of samples
+        crossvecs:   An array of the location of the intersection of R2 and
+                     R2noise with size number of samples
+        labels:      Labels for each subsample
+        funcsort:    Keyword to sort input to group similar functions instead
+                     of similar samples
+
+        Saves 1 or 2 figures.
+        """
+        # If sorting by function instead of sample, slice and reorient arrays 
+        # accordingly
         if funcsort:
             newR2 = np.zeros(R2Arrays.shape)
             newR2n = np.zeros(R2noises.shape)
@@ -319,7 +373,9 @@ class empca_residuals(mask):
             R2noises = newR2n
             crossvecs = newvec
             labels = [item for sublist in newlab for item in sublist]
+        # Get colours for line plot
         colors = plt.get_cmap('plasma')(np.linspace(0,0.85,len(labels)))
+        # If there aren't too many lines, make a 1D line plot of R2
         if (self.subsamples+1)*len(self.varfuncs) < 10:
             plt.figure(figsize=(10,8))
             for i in range(len(labels)):
@@ -330,41 +386,64 @@ class empca_residuals(mask):
             plt.ylabel('$R^2$',fontsize=20)
             plt.xlabel('n')
             legend = plt.legend(loc='best',fontsize = 13)
-            plt.savefig('{0}/seed{1}_R2comp.png'.format(self.name,self.seed))
+            if hasattr(self,'seed'):
+                plt.savefig('{0}/seed{1}_R2comp.png'.format(self.name,self.seed))
+            elif not hasattr(self,'seed'):
+                plt.savefig('{0}/R2comp.png'.format(self.name))
+        # Make a 2D plot of R2
         plt.figure(figsize=(10,8))
         plt.subplot(111)
         plt.imshow(R2Arrays,cmap = 'viridis',interpolation = 'nearest',
                    aspect = R2Arrays.shape[1]/float(R2Arrays.shape[0]),
                    vmin=0,vmax=1.0)
+        # Plot lines to split up samples or function types, and vertical lines
+        # to mark cross over points between R2 and R2noise
         k = 0
         for i in range(len(labels)):
+            # Find bounds on the scale of the plotting area (0-1)
             ymin = i*(1./len(labels))
             ymax = ymin + (1./len(labels))
+            # Plot marker of where R2 crosses R2noise
             plt.axvline(crossvecs[i],ymin=ymin,ymax=ymax,color='w',lw=2)
+            # Plot horizontal lines to guide the eye
+            # If not sorted, mark bounds of samples
             if not funcsort:
                 if i == k*len(self.varfuncs):
                     if k!=0:
                         plt.axhline(i-0.5,color='w',lw=2,ls='--')
                     k+=1
+            # If sorted, mark bounds of functions
             elif funcsort:
                 if i == k*(self.subsamples+1):
                     if k!=0:
                         plt.axhline(i-0.5,color='w',lw=2,ls='--')
                     k+=1
+        # Find shorter labels for the 2D plots
         shortlabels = [i[:-10] for i in labels]
+        # If there are too many labels, reduce them for readability
         if (self.subsamples+1) > 10:
             few = np.floor(np.log10(self.subsamples+1))
         else:
             few = 1
-        plt.yticks(np.arange(len(labels))[::few],shortlabels[::-1][::few],fontsize=12)
+        # Plot ylables
+        plt.yticks(np.arange(len(labels))[::few],shortlabels[::-1][::few],
+                   fontsize=12)
+        # Constrain x-axis since adding axhline/axvline can make the axes stretch
         plt.xlim(-0.5,self.nvecs+0.5)
         plt.xlabel('$n$')
         plt.colorbar(label='$R^2$')
         plt.tight_layout()
-        if funcsort:
-            plt.savefig('{0}/seed{1}_fsort_2D_R2comp.png'.format(self.name,self.seed))
-        elif not funcsort:
-            plt.savefig('{0}/seed{1}_2D_R2comp.png'.format(self.name,self.seed))
+        # Save the plot
+        if hasattr(self,'seed'):
+            if funcsort:
+                plt.savefig('{0}/seed{1}_fsort_2D_R2comp.png'.format(self.name,self.seed))
+            elif not funcsort:
+                plt.savefig('{0}/seed{1}_2D_R2comp.png'.format(self.name,self.seed))
+        elif not hasattr(self,'seed'):
+            if funcsort:
+                plt.savefig('{0}/fsort_2D_R2comp.png'.format(self.name))
+            elif not funcsort:
+                plt.savefig('{0}/2D_R2comp.png'.format(self.name))
 
     def makeMatrix(self,pixel,matrix='default'):
         """
@@ -514,7 +593,7 @@ class empca_residuals(mask):
         self.applyMask()
 
     def plot_example_fit(self,indep=1,pixel=0,
-                         xlabel='$T_{\mathrm{eff}}$ - median($T_{\mathrm{eff}}$) [K]'):
+                         xlabel='$T_{\mathrm{eff}}$ - median($T_{\mathrm{eff}}$) (K)',figsize=(12,8)):
         """
         Show a two-dimensional representation of the fit at a given pixel.
 
@@ -524,48 +603,44 @@ class empca_residuals(mask):
         xlabel:  Label for the x-axis of the plot.
         """
         # Create figure
-        plt.figure(figsize=(12,8))
-        plt.subplot2grid((3,1),(0,0),rowspan=2)
-        # Find and sort independent value
+        plt.figure(figsize=figsize)
+        ax=plt.subplot2grid((3,1),(0,0),rowspan=2)
+        # Find independent value
         indeps = self.makeMatrix(pixel)
         fitresult = np.dot(indeps,self.fitCoeffs[pixel].T)
         indep = np.array(np.reshape(indeps[:,indep],len(fitresult)))[0]
         sortd = indep.argsort()
         fitindep = np.arange(np.floor((min(indep)-100)/100.)*100,np.ceil((max(indep)+100)/100.)*100,100)
         fit = np.dot(np.matrix([np.ones(len(fitindep)),fitindep,fitindep**2]).T,self.fitCoeffs[pixel].T)
-        #colors = plt.get_cmap('plasma')(np.linspace(0, 0.8, len(indep)))
+        c = plt.get_cmap('viridis')(np.linspace(0.6, 1, 1))[0]
         unmasked = np.where(self.spectra[:,pixel].mask==False)
         # Plot a fit line and errorbar points of data
         plt.plot(fitindep,fit,lw=3,color='k',
                  label='$f(s,T_{\mathrm{eff}}$)')
-        #print len(indep[sortd][unmasked])
-        #print sortd
-        #for i in range(len(indep[sortd][unmasked])):
-        plt.errorbar(indep,
-                     self.spectra[:,pixel][unmasked],
-                     markerfacecolor='b',fmt='o',
-                     markeredgecolor='w',markeredgewidth=1.5,
-                     ecolor = 'b',capsize=5,elinewidth=3,
-                     markersize=8,
-                     yerr=self.spectra_errs[:,pixel][unmasked])
+        plt.plot(indep,self.spectra[:,pixel][unmasked],'o',color=c,
+                 markersize=10,markeredgecolor='w',markeredgewidth=1.5)
         plt.ylabel('stellar flux $F_p(s)$',fontsize=20)
-        plt.xticks([])
+        plt.xticks(np.arange(np.floor((min(indep)-100)/100.)*100+100,
+                             np.ceil((max(indep)+100)/100.)*100,100),['']*10)
         plt.ylim(0.6,1.1)
         plt.xlim(np.floor((min(indep)-100)/100.)*100+100,
                  np.ceil((max(indep)+100)/100.)*100-100)
-        plt.yticks(np.arange(0.7,1.1,0.1),np.arange(0.7,1.1,0.1).astype(str))
+        plt.yticks(np.arange(0.7,1.1,0.1),np.arange(0.7,1.1,0.1).astype(str),
+                   fontsize=20)
+        yminorlocator = MultipleLocator(0.05)
+        ax.yaxis.set_minor_locator(yminorlocator)
+        xminorlocator = MultipleLocator(50)
+        ax.xaxis.set_minor_locator(xminorlocator)
+        plt.tick_params(which='both', width=2)
+        plt.tick_params(which='major',length=5)
+        plt.tick_params(which='minor',length=3)
         plt.legend(loc='best',frameon=False)
         # Plot residuals of the fit
-        plt.subplot2grid((3,1),(2,0))
+        ax=plt.subplot2grid((3,1),(2,0))
         plt.axhline(0,lw=3,color='k')
         #for i in range(len(indep[sortd][unmasked])):
-        plt.errorbar(indep,
-                     self.residuals[:,pixel][unmasked],
-                     markerfacecolor='b',fmt='o',
-                     markeredgecolor='w',markeredgewidth=1.5,
-                     ecolor = 'b',capsize=5,elinewidth=3,
-                     markersize=8,
-                     yerr=self.spectra_errs[:,pixel][unmasked])
+        plt.plot(indep,self.residuals[:,pixel][unmasked],'o',color=c,
+                 markersize=10,markeredgecolor='w',markeredgewidth=1.5)
         plt.ylabel('residuals $\delta_p(s)$ ',fontsize=20)
         plt.xlabel(xlabel,fontsize=20)
         plt.ylim(-0.15,0.15)
@@ -573,6 +648,13 @@ class empca_residuals(mask):
                  np.ceil((max(indep)+100)/100.)*100-100)
         plt.yticks(np.arange(-0.1,0.15,0.1),
                    np.arange(-0.1,0.15,0.1).astype(str))
+        yminorlocator = MultipleLocator(0.05)
+        ax.yaxis.set_minor_locator(yminorlocator)
+        xminorlocator = MultipleLocator(50)
+        ax.xaxis.set_minor_locator(xminorlocator)
+        plt.tick_params(which='both', width=2)
+        plt.tick_params(which='major',length=5)
+        plt.tick_params(which='minor',length=3)
         plt.subplots_adjust(hspace=0)
 
     def fitStatistic(self):
