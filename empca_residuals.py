@@ -232,7 +232,7 @@ class empca_residuals(mask):
         lab = 'subsamp {0}, {1} stars, func {2} - {3} vec'.format(self.samplenum,self.numberStars(),self.varfuncs[v].__name__,cvc)
         return (R2A,R2n,cvc,lab)
 
-    def samplesplit(self):
+    def samplesplit(self,division=False):
         """                                                                     
         Take self.subsamples random subsamples of the original data set and
         run EMPCA.
@@ -242,6 +242,7 @@ class empca_residuals(mask):
         Creates a plot comparing R^2 statistics for the subsamples.
 
         """
+        self.division=division
         # If no subsamples, just run regular EMCPA
         if self.subsamples==1:
             self.findResiduals()
@@ -322,18 +323,46 @@ class empca_residuals(mask):
             # Update mask
             self.applyMask()
             # Calculate uncertainty on number of eigenvectors.
-            # NOT RIGHT YET
-            avgvec = np.mean(crossvecs)
-            varvec = ((len(crossvecs)-1)/len(crossvecs))*np.sum(crossvecs-avgvec)
-            self.numeigvec = avgvec
-            self.numeigvec_std = np.sqrt(varvec)
-            numeigvec_file = np.array([self.numeigvec,self.numeigvec_std])
-            numeigvec_file.tofile('{0}/seed{1}_numeigvec.npy'.format(self.name,self.name))
+            sort = self.func_sort(R2Arrays,R2noises,crossvecs,labels)
+            cvecs = sort[2]
+            start = 0
+            for v in range(len(self.varfuncs)):
+                num = len(cvecs)/len(self.varfuncs)
+                cvec = cvecs[start:start+num]
+                start+=num
+                avgvec = np.mean(cvec)
+                if not self.division:
+                    varvec = ((len(cvec)-1.)/float(len(cvec)))*np.sum((cvec-avgvec)**2)
+                elif self.division:
+                    varvec = np.var(cvec)
+                self.numeigvec = avgvec
+                self.numeigvec_std = np.sqrt(varvec)
+                numeigvec_file = np.array([self.numeigvec,self.numeigvec_std])
+                numeigvec_file.tofile('{0}/subsamples{1}_{2}_seed{3}_numeigvec.npy'.format(self.name,self.subsamples,self.varfuncs[v].__name__,self.seed))
+        # Move full sample analysis to parent directory
+        os.system('mv {0}/seed{1}_subsample{2}of{3}/* {4}'.format(self.name,self.seed,self.subsample+1,self.subsample,self.name))
+        os.system('rmdir {0}/seed{1}_subsample{2}of{3}/'.format(self.name,self.seed,self.subsample+1,self.subsample))
         # Make plots sorting by function
         self.R2compare(R2Arrays,R2noises,crossvecs,labels,funcsort=True)
         self.R2compare(R2Arrays,R2noises,crossvecs,labels,funcsort=False)
 
             
+
+    def func_sort(self,R2Arrays,R2noises,crossvecs,labels):
+        newR2 = np.zeros(R2Arrays.shape)
+        newR2n = np.zeros(R2noises.shape)
+        newvec = np.zeros(crossvecs.shape)
+        newlab = []
+        k = 0
+        for i in range(len(self.varfuncs)):
+            print k,newR2.shape, R2Arrays.shape
+            newR2[k:k+self.subsamples+1] = R2Arrays[i::len(self.varfuncs)]
+            newR2n[k:k+self.subsamples+1] = R2noises[i::len(self.varfuncs)]
+            newvec[k:k+self.subsamples+1] = crossvecs[i::len(self.varfuncs)\
+                                                  ]
+            newlab.append(labels[i::len(self.varfuncs)])
+            k += self.subsamples+1
+        return newR2,newR2n,newvec,[item for sublist in newlab for item in sublist]
     
     def R2compare(self,R2Arrays,R2noises,crossvecs,labels,funcsort=True):
         """
@@ -357,22 +386,7 @@ class empca_residuals(mask):
         # If sorting by function instead of sample, slice and reorient arrays 
         # accordingly
         if funcsort:
-            newR2 = np.zeros(R2Arrays.shape)
-            newR2n = np.zeros(R2noises.shape)
-            newvec = np.zeros(crossvecs.shape)
-            newlab = []
-            k = 0
-            for i in range(len(self.varfuncs)):
-                print k,newR2.shape, R2Arrays.shape
-                newR2[k:k+self.subsamples+1] = R2Arrays[i::len(self.varfuncs)]
-                newR2n[k:k+self.subsamples+1] = R2noises[i::len(self.varfuncs)]
-                newvec[k:k+self.subsamples+1] = crossvecs[i::len(self.varfuncs)]
-                newlab.append(labels[i::len(self.varfuncs)])
-                k += self.subsamples+1
-            R2Arrays = newR2
-            R2noises = newR2n
-            crossvecs = newvec
-            labels = [item for sublist in newlab for item in sublist]
+            R2Arrays,R2noises,crossvecs,labels = self.func_sort(R2Arrays,R2noises,crossvecs,labels)
         # Get colours for line plot
         colors = plt.get_cmap('plasma')(np.linspace(0,0.85,len(labels)))
         # If there aren't too many lines, make a 1D line plot of R2
