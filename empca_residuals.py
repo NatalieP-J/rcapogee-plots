@@ -232,7 +232,7 @@ class empca_residuals(mask):
         lab = 'subsamp {0}, {1} stars, func {2} - {3} vec'.format(self.samplenum,self.numberStars(),self.varfuncs[v].__name__,cvc)
         return (R2A,R2n,cvc,lab)
 
-    def samplesplit(self,division=False):
+    def samplesplit(self,division=False,seed=None,fullsamp=True):
         """                                                                     
         Take self.subsamples random subsamples of the original data set and
         run EMPCA.
@@ -260,12 +260,14 @@ class empca_residuals(mask):
                 R2noises[s] = R2n
                 crossvecs[s] = cvc
                 labels[s] = lab
-            self.directoryClean()
             
         # If subsamples, run EMPCA on many subsamples
         elif self.subsamples!=1:
             # Pick seed to initialize randomization for reproducibility
-            self.seed = np.random.randint(0,100)
+            if not seed:
+                self.seed = np.random.randint(0,100)
+            elif seed:
+                self.seed=seed
             np.random.seed(self.seed)
             # Make copies of original data to use for slicing
             self.filterData = np.copy(self.matchingData)
@@ -294,13 +296,17 @@ class empca_residuals(mask):
                     self.inds[i] = k
                     k+=1
             # Create arrays to hold R^2 statistics and their labels
-            R2Arrays = np.zeros((len(self.varfuncs)*(self.subsamples+1),
+            if fullsamp:
+                sampnum = self.subsamples+1
+            elif not fullsamp:
+                sampnum = self.subsamples
+            R2Arrays = np.zeros((len(self.varfuncs)*(sampnum),
                                  self.nvecs+1))
-            R2noises = np.zeros((len(self.varfuncs)*(self.subsamples+1)))
-            crossvecs = np.zeros((len(self.varfuncs)*(self.subsamples+1)))
-            labels = np.zeros((len(self.varfuncs)*(self.subsamples+1)),dtype='S100')
+            R2noises = np.zeros((len(self.varfuncs)*(sampnum)))
+            crossvecs = np.zeros((len(self.varfuncs)*(sampnum)))
+            labels = np.zeros((len(self.varfuncs)*(sampnum)),dtype='S200')
             # Run all samples in parallel
-            stats = ml.parallel_map(self.sample_wrapper, range(self.subsamples+1))
+            stats = ml.parallel_map(self.sample_wrapper, range(sampnum))
             # Unpack information from parallel runs into appropriate arrays
             k = 0
             for s in range(len(stats)):
@@ -322,6 +328,11 @@ class empca_residuals(mask):
             self.name = str(self.originalname)
             # Update mask
             self.applyMask()
+            avgvecs = np.zeros(len(self.varfuncs))
+            for v in range(len(self.varfuncs)):
+                index = [i for i in range(len(labels)) if 'subsamp {0}'.format(self.subsamples+1) in labels[i] and self.varfuncs[v].__name__ in labels[i]]
+                avgvecs[v] = crossvecs[index[0]]
+            #avgvec = 
             # Calculate uncertainty on number of eigenvectors.
             sort = self.func_sort(R2Arrays,R2noises,crossvecs,labels)
             cvecs = sort[2]
@@ -330,18 +341,19 @@ class empca_residuals(mask):
                 num = len(cvecs)/len(self.varfuncs)
                 cvec = cvecs[start:start+num]
                 start+=num
-                avgvec = np.mean(cvec)
+                avgvec = avgvecs[v]
                 if not self.division:
                     varvec = ((len(cvec)-1.)/float(len(cvec)))*np.sum((cvec-avgvec)**2)
                 elif self.division:
                     varvec = np.var(cvec)
+                print '{0} +/- {1}'.format(avgvec,np.sqrt(varvec))
                 self.numeigvec = avgvec
                 self.numeigvec_std = np.sqrt(varvec)
                 numeigvec_file = np.array([self.numeigvec,self.numeigvec_std])
                 numeigvec_file.tofile('{0}/subsamples{1}_{2}_seed{3}_numeigvec.npy'.format(self.name,self.subsamples,self.varfuncs[v].__name__,self.seed))
         # Move full sample analysis to parent directory
-        os.system('mv {0}/seed{1}_subsample{2}of{3}/* {4}'.format(self.name,self.seed,self.subsample+1,self.subsample,self.name))
-        os.system('rmdir {0}/seed{1}_subsample{2}of{3}/'.format(self.name,self.seed,self.subsample+1,self.subsample))
+        os.system('mv {0}/seed{1}_subsample{2}of{3}/* {4}'.format(self.name,self.seed,self.subsamples+1,self.subsamples,self.name))
+        os.system('rmdir {0}/seed{1}_subsample{2}of{3}/'.format(self.name,self.seed,self.subsamples+1,self.subsamples))
         # Make plots sorting by function
         self.R2compare(R2Arrays,R2noises,crossvecs,labels,funcsort=True)
         self.R2compare(R2Arrays,R2noises,crossvecs,labels,funcsort=False)
