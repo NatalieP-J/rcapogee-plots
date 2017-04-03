@@ -297,16 +297,16 @@ class empca_residuals(mask):
                     k+=1
             # Create arrays to hold R^2 statistics and their labels
             if fullsamp:
-                sampnum = self.subsamples+1
+                self.sampnum = self.subsamples+1
             elif not fullsamp:
-                sampnum = self.subsamples
-            R2Arrays = np.zeros((len(self.varfuncs)*(sampnum),
+                self.sampnum = self.subsamples
+            R2Arrays = np.zeros((len(self.varfuncs)*(self.sampnum),
                                  self.nvecs+1))
-            R2noises = np.zeros((len(self.varfuncs)*(sampnum)))
-            crossvecs = np.zeros((len(self.varfuncs)*(sampnum)))
-            labels = np.zeros((len(self.varfuncs)*(sampnum)),dtype='S200')
+            R2noises = np.zeros((len(self.varfuncs)*(self.sampnum)))
+            crossvecs = np.zeros((len(self.varfuncs)*(self.sampnum)))
+            labels = np.zeros((len(self.varfuncs)*(self.sampnum)),dtype='S200')
             # Run all samples in parallel
-            stats = ml.parallel_map(self.sample_wrapper, range(sampnum))
+            stats = ml.parallel_map(self.sample_wrapper, range(self.sampnum))
             # Unpack information from parallel runs into appropriate arrays
             k = 0
             for s in range(len(stats)):
@@ -328,20 +328,19 @@ class empca_residuals(mask):
             self.name = str(self.originalname)
             # Update mask
             self.applyMask()
-            avgvecs = np.zeros(len(self.varfuncs))
-            for v in range(len(self.varfuncs)):
-                index = [i for i in range(len(labels)) if 'subsamp {0}'.format(self.subsamples+1) in labels[i] and self.varfuncs[v].__name__ in labels[i]]
-                avgvecs[v] = crossvecs[index[0]]
-            #avgvec = 
             # Calculate uncertainty on number of eigenvectors.
             sort = self.func_sort(R2Arrays,R2noises,crossvecs,labels)
+            labs = sort[3]
             cvecs = sort[2]
             start = 0
             for v in range(len(self.varfuncs)):
                 num = len(cvecs)/len(self.varfuncs)
+                lab = labs[start:start+num]
                 cvec = cvecs[start:start+num]
                 start+=num
-                avgvec = avgvecs[v]
+                safe = np.array([i for i in range(len(lab)) if 'subsamp{0}'.format(self.subsamples+1) not in lab[i]])
+                cvec = cvec[safe]
+                avgvec = np.median(cvec)
                 if not self.division:
                     varvec = ((len(cvec)-1.)/float(len(cvec)))*np.sum((cvec-avgvec)**2)
                 elif self.division:
@@ -368,12 +367,12 @@ class empca_residuals(mask):
         k = 0
         for i in range(len(self.varfuncs)):
             print k,newR2.shape, R2Arrays.shape
-            newR2[k:k+self.subsamples+1] = R2Arrays[i::len(self.varfuncs)]
-            newR2n[k:k+self.subsamples+1] = R2noises[i::len(self.varfuncs)]
-            newvec[k:k+self.subsamples+1] = crossvecs[i::len(self.varfuncs)\
+            newR2[k:k+self.sampnum] = R2Arrays[i::len(self.varfuncs)]
+            newR2n[k:k+self.sampnum] = R2noises[i::len(self.varfuncs)]
+            newvec[k:k+self.sampnum] = crossvecs[i::len(self.varfuncs)\
                                                   ]
             newlab.append(labels[i::len(self.varfuncs)])
-            k += self.subsamples+1
+            k += self.sampnum
         return newR2,newR2n,newvec,[item for sublist in newlab for item in sublist]
     
     def R2compare(self,R2Arrays,R2noises,crossvecs,labels,funcsort=True):
