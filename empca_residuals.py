@@ -232,7 +232,7 @@ class empca_residuals(mask):
         lab = 'subsamp {0}, {1} stars, func {2} - {3} vec'.format(self.samplenum,self.numberStars(),self.varfuncs[v].__name__,cvc)
         return (R2A,R2n,cvc,lab)
 
-    def samplesplit(self,division=False,seed=None,fullsamp=True):
+    def samplesplit(self,division=False,seed=None,fullsamp=True,maxsamp=5):
         """                                                                     
         Take self.subsamples random subsamples of the original data set and
         run EMPCA.
@@ -306,7 +306,6 @@ class empca_residuals(mask):
             crossvecs = np.zeros((len(self.varfuncs)*(self.sampnum)))
             labels = np.zeros((len(self.varfuncs)*(self.sampnum)),dtype='S200')
             # Run all samples in parallel but serialize if too large
-            maxsamp = 5
             if self.sampnum <=maxsamp:
                 stats = ml.parallel_map(self.sample_wrapper, range(self.sampnum))
             elif self.sampnum >maxsamp:
@@ -688,16 +687,18 @@ class empca_residuals(mask):
         ax=plt.subplot2grid((3,1),(2,0))
         plt.axhline(0,lw=3,color='k')
         #for i in range(len(indep[sortd][unmasked])):
-        plt.plot(indep,self.residuals[:,pixel][unmasked],'o',color=c,
-                 markersize=10,markeredgecolor='w',markeredgewidth=1.5)
+        #plt.plot(indep,self.residuals[:,pixel][unmasked],'o',color=c,
+        #         markersize=10,markeredgecolor='w',markeredgewidth=1.5)
+        plt.errorbar(indep,self.residuals[:,pixel][unmasked],yerr=self.spectra_errs[:,pixel][unmasked],fmt='o',color=c,markersize=8,elinewidth=2,markeredgecolor='w',markeredgewidth=1.5)
         plt.ylabel('residuals $\delta_p(s)$ ',fontsize=20)
         plt.xlabel(xlabel,fontsize=20)
-        plt.ylim(-0.15,0.15)
+        plt.xticks(fontsize=16)
+        plt.ylim(-0.05,0.05)
         plt.xlim(np.floor((min(indep)-100)/100.)*100+100,
                  np.ceil((max(indep)+100)/100.)*100-100)
-        plt.yticks(np.arange(-0.1,0.15,0.1),
-                   np.arange(-0.1,0.15,0.1).astype(str))
-        yminorlocator = MultipleLocator(0.05)
+        #plt.yticks(np.arange(-0.1,0.15,0.1),
+        #           np.arange(-0.1,0.15,0.1).astype(str))
+        yminorlocator = MultipleLocator(0.01)
         ax.yaxis.set_minor_locator(yminorlocator)
         xminorlocator = MultipleLocator(50)
         ax.xaxis.set_minor_locator(xminorlocator)
