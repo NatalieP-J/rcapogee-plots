@@ -305,8 +305,30 @@ class empca_residuals(mask):
             R2noises = np.zeros((len(self.varfuncs)*(self.sampnum)))
             crossvecs = np.zeros((len(self.varfuncs)*(self.sampnum)))
             labels = np.zeros((len(self.varfuncs)*(self.sampnum)),dtype='S200')
-            # Run all samples in parallel
-            stats = ml.parallel_map(self.sample_wrapper, range(self.sampnum))
+            # Run all samples in parallel but serialize if too large
+            maxsamp = 5
+            if self.sampnum <=maxsamp:
+                stats = ml.parallel_map(self.sample_wrapper, range(self.sampnum))
+            elif self.sampnum >maxsamp:
+                sample = 0
+                stats = []
+                number_sets = self.sampnum/maxsamp + int(self.sampnum % maxsamp > 0)
+                if self.sampnum/maxsamp == number_sets:
+                    for i in range(number_sets):
+                        ss = ml.parallel_map(self.sample_wrapper, range(sample,sample+maxsamp))
+                        sample += maxsamp
+                        stats.append(ss)
+                elif self.sampnum/maxsamp == number_sets:
+                    for i in range(number_sets):
+                        if i < number_sets-1:
+                            ss = ml.parallel_map(self.sample_wrapper, range(sample,sample+maxsamp))
+                            sample += maxsamp
+                            stats.append(ss)
+                        if i == number_set-1:
+                            ss = ml.parallel_map(self.sample_wrapper, range(sample,sample+self.sampnum % maxsamp))
+                            sample += self.sampnum% maxsamp
+                            stats.append(ss)
+                stats = [item for sublist in stats for item in sublist]
             # Unpack information from parallel runs into appropriate arrays
             k = 0
             for s in range(len(stats)):
@@ -316,6 +338,7 @@ class empca_residuals(mask):
                 crossvecs[k:k+len(self.varfuncs)] = model.cvcs
                 labels[k:k+len(self.varfuncs)] = model.labs
                 k+=len(self.varfuncs)
+            print R2Arrays, R2noises, crossvecs, labels, 
             # Restore original arrays
             self.matchingData = self.filterData
             self.teff = self.originalteff
@@ -351,8 +374,9 @@ class empca_residuals(mask):
                 numeigvec_file = np.array([self.numeigvec,self.numeigvec_std])
                 numeigvec_file.tofile('{0}/subsamples{1}_{2}_seed{3}_numeigvec.npy'.format(self.name,self.subsamples,self.varfuncs[v].__name__,self.seed))
         # Move full sample analysis to parent directory
-        os.system('mv {0}/seed{1}_subsample{2}of{3}/* {4}'.format(self.name,self.seed,self.subsamples+1,self.subsamples,self.name))
-        os.system('rmdir {0}/seed{1}_subsample{2}of{3}/'.format(self.name,self.seed,self.subsamples+1,self.subsamples))
+        if fullsamp:
+            os.system('mv {0}/seed{1}_subsample{2}of{3}/* {4}'.format(self.name,self.seed,self.subsamples+1,self.subsamples,self.name))
+            os.system('rmdir {0}/seed{1}_subsample{2}of{3}/'.format(self.name,self.seed,self.subsamples+1,self.subsamples))
         # Make plots sorting by function
         self.R2compare(R2Arrays,R2noises,crossvecs,labels,funcsort=True)
         self.R2compare(R2Arrays,R2noises,crossvecs,labels,funcsort=False)
@@ -446,8 +470,8 @@ class empca_residuals(mask):
         # Find shorter labels for the 2D plots
         shortlabels = [i[:-10] for i in labels]
         # If there are too many labels, reduce them for readability
-        if (self.subsamples+1) > 10:
-            few = np.floor(np.log10(self.subsamples+1))
+        if (self.sampnum*len(self.varfuncs)) > 10:
+            few = int(np.ceil(np.log10(self.sampnum)))
         else:
             few = 1
         # Plot ylables
