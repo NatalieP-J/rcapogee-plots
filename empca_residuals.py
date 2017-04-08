@@ -208,7 +208,7 @@ class empca_residuals(mask):
         del self.originalbitmasks
         del self._maskHere 
         del self.originalmaskHere
-        return self
+        return (self.R2As.T,self.R2ns,self.cvcs,self.labs)
 
     def EMPCA_wrapper(self,v):
         """
@@ -221,14 +221,16 @@ class empca_residuals(mask):
         R2A = self.empcaModelWeight.R2Array
         R2n = self.empcaModelWeight.R2noise
         # Find where R^2 intersects R^2_noise
-        crossvec = np.where(self.empcaModelWeight.R2Array > self.empcaModelWeight.R2noise)[0]
-        if crossvec.shape[0] == 0:
-            cvc = -1
-        elif crossvec.shape[0] != 0:
-            cvc = crossvec[0]-1
-            if cvc <0:
-                cvc=0
+        cvc = np.interp(R2n,R2A,np.arange(len(R2A)),left=0,right=-1)
+        #crossvec = np.where(self.empcaModelWeight.R2Array > self.empcaModelWeight.R2noise)[0]
+        #if crossvec.shape[0] == 0:
+        #    cvc = -1
+        #elif crossvec.shape[0] != 0:
+        #    cvc = crossvec[0]-1
+        #    if cvc <0:
+        #        cvc=0
         # Create label for sample
+        
         lab = 'subsamp {0}, {1} stars, func {2} - {3} vec'.format(self.samplenum,self.numberStars(),self.varfuncs[v].__name__,cvc)
         return (R2A,R2n,cvc,lab)
 
@@ -317,13 +319,13 @@ class empca_residuals(mask):
                         ss = ml.parallel_map(self.sample_wrapper, range(sample,sample+maxsamp))
                         sample += maxsamp
                         stats.append(ss)
-                elif self.sampnum/maxsamp == number_sets:
+                elif self.sampnum/maxsamp != number_sets:
                     for i in range(number_sets):
                         if i < number_sets-1:
                             ss = ml.parallel_map(self.sample_wrapper, range(sample,sample+maxsamp))
                             sample += maxsamp
                             stats.append(ss)
-                        if i == number_set-1:
+                        if i == number_sets-1:
                             ss = ml.parallel_map(self.sample_wrapper, range(sample,sample+self.sampnum % maxsamp))
                             sample += self.sampnum% maxsamp
                             stats.append(ss)
@@ -331,11 +333,11 @@ class empca_residuals(mask):
             # Unpack information from parallel runs into appropriate arrays
             k = 0
             for s in range(len(stats)):
-                model = stats[s]
-                R2Arrays[k:k+len(self.varfuncs)] = model.R2As
-                R2noises[k:k+len(self.varfuncs)] = model.R2ns
-                crossvecs[k:k+len(self.varfuncs)] = model.cvcs
-                labels[k:k+len(self.varfuncs)] = model.labs
+                R2As,R2ns,cvcs,labs = stats[s]
+                R2Arrays[k:k+len(self.varfuncs)] = R2As.T
+                R2noises[k:k+len(self.varfuncs)] = R2ns
+                crossvecs[k:k+len(self.varfuncs)] = cvcs
+                labels[k:k+len(self.varfuncs)] = labs
                 k+=len(self.varfuncs)
             print R2Arrays, R2noises, crossvecs, labels, 
             # Restore original arrays
