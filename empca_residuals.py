@@ -193,21 +193,13 @@ class empca_residuals(mask):
             self.labs[s] = lab
         # Clear arrays from memory
         del self.matchingData 
-        del self.filterData
         del self.teff
-        del self.originalteff
         del self.logg
-        del self.originallogg
         del self.fe_h
-        del self.originalfe_h
         del self.spectra 
-        del self.originalspectra
         del self.spectra_errs 
-        del self.originalspectra_errs
         del self._bitmasks
-        del self.originalbitmasks
         del self._maskHere 
-        del self.originalmaskHere
         return (self.R2As.T,self.R2ns,self.cvcs,self.labs)
 
     def EMPCA_wrapper(self,v):
