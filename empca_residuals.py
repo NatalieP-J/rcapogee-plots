@@ -200,6 +200,7 @@ class empca_residuals(mask):
         del self.spectra_errs 
         del self._bitmasks
         del self._maskHere 
+        self.directoryClean()
         return (self.R2As.T,self.R2ns,self.cvcs,self.labs)
 
     def EMPCA_wrapper(self,v):
@@ -214,15 +215,6 @@ class empca_residuals(mask):
         R2n = self.empcaModelWeight.R2noise
         # Find where R^2 intersects R^2_noise
         cvc = np.interp(R2n,R2A,np.arange(len(R2A)),left=0,right=-1)
-        #crossvec = np.where(self.empcaModelWeight.R2Array > self.empcaModelWeight.R2noise)[0]
-        #if crossvec.shape[0] == 0:
-        #    cvc = -1
-        #elif crossvec.shape[0] != 0:
-        #    cvc = crossvec[0]-1
-        #    if cvc <0:
-        #        cvc=0
-        # Create label for sample
-        
         lab = 'subsamp {0}, {1} stars, func {2} - {3} vec'.format(self.samplenum,self.numberStars(),self.varfuncs[v].__name__,cvc)
         return (R2A,R2n,cvc,lab)
 
@@ -356,11 +348,16 @@ class empca_residuals(mask):
                 start+=num
                 safe = np.array([i for i in range(len(lab)) if 'subsamp{0}'.format(self.subsamples+1) not in lab[i]])
                 cvec = cvec[safe]
-                avgvec = np.median(cvec)
-                if not self.division:
-                    varvec = ((len(cvec)-1.)/float(len(cvec)))*np.sum((cvec-avgvec)**2)
-                elif self.division:
-                    varvec = np.var(cvec)
+                cvec = cvec[cvec!=-1]
+                if cvec.size:
+                    avgvec = np.median(cvec)
+                    if not self.division:
+                        varvec = ((len(cvec)-1.)/float(len(cvec)))*np.sum((cvec-avgvec)**2)
+                    elif self.division:
+                        varvec = np.var(cvec)
+                elif not cvec.size:
+                    avgvec = -1
+                    varvec = -1
                 print '{0} +/- {1}'.format(avgvec,np.sqrt(varvec))
                 self.numeigvec = avgvec
                 self.numeigvec_std = np.sqrt(varvec)

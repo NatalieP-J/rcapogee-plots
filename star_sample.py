@@ -228,7 +228,7 @@ class makeFilter(starSample):
             self.condition = ''
             # Ask for new key conditions until the user signals done
             while not self.done:
-                self._sampleInfo()
+                self.done = self._sampleInfo()
             # Check that the user set conditions. 
             # If conditions not set, recursively call init
             if self.condition == '':
@@ -270,63 +270,63 @@ class makeFilter(starSample):
         Retrieves information about the sample from the user.
         
         """
-        while not self.done:
-            key = raw_input('Data key: ')
-            # Check if key is accepted
-            if key in keyList:
-                self.name+='_'+key
-                # Get info for this key
-                match = self._match(key)
-                if match[0]=='done':
-                    self.done = True
-                    break
-                elif match[0]=='a':
-                    self.name+='_fullsample'
-                    self.condition = 'np.where(data)'
-                    self.done=True
-                elif match[0]=='m':
-                    # Add string form of the matching condition and 
-                    # update the name
-                    self.name+='_match'+match[1]
-                    andor = raw_input('And/or? ')
-                    if andor == 'and' or andor=='a' or andor=='&':
-                        self.condition += ' (data[\'{0}\'] == "{1}") &'.format(key,match[1])
-                    elif andor == 'or' or andor=='o' or andor=='|':
-                        self.condition += ' (data[\'{0}\'] == "{1}") |'.format(key,match[1])
-                    elif andor == 'done':
-                        self.condition += ' (data[\'{0}\'] == "{1}") &'.format\
-(key,match[1])
-                        self.done==True
-                        break
-                    else:
-                        print 'Invalid choice of "and" or "or", using "or" by default'
-                        self.condition += ' (data[\'{0}\'] == "{1}") |'.format(key,match[1])
-                elif match[0]=='s':
-                    # Add string form of the slicing condition and 
-                    # update the name
-                    self.name+='_up'+str(match[1])+'_lo'+str(match[2])
-                    andor = raw_input('And/or? ')
-                    if andor == 'and' or andor=='a' or andor=='&':
-                        self.condition += ' (data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2}) &'.format(key,match[1],match[2])
-                    elif andor == 'or' or andor=='o' or andor=='|':
-                        self.condition += ' ((data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2})) |'.format(key,match[1],match[2])
-                    elif andor =='done':
-                        self.condition += ' ((data[\'{0}\'] < {1}) & (data[\'{\
-0}\'] > {2})) &'.format(key,match[1],match[2])
-                        self.done==True
-                        break
-                    else:
-                        print 'Invalid choice of "and" or "or", using "or" by default'
-                        self.condition += ' ((data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2})) |'.format(key,match[1],match[2])
-            # If key not accepted, make recursive call
-            elif key not in keyList and key != 'done':
-                print 'Got a bad key. Try choosing one of ',keyList
-                self._sampleInfo()
-                # If done condition, exit
-            elif key == 'done':
-                print 'Done getting filter information'
-                self.done = True
-                break
+        key = raw_input('Data key: ')
+        # Check if key is accepted
+        if key in keyList:
+            self.name+='_'+key
+            # Get info for this key
+            match = self._match(key)
+            if match[0]=='done':
+                return True
+            elif match[0]=='a':
+                self.name+='_fullsample'
+                self.condition = 'np.where(data)'
+                return True
+            elif match[0]=='m':
+                # Add string form of the matching condition and 
+                # update the name
+                self.name+='_match'+match[1]
+                andor = raw_input('And/or? ')
+                if andor == 'and' or andor=='a' or andor=='&':
+                    self.condition += ' (data[\'{0}\'] == "{1}") &'.format(key,match[1])
+                    return False
+                elif andor == 'or' or andor=='o' or andor=='|':
+                    self.condition += ' (data[\'{0}\'] == "{1}") |'.format(key,match[1])
+                    return False
+                elif andor == 'done':
+                    self.condition += ' (data[\'{0}\'] == "{1}") &'.format(key,match[1])
+                    return True
+                else:
+                    print 'Invalid choice of "and" or "or", using "or" by default'
+                    self.condition += ' (data[\'{0}\'] == "{1}") |'.format(key,match[1])
+                    return False
+            elif match[0]=='s':
+                # Add string form of the slicing condition and 
+                # update the name
+                self.name+='_up'+str(match[1])+'_lo'+str(match[2])
+                andor = raw_input('And/or? ')
+                if andor == 'and' or andor=='a' or andor=='&':
+                    self.condition += ' (data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2}) &'.format(key,match[1],match[2])
+                    return False
+                elif andor == 'or' or andor=='o' or andor=='|':
+                    self.condition += ' ((data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2})) |'.format(key,match[1],match[2])
+                    return False
+                elif andor =='done':
+                    self.condition += ' ((data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2})) &'.format(key,match[1],match[2])
+                    return True
+                else:
+                    print 'Invalid choice of "and" or "or", using "or" by default'
+                    self.condition += ' ((data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2})) |'.format(key,match[1],match[2])
+                    return False
+        # If key not accepted, make recursive call
+        elif key not in keyList and key != 'done':
+            print 'Got a bad key. Try choosing one of ',keyList
+            result = self._sampleInfo()
+            return result
+        # If done condition, exit
+        elif key == 'done':
+            print 'Done getting filter information'
+            return True
     
 
     def _match(self,key):
@@ -387,9 +387,10 @@ class makeFilter(starSample):
 
         # Invalid entry condition
         else:
-            print 'Please type match, slice or all'
-            self._match(key)
-        
+            print 'Invalid choice, please type match, slice or all'
+            result = self._match(key)
+            return result
+            
     def getDirectory(self):
         """
         Create directory to store results for given filter.
