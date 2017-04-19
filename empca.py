@@ -155,13 +155,20 @@ class Model(object):
         #- Solve the eigenvectors one by one
         for k in range(self.nvec):
 
-            #- Can we compact this loop into numpy matrix algebra?
-            c = self.coeff[:, k]
-            for j in range(self.nvar):
-                w = self.weights[:, j]
-                x = data[:, j]
-                cw = c*w
-                self.eigvec[k, j] = x.dot(cw) / c.dot(cw)
+            c = N.tile(self.coeff[:,k],(self.nvar,1)).T
+            cw = c*self.weights
+            numer = N.sum(data*cw,axis=0)
+            denom = N.sum(c*cw,axis=0)
+            self.eigvec[k] = numer/denom
+            
+
+            ##- Can we compact this loop into numpy matrix algebra?
+            #c = self.coeff[:, k]
+            #for j in range(self.nvar):
+            #    w = self.weights[:, j]
+            #    x = data[:, j]
+            #    cw = c*w
+            #    self.eigvec[k, j] = x.dot(cw) / c.dot(cw)
                                                 
             if smooth is not None:
                 self.eigvec[k] = smooth(self.eigvec[k])
