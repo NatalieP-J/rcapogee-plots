@@ -1,5 +1,5 @@
 import numpy as np
-import os
+import os,inspect
 from tqdm import tqdm
 import data_access
 reload(data_access)
@@ -24,7 +24,7 @@ class starSample(object):
     read function.
     
     """
-    def __init__(self,dataSource,sampleType):
+    def __init__(self,dataSource,sampleType,ask=True):
         """
         Get properties for all stars that match the sample type
 
@@ -34,9 +34,13 @@ class starSample(object):
         """
         self._dataSource = dataSource
         if self._dataSource == 'apogee':
-            self.DR = raw_input('Which data release? (Enter for 13): ')
-            if self.DR=='':
-                self.DR='13'
+            if ask:
+                self.DR = raw_input('Which data release? (Enter for 12): ')
+                if self.DR=='':
+                    self.DR='12'
+            if not ask:
+                self.DR = '12'
+                
             if self.DR=='12':
                 os.environ['RESULTS_VERS']='v603'
             if self.DR=='13':
@@ -52,7 +56,7 @@ class starSample(object):
         if self.DR:
             self.data = readfn[self._dataSource][self._sampleType](dr=str(self.DR))
             if self.DR=='12':
-                fib = np.load('/geir_data/scr/price-jones/Data/supplemental_apogeeDR12/fiberinfo.npy')
+                fib = np.load('{0}/supplemental_apogeeDR12/fiberinfo.npy'.format(os.environ['DATADIR']))
                 if self._sampleType=='clusters':
                     notmissing = (np.array([i for i in range(len(self.data['APOGEE_ID'])) if self.data['APOGEE_ID'][i] in fib['APOGEE_ID']]),)
                 else:
@@ -219,7 +223,7 @@ class makeFilter(starSample):
                       filter_function.py
                       
         """
-        starSample.__init__(self,dataSource,sampleType)
+        starSample.__init__(self,dataSource,sampleType,ask=ask)
         if ask:
             self.done = False
             print 'Type done at any prompt when finished'
@@ -243,6 +247,13 @@ class makeFilter(starSample):
         elif not ask:
             if callable(func):
                 starFilter=func
+                self.name = starFilter.__doc__.split('\n')[-2]
+                self.name = self.name.split('\t')[-1]
+                self.name = self.name.strip()
+                f = open('filter_function.py','w')
+                functext = ''.join(inspect.getsourcelines(starFilter)[0])
+                f.write('import numpy as np\n\n'+functext)
+                f.close()
             elif not callable(func):
                 # Import existing filter function. If function doesn't exist, 
                 # recursively call init
@@ -255,6 +266,7 @@ class makeFilter(starSample):
                 except ImportError:
                     print 'filter_function.py does not contain the required starFilter function.'
                     self.__init__(dataSource,sampleType,ask=True)
+        print self.name
         self.getDirectory()
         self.filterCopy()
             
@@ -411,6 +423,7 @@ class makeFilter(starSample):
         """
         Copies filter function to data directory.
         """
+        print 'NAME ',self.name
         os.system('cp filter_function.py {0}/'.format(self.name))
 
 class subStarSample(makeFilter):
@@ -418,7 +431,7 @@ class subStarSample(makeFilter):
     Given a filter function, defines a subsample of the total sample of stars.
     
     """
-    def __init__(self,dataSource,sampleType,ask=True,datadir='.'):
+    def __init__(self,dataSource,sampleType,ask=True,datadir='.',func=None):
         """
         Create a subsample according to a starFilter function
         
@@ -430,7 +443,7 @@ class subStarSample(makeFilter):
         
         """
         # Create starFilter
-        makeFilter.__init__(self,dataSource,sampleType,ask=ask,datadir=datadir)
+        makeFilter.__init__(self,dataSource,sampleType,ask=ask,datadir=datadir,func=func)
         import filter_function
         reload(filter_function)
         from filter_function import starFilter

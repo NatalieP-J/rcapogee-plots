@@ -1,6 +1,7 @@
 import numpy as np
 from tqdm import tqdm
 import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MultipleLocator
 from mpl_toolkits.mplot3d import Axes3D
@@ -110,7 +111,7 @@ class empca_residuals(mask):
     
     """
     def __init__(self,dataSource,sampleType,maskFilter,ask=True,datadir='.',
-                 badcombpixmask=4351,minSNR=50,degree=2,nvecs=5):
+                 func=None,badcombpixmask=4351,minSNR=50,degree=2,nvecs=5):
         """
         Fit a masked subsample.
         
@@ -130,7 +131,7 @@ class empca_residuals(mask):
         
         """
         mask.__init__(self,dataSource,sampleType,maskFilter,ask=ask,
-                      minSNR=minSNR,datadir=datadir,
+                      minSNR=minSNR,datadir=datadir,func=func,
                       badcombpixmask=badcombpixmask)
         self.degree = degree
         self.polynomial = PolynomialFeatures(degree=degree)

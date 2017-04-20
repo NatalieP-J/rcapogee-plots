@@ -54,7 +54,7 @@ class mask(subStarSample):
     
     """
     def __init__(self,dataSource,sampleType,maskFilter,ask=True,datadir='.',
-                 badcombpixmask=4251,minSNR=50):
+                 func=None,badcombpixmask=4351,minSNR=50):
         """
         Mask a subsample according to a maskFilter function
         
@@ -66,7 +66,7 @@ class mask(subStarSample):
                       filter_function.py
         
         """
-        subStarSample.__init__(self,dataSource,sampleType,ask=ask,datadir=datadir)
+        subStarSample.__init__(self,dataSource,sampleType,ask=ask,datadir=datadir,func=func)
         if isinstance(badcombpixmask,list):
             badcombpixmask=np.array(badcombpixmask)
         if isinstance(badcombpixmask,np.ndarray):
