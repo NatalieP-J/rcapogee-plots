@@ -1,18 +1,24 @@
-# rcapogee-plots
+# spectralspace
 
 ## Purpose
 
-This code analyzes the chemical composition of stars from APOGEE in spectral space. It uses polynomial fits to remove distortion of stellar spectra due effective temperature, surface gravity and overall metallicity [Fe/H]. After subtracting these fits, the resulting spectra are processed through dimension-reducing algorithm Expectation Maximized Principal Component Analysis (EMPCA) to find the dimensions of most importance for distinguishing spectra.
+This code reduces the dimensionality of APOGEE H-band spectra [Majewski et. al. (2015)](https://arxiv.org/abs/1509.05420). It uses polynomial fits to remove distortion of stellar spectra due effective temperature, surface gravity and overall metallicity [Fe/H]. After subtracting these fits, the resulting spectra are processed through dimension-reducing algorithm Expectation Maximized Principal Component Analysis (EMPCA - [Bailey (2012)](https://arxiv.org/abs/1208.4122)) to find the dimensions of most importance for distinguishing spectra.
 
 ## Installation
 
-Clone this repository and add it to your $PYTHONPATH variable:
+Clone this repository and navigate into the directory to install with:
 
-`prompt$ export PYTHONPATH=$PYTHONPATH:<path to repository>/rcapogee-plots`
+`python setup.py install`
 
-This repository requires the following packages: [numpy](http://www.numpy.org/), [matplotlib](http://matplotlib.org/), [tqdm](https://pypi.python.org/pypi/tqdm), [sklearn](http://scikit-learn.org/stable/), [apogee](https://github.com/jobovy/apogee), [astropy](http://www.astropy.org/), [scipy](https://www.scipy.org/), [statsmodels](http://statsmodels.sourceforge.net/)
+with possible option for local installation only:
 
-## How to Use rcapogee-plots
+`python setup.py install --prefix=<some local directory>`
+
+This repository requires the following packages: [numpy](http://www.numpy.org/), [matplotlib](http://matplotlib.org/), [tqdm](https://pypi.python.org/pypi/tqdm), [sklearn](http://scikit-learn.org/stable/), [apogee](https://github.com/jobovy/apogee), [astropy](http://www.astropy.org/), [scipy](https://www.scipy.org/), [statsmodels](http://statsmodels.sourceforge.net/), [galpy](https://github.com/jobovy/galpy), [isodist](https://github.com/jobovy/isodist), and [empca](https://github.com/NatalieP-J/empca)
+
+If you wish to try the example notebooks, you'll also need [jupyter](http://jupyter.org)
+
+## How to Use spectralspace
 
 In general, we wish to create an empca_residuals object then use its associated functions. Here's a basic example to get you started.
 From any directory, open python.
@@ -23,7 +29,7 @@ From any directory, open python.
 
 ```
 
-You've now selected a subsample of the red clump stars from APOGEE's DR12 according to a temperature cut. This step has read in all the spectra and stellar parameters and created an output directory called `red_clump_12_TEFF_up4900.0_lo4800.0/bm4351` in the working directory, where bm4351 indicates which bits were masked on. Let's try fitting those stars.
+You've now selected a subsample of the red clump stars from APOGEE's DR12 according to a temperature cut. This step has read in all the spectra and stellar parameters and created an output directory called `red_clump_12_TEFF_up4900.0_lo4800.0/bm4351` in the `datadir` (defaults to working directory), where bm4351 indicates which bits are used in the default mask, defined by `maskFilter`. Let's try fitting those stars.
 
 ```python
 >>>: fitparams = rcsample.findFit(1000)
@@ -35,7 +41,7 @@ This gives us the best polynomial fit values for pixel 1000, as well as coeffici
 >>>: rcsample.findResiduals()
 ```
 
-Once we've computed the residuals, we can run EMPCA on the sample. This step may take up to half an hour.
+Once we've computed the residuals, we can run EMPCA with 20 principal components on the sample. This step may take up to half an hour.
 
 ```python
 >>>: rcsample.pixelEMPCA(nvecs=20,savename='test.pkl)
@@ -52,3 +58,5 @@ Upon completion, the output directory should now contain a file called `test.pkl
 ```
 
 These attributes all also exist within our original object, accessible via `rcsample.empcaModelWeight` (e.g, `rcsample.empcaModelWeight.Rnoise`).
+
+For more detailed and specific examples, see the `RC_dimensionality_plots.ipynb` notebook in the examples folder.
