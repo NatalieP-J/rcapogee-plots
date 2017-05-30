@@ -24,7 +24,7 @@ In general, we wish to create an empca_residuals object then use its associated 
 From any directory, open python.
 
 ```python
->>>: from empca_residuals import empca_residuals,maskFilter
+>>>: from spectralspace.analysis.empca_residuals import empca_residuals,maskFilter
 >>>: rcsample = empca_residuals('apogee','red_clump',maskFilter,datadir='.')
 
 ```
@@ -50,7 +50,7 @@ Once we've computed the residuals, we can run EMPCA with 20 principal components
 Upon completion, the output directory should now contain a file called `test.pkl` (`red_clump_12_TEFF_up4900.0_lo4800.0/bm4351/test.pkl`). This file stores statistical information about the results of the EMPCA. We can recover this information by reloading it, although it is still stored in our rcsample object.
 
 ```python
->>>: import access_spectrum as acs
+>>>: import spectralspace.sample.access_spectrum as acs
 >>>: EMPCA_model = acs.pklread('red_clump_12_TEFF_up4900.0_lo4800.0/bm4351/test.pkl')
 >>>: attributes = [a for a in dir(EMPCA_model) if not a.startswith('__')]
 >>>: print attributes
