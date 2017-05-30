@@ -39,8 +39,8 @@ def bitsNotSet(bitmask,maskbits):
     return goodLocs_bool
 
 # Example mask filter function for APOGEE
-badcombpixmask = bitmask.badpixmask()
-badcombpixmask += 2**bitmask.apogee_pixmask_int("SIG_SKYLINE")
+badcombpixmask = bm.badpixmask()
+badcombpixmask += 2**bm.apogee_pixmask_int("SIG_SKYLINE")
 
 def maskFilter(sample,minstar=5,badcombpixmask=4351,minSNR=50.):
     """

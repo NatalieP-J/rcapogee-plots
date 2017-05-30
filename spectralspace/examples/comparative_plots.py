@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
-from empca_residuals import *
+from spectralspace.analysis.empca_residuals import *
 import os, glob
 from scipy.optimize import leastsq
 from matplotlib.ticker import MultipleLocator,AutoMinorLocator
-from ncells_calculation import calculate_Ncells,consth
-import access_spectrum as acs
+from spectralspace.examples.ncells_calculation import calculate_Ncells,consth
+import spectralspace.sample.access_spectrum as acs
 
 font = {'family': 'serif',
         'weight': 'normal',

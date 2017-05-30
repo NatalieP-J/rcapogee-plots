@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.interpolate import interp1d
-from empca_residuals import *
+from spectralspace.analysis.empca_residuals import *
 
 def getarrays(model):
     """                                                                                            
