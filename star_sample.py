@@ -266,7 +266,6 @@ class makeFilter(starSample):
                 except ImportError:
                     print 'filter_function.py does not contain the required starFilter function.'
                     self.__init__(dataSource,sampleType,ask=True)
-        print self.name
         self.getDirectory()
         self.filterCopy()
             
@@ -423,7 +422,6 @@ class makeFilter(starSample):
         """
         Copies filter function to data directory.
         """
-        print 'NAME ',self.name
         os.system('cp filter_function.py {0}/'.format(self.name))
 
 class subStarSample(makeFilter):

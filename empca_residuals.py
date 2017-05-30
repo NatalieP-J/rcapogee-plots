@@ -668,9 +668,7 @@ class empca_residuals(mask):
                     self.masked[:,pixel] = np.ones(self.masked[:,pixel].shape)
                 else:
                      # if fit possible update arrays
-                    fitSpectrum,coefficients,coefficient_uncertainty = self.findFit(pixel,eigcheck,
-                                                                                    givencoeffs = [self.fitCoeffs[pixel],self.fitCoeffErrs[pixel]],
-                                                                                    matrix=matrix)
+                    fitSpectrum,coefficients,coefficient_uncertainty = self.findFit(pixel,eigcheck,givencoeffs = [self.fitCoeffs[pixel],self.fitCoeffErrs[pixel]],matrix=matrix)
                     self.fitSpectra[:,pixel][self.unmasked[:,pixel]] = fitSpectrum
 
         # update mask on input data
@@ -709,12 +707,13 @@ class empca_residuals(mask):
         unmasked = np.where(self.spectra[:,pixel].mask==False)
         # Plot a fit line and errorbar points of data
         plt.plot(fitindep,fit,lw=3,color='k',
-                 label='$f(s,T_{\mathrm{eff}}$)')
+                 label='polynomial fit')
         plt.plot(indep,self.spectra[:,pixel][unmasked],'o',color=c,
-                 markersize=10,markeredgecolor='w',markeredgewidth=1.5)
-        plt.ylabel('stellar flux $F_p(s)$',fontsize=20)
-        plt.xticks(np.arange(np.floor((min(indep)-100)/100.)*100+100,
-                             np.ceil((max(indep)+100)/100.)*100,100),['']*10)
+                 markersize=10,markeredgecolor='k',markeredgewidth=2)
+        plt.ylabel('normalized flux',fontsize=20)
+        xticks = np.arange(np.floor((min(indep)-100)/100.)*100+100,
+                             np.ceil((max(indep)+100)/100.)*100,200)
+        plt.xticks(xticks,['']*len(xticks))
         plt.ylim(0.6,1.1)
         plt.xlim(np.floor((min(indep)-100)/100.)*100+100,
                  np.ceil((max(indep)+100)/100.)*100-100)
@@ -728,15 +727,16 @@ class empca_residuals(mask):
         plt.tick_params(which='both', width=2)
         plt.tick_params(which='major',length=5)
         plt.tick_params(which='minor',length=3)
-        plt.legend(loc='best',frameon=False)
+        plt.legend(loc='best',frameon=False,fontsize=18)
         # Plot residuals of the fit
         ax=plt.subplot2grid((3,1),(2,0))
-        plt.axhline(0,lw=3,color='k')
-        plt.errorbar(indep,self.residuals[:,pixel][unmasked],yerr=self.spectra_errs[:,pixel][unmasked],fmt='o',color=c,markersize=8,elinewidth=2,markeredgecolor='w',markeredgewidth=1.5)
-        plt.ylabel('residuals $\delta_p(s)$ ',fontsize=20)
+        plt.axhline(0,lw=2,color='k')
+        plt.errorbar(indep,self.residuals[:,pixel][unmasked],yerr=self.spectra_errs[:,pixel][unmasked],fmt='o',color=c,ecolor='k',markersize=8,elinewidth=3,capthick=2,capsize=4,markeredgecolor='k',markeredgewidth=1.2)
+        resname = 'residuals'# $\delta_{'+'{0}'.format(pixel) + '}(s)$'
+        plt.ylabel(resname,fontsize=20)
         plt.xlabel(xlabel,fontsize=20)
         # Fix axis ticks
-        plt.xticks(fontsize=16)
+        plt.xticks(xticks,xticks.astype(int))
         plt.ylim(-0.05,0.05)
         plt.xlim(np.floor((min(indep)-100)/100.)*100+100,
                  np.ceil((max(indep)+100)/100.)*100-100)
