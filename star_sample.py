@@ -1,9 +1,11 @@
 import numpy as np
-import os
+import os,inspect
 from tqdm import tqdm
 import data_access
 reload(data_access)
 from data_access import *
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import access_spectrum as acs
@@ -22,7 +24,7 @@ class starSample(object):
     read function.
     
     """
-    def __init__(self,dataSource,sampleType):
+    def __init__(self,dataSource,sampleType,ask=True):
         """
         Get properties for all stars that match the sample type
 
@@ -32,9 +34,13 @@ class starSample(object):
         """
         self._dataSource = dataSource
         if self._dataSource == 'apogee':
-            self.DR = raw_input('Which data release? (Enter for 13): ')
-            if self.DR=='':
-                self.DR='13'
+            if ask:
+                self.DR = raw_input('Which data release? (Enter for 12): ')
+                if self.DR=='':
+                    self.DR='12'
+            if not ask:
+                self.DR = '12'
+                
             if self.DR=='12':
                 os.environ['RESULTS_VERS']='v603'
             if self.DR=='13':
@@ -49,6 +55,19 @@ class starSample(object):
         """
         if self.DR:
             self.data = readfn[self._dataSource][self._sampleType](dr=str(self.DR))
+            if self.DR=='12':
+                fib = np.load('{0}/supplemental_apogeeDR12/fiberinfo.npy'.format(os.environ['DATADIR']))
+                if self._sampleType=='clusters':
+                    notmissing = (np.array([i for i in range(len(self.data['APOGEE_ID'])) if self.data['APOGEE_ID'][i] in fib['APOGEE_ID']]),)
+                else:
+                    notmissing = (np.arange(0,len(self.data)),)
+                import numpy.lib.recfunctions as rfunc
+                self.data = rfunc.append_fields(self.data,('MEANFIB','SIGFIB'),data=(np.zeros(len(self.data)),np.zeros(len(self.data))),dtypes=('f4','f4'),usemask=False)
+                meanfib =  dict(zip(fib['APOGEE_ID'],fib['MEANFIB']))
+                sigfib = dict(zip(fib['APOGEE_ID'],fib['SIGFIB']))
+                self.data['MEANFIB'][notmissing] = np.array([meanfib[apoid] for apoid in self.data['APOGEE_ID'][notmissing]])
+                self.data['SIGFIB'][notmissing] = np.array([sigfib[apoid] for apoid in self.data['APOGEE_ID'][notmissing]])
+
 
     def initArrays(self,stardata):
         """
@@ -114,13 +133,13 @@ class starSample(object):
                 self._bitmasks[star] = np.ones(aspcappix).astype(np.int16)
                 missing +=1
 
-            if LOGG<-1000 or TEFF<-1000 or FE_H<-1000:
+            if LOGG<-1000 or TEFF<-1000 or FE_H<-1000 or self.data[star]['SIGFIB'] < 0 or self.data[star]['MEANFIB'] < 0:
                 self._bitmasks[star] = np.ones(aspcappix).astype(np.int16)
 
         print 'Total {0} of {1} stars missing'.format(missing,len(stardata))
                 
             
-    def show_sample_coverage(self):
+    def show_sample_coverage(self,coords=True,phi_ind='RC_GALPHI',r_ind='RC_GALR',z_ind='RC_GALZ'):
         """
         Plots the sample in Galacto-centric cylindrical coordinates.
 
@@ -132,10 +151,11 @@ class starSample(object):
         # Set up polar axes
         pol = plt.subplot(122,projection='polar')
         
-        # Find location data
-        phi = self.data['RC_GALPHI']
-        r = self.data['RC_GALR']
-        z = self.data['RC_GALZ']
+        if coords:
+            # Find location data
+            phi = self.data[phi_ind]
+            r = self.data[r_ind]
+            z = self.data[z_ind]
         
         # Plot data
         car.plot(r,z,'ko',markersize=2,alpha=0.2)
@@ -191,7 +211,7 @@ class makeFilter(starSample):
     Contains functions to create a filter and associated directory 
     name for a starSample.
     """
-    def __init__(self,dataSource,sampleType,ask=True):
+    def __init__(self,dataSource,sampleType,ask=True,datadir='.',func=None):
         """
         Sets up filter_function.py file to contain the appropriate function 
         and puts the save directory name in the docstring of the function.
@@ -203,21 +223,21 @@ class makeFilter(starSample):
                       filter_function.py
                       
         """
-        starSample.__init__(self,dataSource,sampleType)
+        starSample.__init__(self,dataSource,sampleType,ask=ask)
         if ask:
             self.done = False
             print 'Type done at any prompt when finished'
             # Start name and condition string
-            self.name = self._sampleType+'_'+str(self.DR)
+            self.name = datadir+'/'+self._sampleType+'_'+str(self.DR)
             self.condition = ''
             # Ask for new key conditions until the user signals done
             while not self.done:
-                self._sampleInfo()
+                self.done = self._sampleInfo()
             # Check that the user set conditions. 
             # If conditions not set, recursively call init
             if self.condition == '':
                 print 'No conditions set'
-                self.__init__(sampleType,ask=True)
+                self.__init__(dataSource,sampleType,ask=True)
             # When conditions set, trim trailing ampersand
             self.condition = self.condition[:-2]
             # Write the new filter function to file
@@ -225,18 +245,29 @@ class makeFilter(starSample):
             f.write(self._basicStructure()+self.condition)
             f.close()
         elif not ask:
-            # Import existing filter function. If function doesn't exist, 
-            # recursively call init
-            try:
-                import filter_function
-                reload(filter_function)
-                from filter_function import starFilter
+            if callable(func):
+                starFilter=func
                 self.name = starFilter.__doc__.split('\n')[-2]
                 self.name = self.name.split('\t')[-1]
-            except ImportError:
-                print 'filter_function.py does not contain the required starFilter function.'
-                self.__init__(sampleType,ask=True)
+                self.name = self.name.strip()
+                f = open('filter_function.py','w')
+                functext = ''.join(inspect.getsourcelines(starFilter)[0])
+                f.write('import numpy as np\n\n'+functext)
+                f.close()
+            elif not callable(func):
+                # Import existing filter function. If function doesn't exist, 
+                # recursively call init
+                try:
+                    import filter_function
+                    reload(filter_function)
+                    from filter_function import starFilter
+                    self.name = starFilter.__doc__.split('\n')[-2]
+                    self.name = self.name.split('\t')[-1]
+                except ImportError:
+                    print 'filter_function.py does not contain the required starFilter function.'
+                    self.__init__(dataSource,sampleType,ask=True)
         self.getDirectory()
+        self.filterCopy()
             
     def _basicStructure(self):
         """
@@ -250,39 +281,63 @@ class makeFilter(starSample):
         Retrieves information about the sample from the user.
         
         """
-        while not self.done:
-            key = raw_input('Data key: ')
-            # Check if key is accepted
-            if key in keyList:
-                self.name+='_'+key
-                # Get info for this key
-                match = self._match(key)
-                if match[0]=='done':
-                    self.done = True
-                    break
-                elif match[0]=='a':
-                    self.name+='_fullsample'
-                    self.condition = 'np.where(data)'
-                    self.done=True
-                elif match[0]=='m':
-                    # Add string form of the matching condition and 
-                    # update the name
-                    self.name+='_match'+match[1]
+        key = raw_input('Data key: ')
+        # Check if key is accepted
+        if key in keyList:
+            self.name+='_'+key
+            # Get info for this key
+            match = self._match(key)
+            if match[0]=='done':
+                return True
+            elif match[0]=='a':
+                self.name+='_fullsample'
+                self.condition = 'np.where(data)'
+                return True
+            elif match[0]=='m':
+                # Add string form of the matching condition and 
+                # update the name
+                self.name+='_match'+match[1]
+                andor = raw_input('And/or? ')
+                if andor == 'and' or andor=='a' or andor=='&':
                     self.condition += ' (data[\'{0}\'] == "{1}") &'.format(key,match[1])
-                elif match[0]=='s':
-                    # Add string form of the slicing condition and 
-                    # update the name
-                    self.name+='_up'+str(match[1])+'_lo'+str(match[2])
+                    return False
+                elif andor == 'or' or andor=='o' or andor=='|':
+                    self.condition += ' (data[\'{0}\'] == "{1}") |'.format(key,match[1])
+                    return False
+                elif andor == 'done':
+                    self.condition += ' (data[\'{0}\'] == "{1}") &'.format(key,match[1])
+                    return True
+                else:
+                    print 'Invalid choice of "and" or "or", using "or" by default'
+                    self.condition += ' (data[\'{0}\'] == "{1}") |'.format(key,match[1])
+                    return False
+            elif match[0]=='s':
+                # Add string form of the slicing condition and 
+                # update the name
+                self.name+='_up'+str(match[1])+'_lo'+str(match[2])
+                andor = raw_input('And/or? ')
+                if andor == 'and' or andor=='a' or andor=='&':
                     self.condition += ' (data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2}) &'.format(key,match[1],match[2])
-            # If key not accepted, make recursive call
-            elif key not in keyList and key != 'done':
-                print 'Got a bad key. Try choosing one of ',keyList
-                self._sampleInfo()
-                # If done condition, exit
-            elif key == 'done':
-                print 'Done getting filter information'
-                self.done = True
-                break
+                    return False
+                elif andor == 'or' or andor=='o' or andor=='|':
+                    self.condition += ' ((data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2})) |'.format(key,match[1],match[2])
+                    return False
+                elif andor =='done':
+                    self.condition += ' ((data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2})) &'.format(key,match[1],match[2])
+                    return True
+                else:
+                    print 'Invalid choice of "and" or "or", using "or" by default'
+                    self.condition += ' ((data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2})) |'.format(key,match[1],match[2])
+                    return False
+        # If key not accepted, make recursive call
+        elif key not in keyList and key != 'done':
+            print 'Got a bad key. Try choosing one of ',keyList
+            result = self._sampleInfo()
+            return result
+        # If done condition, exit
+        elif key == 'done':
+            print 'Done getting filter information'
+            return True
     
 
     def _match(self,key):
@@ -343,16 +398,17 @@ class makeFilter(starSample):
 
         # Invalid entry condition
         else:
-            print 'Please type m, s or a'
-            self._match(key)
-        
+            print 'Invalid choice, please type match, slice or all'
+            result = self._match(key)
+            return result
+            
     def getDirectory(self):
         """
         Create directory to store results for given filter.
         
         """
         if not os.path.isdir(self.name):
-            os.system('mkdir {0}'.format(self.name))
+            os.system('mkdir -p {0}/'.format(self.name))
         return
 
     def directoryClean(self):
@@ -362,13 +418,18 @@ class makeFilter(starSample):
         """
         os.system('rm -rf {0}/*.npy'.format(self.name))
 
+    def filterCopy(self):
+        """
+        Copies filter function to data directory.
+        """
+        os.system('cp filter_function.py {0}/'.format(self.name))
 
 class subStarSample(makeFilter):
     """
     Given a filter function, defines a subsample of the total sample of stars.
     
     """
-    def __init__(self,dataSource,sampleType,ask=True):
+    def __init__(self,dataSource,sampleType,ask=True,datadir='.',func=None):
         """
         Create a subsample according to a starFilter function
         
@@ -380,16 +441,21 @@ class subStarSample(makeFilter):
         
         """
         # Create starFilter
-        makeFilter.__init__(self,dataSource,sampleType,ask=ask)
+        makeFilter.__init__(self,dataSource,sampleType,ask=ask,datadir=datadir,func=func)
         import filter_function
         reload(filter_function)
         from filter_function import starFilter
         # Find stars that satisfy starFilter and cut data accordingly
         self._matchingStars = starFilter(self.data)
         self.matchingData = self.data[self._matchingStars]
-        self.numberStars = len(self.matchingData)
+        #self.numberStars = len(self.matchingData)
         self.checkArrays()
+
+    def numberStars(self):
+        return len(self.matchingData)
         
+
+    
     def checkArrays(self):
         """
         Check if input data has already been saved as arrays. 

@@ -24,7 +24,7 @@ def bitsNotSet(bitmask,maskbits):
 badcombpixmask = bitmask.badpixmask()
 badcombpixmask += 2**bitmask.apogee_pixmask_int("SIG_SKYLINE")
 
-def maskFilter(sample,minstar=5):
+def maskFilter(sample,minstar=5,badcombpixmask=4351,minSNR=50.):
     """
     Returns True where sample properties match conditions
     
@@ -39,11 +39,11 @@ def maskFilter(sample,minstar=5):
     # Breakdown badcombpixmask (from data.py) into each individual bit flag
     maskbits = bm.bits_set(badcombpixmask)
     # Mask where SNR low or where something flagged in bitmask
-    mask = (sample._SNR < 50.) | bitsNotSet(sample._bitmasks,maskbits)
+    mask = (sample._SNR < minSNR) | bitsNotSet(sample._bitmasks,maskbits)
     # Calculate the number of masked stars at each pixel
     flaggedstars = np.sum(mask,axis=0)
     # Flag pixels where there aren't enough stars to do the fit
-    flaggedpix = flaggedstars > (sample.numberStars-minstar)
+    flaggedpix = flaggedstars > (sample.numberStars()-minstar)
     mask.T[flaggedpix]=True
     return mask
 
@@ -53,7 +53,8 @@ class mask(subStarSample):
     maskConditions function.
     
     """
-    def __init__(self,dataSource,sampleType,maskFilter,ask=True):
+    def __init__(self,dataSource,sampleType,maskFilter,ask=True,datadir='.',
+                 func=None,badcombpixmask=4351,minSNR=50):
         """
         Mask a subsample according to a maskFilter function
         
@@ -65,10 +66,23 @@ class mask(subStarSample):
                       filter_function.py
         
         """
-        subStarSample.__init__(self,dataSource,sampleType,ask=ask)
+        subStarSample.__init__(self,dataSource,sampleType,ask=ask,datadir=datadir,func=func)
+        if isinstance(badcombpixmask,list):
+            badcombpixmask=np.array(badcombpixmask)
+        if isinstance(badcombpixmask,np.ndarray):
+            if isinstance(badcombpixmask[0],str):
+                badcombpixmask = 0
+                for b in badcombpixmask:
+                    badcombpixmask = np.sum(2**bitmask.apogee_pixmask_int(b))
+            elif isinstance(badcombpixmask[0],int):
+                badcombpixmask = np.sum(2**badcombpixmask)
+        self.name+='/bm{0}'.format(badcombpixmask)
+        self.getDirectory()
         self._SNR = self.spectra/self.spectra_errs
+        self.minSNR = minSNR
         # find indices that should be masked
-        self._maskHere = maskFilter(self,minstar=5)
+        self._maskHere = maskFilter(self,minstar=5,minSNR=self.minSNR,
+                                    badcombpixmask=badcombpixmask)
         self.applyMask()
 
     def applyMask(self):

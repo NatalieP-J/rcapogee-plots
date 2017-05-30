@@ -144,7 +144,7 @@ def read_caldata(filename='../clusterdata/aj485195t4_mrt.txt',dr='13'):
     data['V_{0}'.format(rel)] = alldata['V_{0}'.format(rel)][inds]
     data['MN_{0}'.format(rel)] = alldata['MN_{0}'.format(rel)][inds]
     data['NI_{0}'.format(rel)] = alldata['NI_{0}'.format(rel)][inds]
-    return data
+    return numpy.array(data)
 
 def read_spectra(cluster,teffmin=4000.,teffmax=5000.,cont_type='cannon',
                  cont_deg=4):
