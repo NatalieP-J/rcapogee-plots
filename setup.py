@@ -1,4 +1,5 @@
 from setuptools import setup
+import warnings
 
 setup(name='spectralspace',
       version='1.',
@@ -18,3 +19,5 @@ setup(name='spectralspace',
       install_requires=['numpy','scipy','matplotlib','jupyter','tqdm','astropy',
                         'statsmodels','sklearn']
       )
+
+warnings.warn('''APOGEE installation requires environment variables to be set: SDSS_LOCAL_SAS_MIRROR=<path to file storage>, RESULTS_VERS=v603, APOGEE_APOKASC_REDUX=v7.3''')
