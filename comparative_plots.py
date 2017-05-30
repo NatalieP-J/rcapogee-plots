@@ -392,9 +392,10 @@ def contrast_Ncells(direcs,models,labels,colours,titles=[],savename=None,
     # Find point outline colours
     edgecolours = plt.get_cmap('Greys')(np.linspace(0.2,0.85,len(models)))
 
+    ymin,ymax=np.floor(np.log10(ybounds[0])),np.ceil(np.log10(ybounds[1]))
+
     if makemodel:
         # Prepare for Ncells model
-        ymin,ymax=np.floor(np.log10(ybounds[0])),np.ceil(np.log10(ybounds[1]))
         fitparams = np.zeros((len(direcs)*len(models),2))
         # Set fit parameter index to zero
         a = 0
@@ -600,14 +601,11 @@ def contrast_Ncells(direcs,models,labels,colours,titles=[],savename=None,
         return fitparams
 
 
-def sample_compare_ncells(direcs,models,labels,colour=None,savename=None,figsize=(15,6),
-                          subsamples=5,seeds=[],denom=consth,rotation=30,ha='right',
-                          bottom_margin=0.25,**kwargs):
+def sample_compare_ncells(direcs,models,labels,colours=None,savename=None,
+                          figsize=(15,6),subsamples=5,seeds=[],denom=consth,
+                          rotation=30,ha='right',bottom_margin=0.25,**kwargs):
     """
-    Create a plot to compare the number of cells at R^2-R^2_noise intersections                      
-                                                                                        
-    direcs:        List of strings that name directories where model files                 
-                   are stored.                                                             
+    Create a plot to compare the number of cells at R^2-R^2_noise intersection                                                                                    direcs:        List of strings that name directories where model files                        are stored.                                                             
     models:        List of strings that name model files to access                         
     labels:        Labels for each model                                                   
     colours:       List of colours for each model                                          
@@ -649,8 +647,7 @@ def sample_compare_ncells(direcs,models,labels,colour=None,savename=None,figsize
             # Read model from file
             model = acs.pklread('{0}/{1}'.format(direcs[d],models[m]))
             # Get Ncells
-            Ncells = calculate_Ncells(direcs[d],model,models[m],denom=denom,generate=True,
-                                      **kwargs)
+            Ncells = calculate_Ncells(direcs[d],model,models[m],denom=denom,**kwargs)
             
             #Indexes whether appropriate jackknife files are found
             found = True
