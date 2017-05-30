@@ -1,6 +1,6 @@
 import numpy as np
 from apogee.tools import bitmask as bm
-from star_sample import subStarSample
+from spectralspace.sample.star_sample import subStarSample
 
 # For reference, the APOGEE_PIXMASK
 

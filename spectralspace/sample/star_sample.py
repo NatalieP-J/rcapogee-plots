@@ -4,10 +4,10 @@ from tqdm import tqdm
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import access_spectrum as acs
+import spectralspace.sample.access_spectrum as acs
 import apogee.samples.rc as rcmodel
 import apogee.tools.read as apread
-from data.read_clusterdata import read_caldata
+from spectralspace.sample.read_clusterdata import read_caldata
 import isodist
 
 font = {'family': 'serif',

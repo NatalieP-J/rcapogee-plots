@@ -7,9 +7,9 @@ from matplotlib.ticker import MultipleLocator
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn import linear_model
 import statsmodels.nonparametric.smoothers_lowess as sm
-import access_spectrum as acs
+import spectralspace.sample.access_spectrum as acs
 from empca import empca,MAD,meanMed
-from sample.mask_data import mask,maskFilter
+from spectralspace.sample.mask_data import mask,maskFilter
 import os
 from galpy.util import multi as ml
 
