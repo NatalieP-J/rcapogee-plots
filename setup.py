@@ -13,11 +13,10 @@ setup(name='spectralspace',
                                           'clusterdata/aj485195t4_mrt.txt',
                                           'clusterdata/aj509073t2_mrt.txt']},
       dependency_links = ['https://github.com/jobovy/apogee/tarball/master#egg=apogee',
-                          'https://github.com/NatalieP-J/empca/tarball/master#egg=empca',
                           'https://github.com/jobovy/galpy/tarball/master#egg=galpy',
                           'https://github.com/jobovy/isodist/tarball/master#egg=isodist'],
-      install_requires=['numpy','scipy','matplotlib','jupyter','tqdm','astropy',
-                        'statsmodels','scikit-learn','apogee','galpy','isodist']
+      install_requires=['numpy','scipy','matplotlib','tqdm','astropy',
+                        'apogee','galpy','isodist','scikit-learn','statsmodels']
       )
 
 warnings.warn('''APOGEE installation requires environment variables to be set: SDSS_LOCAL_SAS_MIRROR=<path to file storage>, RESULTS_VERS=v603, APOGEE_APOKASC_REDUX=v7.3''')
