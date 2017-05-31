@@ -10,7 +10,7 @@ import statsmodels.nonparametric.smoothers_lowess as sm
 import spectralspace.sample.access_spectrum as acs
 from empca import empca,MAD,meanMed
 from spectralspace.sample.mask_data import mask,maskFilter
-from spectralsapce.sample.star_sample import aspcappix
+from spectralspace.sample.star_sample import aspcappix
 import os
 from galpy.util import multi as ml
 
