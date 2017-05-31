@@ -20,7 +20,7 @@ with possible option for local installation only:
 
 `python setup.py install --prefix=<some local directory>`
 
-This repository requires the following packages: [numpy](http://www.numpy.org/), [matplotlib](http://matplotlib.org/), [tqdm](https://pypi.python.org/pypi/tqdm), [sklearn](http://scikit-learn.org/stable/), [apogee](https://github.com/jobovy/apogee), [astropy](http://www.astropy.org/), [scipy](https://www.scipy.org/), [statsmodels](http://statsmodels.sourceforge.net/), [galpy](https://github.com/jobovy/galpy), [isodist](https://github.com/jobovy/isodist), and [empca](https://github.com/NatalieP-J/empca)
+This repository requires the following packages: [numpy](http://www.numpy.org/), [matplotlib](http://matplotlib.org/), [tqdm](https://pypi.python.org/pypi/tqdm), [sklearn](http://scikit-learn.org/stable/), [apogee](https://github.com/jobovy/apogee), [astropy](http://www.astropy.org/), [scipy](https://www.scipy.org/), [statsmodels](http://statsmodels.sourceforge.net/), [galpy](https://github.com/jobovy/galpy), [isodist](https://github.com/jobovy/isodist))
 
 If you wish to try the example notebooks, you'll also need [jupyter](http://jupyter.org)
 
