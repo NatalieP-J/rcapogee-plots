@@ -1,6 +1,6 @@
 from empca_residuals import *
 
-datadir = '/geir_data/scr/price-jones/Data/apogee_dim_reduction/'
+datadir = './data/'
 sample_type = 'red_clump'
 bmask = 7935
 maxsamp = 5
