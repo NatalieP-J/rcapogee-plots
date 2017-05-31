@@ -93,7 +93,7 @@ class starSample(object):
         if self.DR:
             self.data = readfn[self._dataSource][self._sampleType](dr=str(self.DR))
             if self.DR=='12':
-                fib = np.load('../data/DR12_supplement/fiberinfo.npy')
+                fib = np.load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','data','DR12_supplement','fiberinfo.npy'))
                 if self._sampleType=='clusters':
                     notmissing = (np.array([i for i in range(len(self.data['APOGEE_ID'])) if self.data['APOGEE_ID'][i] in fib['APOGEE_ID']]),)
                 else:
