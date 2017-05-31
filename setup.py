@@ -17,7 +17,7 @@ setup(name='spectralspace',
                           'https://github.com/jobovy/galpy/tarball/master#egg=galpy',
                           'https://github.com/jobovy/isodist/tarball/master#egg=isodist'],
       install_requires=['numpy','scipy','matplotlib','jupyter','tqdm','astropy',
-                        'statsmodels','sklearn']
+                        'statsmodels','scikit-learn','apogee','galpy','isodist']
       )
 
 warnings.warn('''APOGEE installation requires environment variables to be set: SDSS_LOCAL_SAS_MIRROR=<path to file storage>, RESULTS_VERS=v603, APOGEE_APOKASC_REDUX=v7.3''')
