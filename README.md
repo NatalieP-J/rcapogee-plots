@@ -10,7 +10,7 @@ This code reduces the dimensionality of APOGEE H-band spectra ([Majewski et. al.
 
 Clone this repository. Note that the repository has a significant history and so total size is 125 MB. To reduce download size, consider  
 
-`git clone --depth=1 https://github.com/NatalieP-J/spectralspace.git`
+`git clone --depth=1 https://github.com/npricejones/spectralspace.git`
 
 Navigate into the repository to install with:
 
