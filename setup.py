@@ -16,7 +16,7 @@ setup(name='spectralspace',
       dependency_links = ['https://github.com/jobovy/apogee/tarball/master#egg=apogee',
                           'https://github.com/jobovy/galpy/tarball/master#egg=galpy',
                           'https://github.com/jobovy/isodist/tarball/master#egg=isodist'],
-      install_requires=['numpy','scipy','matplotlib','tqdm','astropy',
+      install_requires=['numpy','scipy','matplotlib','tqdm','astropy','pickle'
                         'apogee','galpy','isodist','scikit-learn','statsmodels']
       )
 

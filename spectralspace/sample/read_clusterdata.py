@@ -14,7 +14,7 @@ import astropy.io.ascii
 _COMBINED_INDEX=1
 _GCS= ['M15','M92','M53','N5466','M13','M2','M3','M5','M107','M71']
 _ERASESTR= "                                                                               "
-def read_meszarosgcdata(filename='../data/clusterdata/aj509073t2_mrt.txt'):
+def read_meszarosgcdata(filename=os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','data','clusterdata','aj509073t2_mrt.txt')):
     """
     NAME:
        read_meszarosgcdata
@@ -60,7 +60,7 @@ def read_meszarosgcdata(filename='../data/clusterdata/aj509073t2_mrt.txt'):
     data['FE_H'] = data['FEH']
     return data
 
-def read_caldata(filename='../data/clusterdata/aj485195t4_mrt.txt',dr='13'):
+def read_caldata(filename=os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','data','clusterdata','aj485195t4_mrt.txt'),dr='13'):
     """
     NAME:
        read_caldata
