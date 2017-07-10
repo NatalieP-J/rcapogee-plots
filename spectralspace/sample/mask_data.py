@@ -65,26 +65,33 @@ def maskFilter(sample,minstar=5,badcombpixmask=4351,minSNR=50.):
     mask.T[flaggedpix]=True
     return mask
 
+def noFilter(sample,minstar=5,badcombpixmask=4351,minSNR=50.):
+    """                                                                                     
+    Returns True where sample properties match conditions                                   
+    sample:   an object of mask class                                                          minstar:  minimum number of unmasked stars required at a pixel for that                              pixel to remain unmasked                                                      
+    """
+    return np.zeros((sample.spectra.shape[0],sample.spectra.shape[1])).astype('bool')
+
 class mask(subStarSample):
     """
     Define and apply a mask given a set of conditions in the form of the
     maskConditions function.
     
     """
-    def __init__(self,dataSource,sampleType,maskFilter,ask=True,datadir='.',
+    def __init__(self,dataSource,sampleType,maskMaker,ask=True,datadict=None,datadir='.',
                  func=None,badcombpixmask=4351,minSNR=50):
         """
         Mask a subsample according to a maskFilter function
         
         sampleType:   designator of the sample type - must be a key in readfn 
                       and independentVariables in data.py
-        maskFilter:   function that decides on elements to be masked
+        maskMaker:    function that decides on elements to be masked
         ask:          if True, function asks for user input to make 
                       filter_function.py, if False, uses existing 
                       filter_function.py
         
         """
-        subStarSample.__init__(self,dataSource,sampleType,ask=ask,datadir=datadir,func=func)
+        subStarSample.__init__(self,dataSource,sampleType,ask=ask,datadict=datadict,datadir=datadir,func=func)
         if isinstance(badcombpixmask,list):
             badcombpixmask=np.array(badcombpixmask)
         if isinstance(badcombpixmask,np.ndarray):
@@ -99,8 +106,8 @@ class mask(subStarSample):
         self._SNR = self.spectra/self.spectra_errs
         self.minSNR = minSNR
         # find indices that should be masked
-        self._maskHere = maskFilter(self,minstar=5,minSNR=self.minSNR,
-                                    badcombpixmask=badcombpixmask)
+        self._maskHere = maskMaker(self,minstar=5,minSNR=self.minSNR,
+                                   badcombpixmask=badcombpixmask)
         self.applyMask()
 
     def applyMask(self):

@@ -9,7 +9,7 @@ from sklearn import linear_model
 import statsmodels.nonparametric.smoothers_lowess as sm
 import spectralspace.sample.access_spectrum as acs
 from empca import empca,MAD,meanMed
-from spectralspace.sample.mask_data import mask,maskFilter
+from spectralspace.sample.mask_data import mask,maskFilter,noFilter
 from spectralspace.sample.star_sample import aspcappix
 import os
 from galpy.util import multi as ml
@@ -26,7 +26,8 @@ independentVariables = {'apogee':{'clusters':['TEFF'],
                                   'OCs':['TEFF'],
                                   'GCs':['TEFF'],
                                   'red_clump':['TEFF','LOGG','FE_H'],
-                                  'red_giant':['TEFF','LOGG','FE_H']}}
+                                  'red_giant':['TEFF','LOGG','FE_H'],
+                                  'syn':['TEFF','LOGG','FE_H']}}
                         
 def smoothMedian(diag,frac=None,numpix=None):
     """
@@ -114,14 +115,14 @@ class empca_residuals(mask):
     Contains functions to find polynomial fits.
     
     """
-    def __init__(self,dataSource,sampleType,maskFilter,ask=True,datadir='.',
+    def __init__(self,dataSource,sampleType,maskMaker,ask=True,datadict=None,datadir='.',
                  func=None,badcombpixmask=4351,minSNR=50,degree=2,nvecs=5):
         """
         Fit a masked subsample.
         
         sampleType:      designator of the sample type - must be a key in readfn 
                             and independentVariables in data.py
-        maskFilter:      function that decides on elements to be masked
+        maskMaker:       function that decides on elements to be masked
         ask:             if True, function asks for user input to make 
                             filter_function.py, if False, uses existing 
                             filter_function.py
@@ -134,7 +135,7 @@ class empca_residuals(mask):
         
         
         """
-        mask.__init__(self,dataSource,sampleType,maskFilter,ask=ask,
+        mask.__init__(self,dataSource,sampleType,maskMaker,ask=ask,datadict=datadict,
                       minSNR=minSNR,datadir=datadir,func=func,
                       badcombpixmask=badcombpixmask)
         self.degree = degree
@@ -544,7 +545,7 @@ class empca_residuals(mask):
         for i in range(len(independentVariables[self._dataSource][matrix])):
             variable = independentVariables[self._dataSource][matrix][i]
             indep = self.keywordMap[variable][self.unmasked[:,pixel]]
-            indeps[:,i] = indep-np.median(indep)
+            indeps[:,i] = indep.data-np.ma.median(indep)
         # use polynomial to produce matrix with all necessary columns
         return np.matrix(self.polynomial.fit_transform(indeps))
 

@@ -36,13 +36,54 @@ def rgsample(dr='12'):
     rgindx=indx*(data['METALS'] > -.8)
     return data[rgindx]
 
+def get_synthetic(model,datadict=None,data=[],spectra=[],spectra_errs=[],bitmask=[]):
+    """
+    Retrieves information about a synthetic sample
 
+    model:        star_sample object to fill with synthetic information
+    datadict:     condensed argument containing entries for each of following kwargs. if the following
+                  are passed separately they are overridden by the dictionary entries
+    data:         numpy structured array with columns for TEFF, LOGG and FE_H, one entry per star
+    spectra:      array of ASPCAP shaped spectra (7214 pixels per spectrum)
+    spectra_errs: array of ASPCAP shaped uncertaintes on spectra (7214 pixels per spectrum)
+    bitmask:      base 2 bitmask indicating flagged pixels. defaults to no flags
+
+    Updates properties of model, returns nothing.
+
+    """
+
+    if isinstance(datadict,dict):
+        data = datadict['data']
+        spectra = datadict['spectra']
+        spectra_errs = datadict['spectra_errs']
+        bitmask = datadict['bitmask']
+    model.data = data
+    # Create fit variable arrays                                                                                                                                  
+    model.teff = np.ma.masked_array(data['TEFF'])
+    model.logg = np.ma.masked_array(data['LOGG'])
+    model.fe_h = np.ma.masked_array(data['FE_H'])
+    
+    # Create spectra arrays                                                                                                                                       
+    model.spectra = np.ma.masked_array(spectra)
+    model.spectra_errs = np.ma.masked_array(np.zeros((len(data),
+                                                    aspcappix)))
+    if isinstance(spectra_errs,(int,float)):
+        model.spectra_errs+=spectra_errs
+    elif isinstance(spectra_errs,(np.ndarray)):
+        model.spectra_errs += spectra_errs
+    model._bitmasks = np.zeros((len(data),aspcappix),dtype=np.int64)
+    if isinstance(bitmask,(np.ndarray)):
+        model._bitmasks = bitmask
+    
+    
 # Functions to access particular sample types                                                 
 readfn = {'apogee':{'clusters' : read_caldata,    # Sample of clusters      
                     'OCs': read_caldata,          # Sample of open clusters 
                     'GCs': read_caldata,          # Sample of globular clusters
                     'red_clump' : apread.rcsample,# Sample of red clump star
-                    'red_giant' : rgsample}       # Sample of red giant star
+                    'red_giant' : rgsample,       # Sample of red giant star
+                    'syn': get_synthetic        
+                    }      
 }
 
 # List of accepted keys to do slice in                                                        
@@ -61,7 +102,7 @@ class starSample(object):
     read function.
     
     """
-    def __init__(self,dataSource,sampleType,ask=True):
+    def __init__(self,dataSource,sampleType,ask=True,datadict=None):
         """
         Get properties for all stars that match the sample type
 
@@ -69,22 +110,33 @@ class starSample(object):
                       and independentVariables in data.py
         
         """
-        self._dataSource = dataSource
-        if self._dataSource == 'apogee':
-            if ask:
-                self.DR = raw_input('Which data release? (Enter for 12): ')
-                if self.DR=='':
-                    self.DR='12'
-            if not ask:
-                self.DR = '12'
+        if sampleType == 'syn':
+            self._sampleType = sampleType
+            self._dataSource = dataSource
+            self.DR = '0'
+            if not isinstance(datadict,dict):
+                print 'Initialized empty star sample object, call get_synthetic(), passing the name of this object as the first argument'
+            elif isinstance(datadict,dict):
+                get_synthetic(self,datadict)
                 
-            if self.DR=='12':
-                os.environ['RESULTS_VERS']='v603'
-            if self.DR=='13':
-                os.environ['RESULTS_VERS']='l30e.2'
-        os.system('echo RESULTS_VERS $RESULTS_VERS')
-        self._sampleType = sampleType
-        self._getProperties()
+
+        elif sampleType != 'syn':
+            self._dataSource = dataSource
+            if self._dataSource == 'apogee':
+                if ask:
+                    self.DR = raw_input('Which data release? (Enter for 12): ')
+                    if self.DR=='':
+                        self.DR='12'
+                if not ask:
+                    self.DR = '12'
+                    
+                if self.DR=='12':
+                    os.environ['RESULTS_VERS']='v603'
+                if self.DR=='13':
+                    os.environ['RESULTS_VERS']='l30e.2'
+                os.system('echo RESULTS_VERS $RESULTS_VERS')
+            self._sampleType = sampleType
+            self._getProperties()
 
     def _getProperties(self):
         """
@@ -248,7 +300,7 @@ class makeFilter(starSample):
     Contains functions to create a filter and associated directory 
     name for a starSample.
     """
-    def __init__(self,dataSource,sampleType,ask=True,datadir='.',func=None):
+    def __init__(self,dataSource,sampleType,ask=True,datadict=None,datadir='.',func=None):
         """
         Sets up filter_function.py file to contain the appropriate function 
         and puts the save directory name in the docstring of the function.
@@ -260,7 +312,7 @@ class makeFilter(starSample):
                       filter_function.py
                       
         """
-        starSample.__init__(self,dataSource,sampleType,ask=ask)
+        starSample.__init__(self,dataSource,sampleType,ask=ask,datadict=datadict)
         if ask:
             self.done = False
             print 'Type done at any prompt when finished'
@@ -466,7 +518,7 @@ class subStarSample(makeFilter):
     Given a filter function, defines a subsample of the total sample of stars.
     
     """
-    def __init__(self,dataSource,sampleType,ask=True,datadir='.',func=None):
+    def __init__(self,dataSource,sampleType,ask=True,datadict=None,datadir='.',func=None):
         """
         Create a subsample according to a starFilter function
         
@@ -478,7 +530,7 @@ class subStarSample(makeFilter):
         
         """
         # Create starFilter
-        makeFilter.__init__(self,dataSource,sampleType,ask=ask,datadir=datadir,func=func)
+        makeFilter.__init__(self,dataSource,sampleType,ask=ask,datadict=datadict,datadir=datadir,func=func)
         import filter_function
         reload(filter_function)
         from filter_function import starFilter
@@ -486,7 +538,8 @@ class subStarSample(makeFilter):
         self._matchingStars = starFilter(self.data)
         self.matchingData = self.data[self._matchingStars]
         #self.numberStars = len(self.matchingData)
-        self.checkArrays()
+        if self._sampleType != 'syn':
+            self.checkArrays()
 
     def numberStars(self):
         return len(self.matchingData)
