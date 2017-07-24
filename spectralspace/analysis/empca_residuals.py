@@ -27,7 +27,7 @@ independentVariables = {'apogee':{'clusters':['TEFF'],
                                   'GCs':['TEFF'],
                                   'red_clump':['TEFF','LOGG','FE_H'],
                                   'red_giant':['TEFF','LOGG','FE_H'],
-                                  'syn':['TEFF','LOGG','FE_H']}}
+                                  'syn':['TEFF']}}
                         
 def smoothMedian(diag,frac=None,numpix=None):
     """
@@ -545,7 +545,7 @@ class empca_residuals(mask):
         for i in range(len(independentVariables[self._dataSource][matrix])):
             variable = independentVariables[self._dataSource][matrix][i]
             indep = self.keywordMap[variable][self.unmasked[:,pixel]]
-            indeps[:,i] = indep.data-np.ma.median(indep)
+            indeps[:,i] = indep-np.ma.median(indep)
         # use polynomial to produce matrix with all necessary columns
         return np.matrix(self.polynomial.fit_transform(indeps))
 
@@ -656,7 +656,7 @@ class empca_residuals(mask):
                 else:
                     # if fit possible update arrays
                     fitSpectrum,coefficients,coefficient_uncertainty = self.findFit(pixel,eigcheck,matrix=matrix)
-                    self.fitSpectra[:,pixel][self.unmasked[:,pixel]] = fitSpectrum
+                    self.fitSpectra[:,pixel][self.unmasked[:,pixel]] = np.array(fitSpectrum).flatten()
                     self.fitCoeffs[pixel] = coefficients
                     self.fitCoeffErrs[pixel] = coefficient_uncertainty
         elif coeffs:

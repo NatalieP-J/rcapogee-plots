@@ -20,13 +20,11 @@ plt.ion()
 
 aspcappix = 7214
 
-def rgsample(dr='12'):
+def rgsample():
     """
     Selects red giants from APOGEE sample
-
-    dr:    Data release to use, defaults to DR12.
     """
-    data= apread.allStar(main=True,exclude_star_bad=True,exclude_star_warn=True,dr=dr)
+    data= apread.allStar(main=True,exclude_star_bad=True,exclude_star_warn=True)
     jk= data['J0']-data['K0']
     z= isodist.FEH2Z(data['METALS'],zsolar=0.017)
     z[z > 0.024]= 0.024
@@ -143,7 +141,7 @@ class starSample(object):
         Get properties of all possible stars to be used.
         """
         if self.DR:
-            self.data = readfn[self._dataSource][self._sampleType](dr=str(self.DR))
+            self.data = readfn[self._dataSource][self._sampleType]()
             if self.DR=='12':
                 fib = np.load(os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','data','DR12_supplement','fiberinfo.npy'))
                 if self._sampleType=='clusters':
