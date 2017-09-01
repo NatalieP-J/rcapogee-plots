@@ -129,6 +129,9 @@ class mask(subStarSample):
         # create dictionary tracing the independent variables to keywords
         self.keywordMap = {'TEFF':self.teff,
                            'LOGG':self.logg,
-                           'FE_H':self.fe_h
+                           'FE_H':self.fe_h,
+                           'C_H':self.c_h,
+                           'N_H':self.n_h,
+                           'O_H':self.o_h
                        }
 

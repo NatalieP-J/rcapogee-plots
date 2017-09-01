@@ -60,7 +60,10 @@ def get_synthetic(model,datadict=None,data=[],spectra=[],spectra_errs=[],bitmask
     model.teff = np.ma.masked_array(data['TEFF'])
     model.logg = np.ma.masked_array(data['LOGG'])
     model.fe_h = np.ma.masked_array(data['FE_H'])
-    
+    model.c_h = np.ma.masked_array(data['C_H'])
+    model.n_h = np.ma.masked_array(data['N_H'])
+    model.o_h = np.ma.masked_array(data['O_H'])
+
     # Create spectra arrays                                                                                                                                       
     model.spectra = np.ma.masked_array(spectra)
     model.spectra_errs = np.ma.masked_array(np.zeros((len(data),
@@ -154,7 +157,7 @@ class starSample(object):
                 sigfib = dict(zip(fib['APOGEE_ID'],fib['SIGFIB']))
                 self.data['MEANFIB'][notmissing] = np.array([meanfib[apoid] for apoid in self.data['APOGEE_ID'][notmissing]])
                 self.data['SIGFIB'][notmissing] = np.array([sigfib[apoid] for apoid in self.data['APOGEE_ID'][notmissing]])
-
+        print 'properties ',dir(self)
 
     def initArrays(self,stardata):
         """
@@ -167,7 +170,12 @@ class starSample(object):
                                                 dtype=float))
         self.fe_h = np.ma.masked_array(np.zeros((len(stardata)),
                                                 dtype=float))
-        
+        self.c_h = np.ma.masked_array(np.zeros((len(stardata)),
+                                                dtype=float))
+        self.n_h = np.ma.masked_array(np.zeros((len(stardata)),
+                                                dtype=float))
+        self.o_h = np.ma.masked_array(np.zeros((len(stardata)),
+                                                dtype=float))
         # Create spectra arrays
         self.spectra = np.ma.masked_array(np.zeros((len(stardata),aspcappix),
                                                    dtype=float))
@@ -195,12 +203,18 @@ class starSample(object):
             TEFF = stardata[star]['TEFF']
             LOGG = stardata[star]['LOGG']
             FE_H = stardata[star]['FE_H']
+            C_H = stardata[star]['C_H']
+            N_H = stardata[star]['N_H']
+            O_H = stardata[star]['O_H']
             
             # Fit variables
             self.teff[star] = np.ma.masked_array(TEFF)
             self.logg[star] = np.ma.masked_array(LOGG)
             self.fe_h[star] = np.ma.masked_array(FE_H)
-            
+            self.c_h[star] = np.ma.masked_array(C_H)
+            self.n_h[star] = np.ma.masked_array(N_H)
+            self.o_h[star] = np.ma.masked_array(O_H)
+
             # Spectral data
             try:
                 self.spectra[star] = apread.aspcapStar(LOC,APO,ext=1,
@@ -554,6 +568,9 @@ class subStarSample(makeFilter):
         fnames = np.array([self.name+'/teff.npy',
                            self.name+'/logg.npy',
                            self.name+'/fe_h.npy',
+                           self.name+'/c_h.npy',
+                           self.name+'/n_h.npy',
+                           self.name+'/o_h.npy',
                            self.name+'/spectra.npy',
                            self.name+'/spectra_errs.npy',
                            self.name+'/bitmasks.npy'])
@@ -565,6 +582,9 @@ class subStarSample(makeFilter):
             self.teff = np.load(self.name+'/teff.npy')
             self.logg = np.load(self.name+'/logg.npy')
             self.fe_h = np.load(self.name+'/fe_h.npy')
+            self.c_h = np.load(self.name+'/c_h.npy')
+            self.n_h = np.load(self.name+'/n_h.npy')
+            self.o_h = np.load(self.name+'/o_h.npy')
             self.spectra = np.ma.masked_array(np.load(self.name+'/spectra.npy'))
             self.spectra_errs = np.ma.masked_array(np.load(self.name+'/spectra_errs.npy'))
             self._bitmasks = np.load(self.name+'/bitmasks.npy')
@@ -574,6 +594,9 @@ class subStarSample(makeFilter):
             np.save(self.name+'/teff.npy',self.teff.data)
             np.save(self.name+'/logg.npy',self.logg.data)
             np.save(self.name+'/fe_h.npy',self.fe_h.data)
+            np.save(self.name+'/c_h.npy',self.c_h.data)
+            np.save(self.name+'/n_h.npy',self.n_h.data)
+            np.save(self.name+'/o_h.npy',self.o_h.data)
             np.save(self.name+'/spectra.npy',self.spectra.data)
             np.save(self.name+'/spectra_errs.npy',self.spectra_errs.data)
             np.save(self.name+'/bitmasks.npy',self._bitmasks)

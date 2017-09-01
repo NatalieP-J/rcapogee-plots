@@ -27,7 +27,8 @@ independentVariables = {'apogee':{'clusters':['TEFF'],
                                   'GCs':['TEFF'],
                                   'red_clump':['TEFF','LOGG','FE_H'],
                                   'red_giant':['TEFF','LOGG','FE_H'],
-                                  'syn':['TEFF']}}
+                                  'syn':['TEFF','LOGG'],
+                                  'elem':['TEFF','LOGG','C_H','N_H','O_H','FE_H']}}
                         
 def smoothMedian(diag,frac=None,numpix=None):
     """
