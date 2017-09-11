@@ -9,7 +9,7 @@ import os
 try:
     from apogee.spec import continuum
 except RuntimeError:
-    print 'Failed to load continuum'
+    print('Failed to load continuum')
 import astropy.io.ascii
 _COMBINED_INDEX=1
 _GCS= ['M15','M92','M53','N5466','M13','M2','M3','M5','M107','M71']

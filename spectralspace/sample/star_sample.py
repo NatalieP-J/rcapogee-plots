@@ -116,7 +116,7 @@ class starSample(object):
             self._dataSource = dataSource
             self.DR = '0'
             if not isinstance(datadict,dict):
-                print 'Initialized empty star sample object, call get_synthetic(), passing the name of this object as the first argument'
+                print('Initialized empty star sample object, call get_synthetic(), passing the name of this object as the first argument')
             elif isinstance(datadict,dict):
                 get_synthetic(self,datadict)
                 
@@ -157,7 +157,7 @@ class starSample(object):
                 sigfib = dict(zip(fib['APOGEE_ID'],fib['SIGFIB']))
                 self.data['MEANFIB'][notmissing] = np.array([meanfib[apoid] for apoid in self.data['APOGEE_ID'][notmissing]])
                 self.data['SIGFIB'][notmissing] = np.array([sigfib[apoid] for apoid in self.data['APOGEE_ID'][notmissing]])
-        print 'properties ',dir(self)
+        print('properties ',dir(self))
 
     def initArrays(self,stardata):
         """
@@ -228,7 +228,7 @@ class starSample(object):
                                                      header=False,dr=self.DR, 
                                                      aspcapWavegrid=True)[1]
             except IOError:
-                print 'Star {0} missing '.format(star)
+                print('Star {0} missing '.format(star))
                 self.spectra[star] = np.zeros(aspcappix)
                 self.spectra_errs[star] = np.ones(aspcappix)
                 self._bitmasks[star] = np.ones(aspcappix).astype(np.int16)
@@ -237,7 +237,7 @@ class starSample(object):
             if LOGG<-1000 or TEFF<-1000 or FE_H<-1000 or self.data[star]['SIGFIB'] < 0 or self.data[star]['MEANFIB'] < 0:
                 self._bitmasks[star] = np.ones(aspcappix).astype(np.int16)
 
-        print 'Total {0} of {1} stars missing'.format(missing,len(stardata))
+        print('Total {0} of {1} stars missing'.format(missing,len(stardata)))
                 
             
     def show_sample_coverage(self,coords=True,phi_ind='RC_GALPHI',r_ind='RC_GALR',z_ind='RC_GALZ'):
@@ -327,7 +327,7 @@ class makeFilter(starSample):
         starSample.__init__(self,dataSource,sampleType,ask=ask,datadict=datadict)
         if ask:
             self.done = False
-            print 'Type done at any prompt when finished'
+            print('Type done at any prompt when finished')
             # Start name and condition string
             self.name = datadir+'/'+self._sampleType+'_'+str(self.DR)
             self.condition = ''
@@ -337,7 +337,7 @@ class makeFilter(starSample):
             # Check that the user set conditions. 
             # If conditions not set, recursively call init
             if self.condition == '':
-                print 'No conditions set'
+                print('No conditions set')
                 self.__init__(dataSource,sampleType,ask=True)
             # When conditions set, trim trailing ampersand
             self.condition = self.condition[:-2]
@@ -365,7 +365,7 @@ class makeFilter(starSample):
                     self.name = starFilter.__doc__.split('\n')[-2]
                     self.name = self.name.split('\t')[-1]
                 except ImportError:
-                    print 'filter_function.py does not contain the required starFilter function.'
+                    print('filter_function.py does not contain the required starFilter function.')
                     self.__init__(dataSource,sampleType,ask=True)
         self.getDirectory()
         self.filterCopy()
@@ -409,7 +409,7 @@ class makeFilter(starSample):
                     self.condition += ' (data[\'{0}\'] == "{1}") &'.format(key,match[1])
                     return True
                 else:
-                    print 'Invalid choice of "and" or "or", using "or" by default'
+                    print('Invalid choice of "and" or "or", using "or" by default')
                     self.condition += ' (data[\'{0}\'] == "{1}") |'.format(key,match[1])
                     return False
             elif match[0]=='s':
@@ -427,17 +427,17 @@ class makeFilter(starSample):
                     self.condition += ' ((data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2})) &'.format(key,match[1],match[2])
                     return True
                 else:
-                    print 'Invalid choice of "and" or "or", using "or" by default'
+                    print('Invalid choice of "and" or "or", using "or" by default')
                     self.condition += ' ((data[\'{0}\'] < {1}) & (data[\'{0}\'] > {2})) |'.format(key,match[1],match[2])
                     return False
         # If key not accepted, make recursive call
         elif key not in keyList and key != 'done':
-            print 'Got a bad key. Try choosing one of ',keyList
+            print('Got a bad key. Try choosing one of ',keyList)
             result = self._sampleInfo()
             return result
         # If done condition, exit
         elif key == 'done':
-            print 'Done getting filter information'
+            print('Done getting filter information')
             return True
     
 
@@ -454,14 +454,14 @@ class makeFilter(starSample):
         if match == 'match' or match == 'm' or match == 'Match':
             m = raw_input('Match value: ')
             if m=='done':
-                print 'Done getting filter information'
+                print('Done getting filter information')
                 return 'done',None
             # Check if match value has at least one star, 
             # if not call _match recursively
             elif m!='done' and m in self.data[key]:
                 return 'm',m
             elif m not in self.data[key]:
-                print 'No match for this key. Try choosing one of ',np.unique(self.data[key])
+                print('No match for this key. Try choosing one of ',np.unique(self.data[key]))
                 self._match(key)
 
         elif match == 'slice' or match == 's' or match == 'Slice':
@@ -469,7 +469,7 @@ class makeFilter(starSample):
             upperLimit = raw_input('Upper limit (Enter for maximum): ')
             lowerLimit = raw_input('Lower limit (Enter for minimum): ')
             if upperLimit == 'done' or lowerLimit == 'done':
-                print 'Done getting filter information'
+                print('Done getting filter information')
                 return 'done',None
             elif upperLimit != 'done' and lowerLimit != 'done':
                 if upperLimit == 'max' or upperLimit == 'm' or upperLimit == '':
@@ -479,13 +479,13 @@ class makeFilter(starSample):
                 # Check limits are good - if not, call _match recursively
                 try:
                     if float(upperLimit) <= float(lowerLimit):
-                        print 'Limits are the same or are in the wrong order. Try again.'
+                        print('Limits are the same or are in the wrong order. Try again.')
                         self._match(key)
                     elif float(upperLimit) > float(lowerLimit):
-                        print 'Found good limits'
+                        print('Found good limits')
                         return 's',float(upperLimit),float(lowerLimit)
                 except ValueError as e:
-                    print 'Please enter floats for the limits'
+                    print('Please enter floats for the limits')
                     self._match(key)
 
         # Option to use the entire sample
@@ -494,12 +494,12 @@ class makeFilter(starSample):
             
         # Exit filter finding 
         elif match == 'done':
-            print 'Done getting filter information'
+            print('Done getting filter information')
             return 'done',None
 
         # Invalid entry condition
         else:
-            print 'Invalid choice, please type match, slice or all'
+            print('Invalid choice, please type match, slice or all')
             result = self._match(key)
             return result
             

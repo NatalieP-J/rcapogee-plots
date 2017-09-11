@@ -156,7 +156,7 @@ class empca_residuals(mask):
         where the randomly assigned sample numbers (self.inds) do not match i
         
         """
-        print 'Working on {0}'.format(i+1)
+        print('Working on {0}'.format(i+1))
         # Select ith subsample and update arrays
         # If sample is to be divided, find where assigned indices match i
         if self.division:
@@ -390,7 +390,7 @@ class empca_residuals(mask):
                 elif not cvec.size:
                     avgvec = -1
                     varvec = -1
-                print '{0} +/- {1}'.format(avgvec,np.sqrt(varvec))
+                print('{0} +/- {1}'.format(avgvec,np.sqrt(varvec)))
                 # Save results
                 self.numeigvec = avgvec
                 self.numeigvec_std = np.sqrt(varvec)
@@ -582,7 +582,7 @@ class empca_residuals(mask):
             if eigcheck:
                 eigvals,eigvecs = np.linalg.eig(newIndeps)
                 if any(np.fabs(eigvals)<1e-10) and indeps.shape[1] > self.degree+1:
-                    print 'degenerate pixel ',pixel,' coeffs ',np.where(np.fabs(eigvals) < 1e-10)[0] 
+                    print('degenerate pixel ',pixel,' coeffs ',np.where(np.fabs(eigvals) < 1e-10)[0])
                     degen = True
                     indeps = indeps.T[self.noncrossInds].T
         
