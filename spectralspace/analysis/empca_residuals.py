@@ -196,6 +196,7 @@ class empca_residuals(mask):
         self.samplenum = i+1
         # Call EMPCA solver for all variance functions in parallel
         stat = ml.parallel_map(self.EMPCA_wrapper,range(len(self.varfuncs)))
+        print 'Did EMPCA'
         # Unpack results of running in parallel and store
         for s in range(len(stat)):
             R2A,R2n,cvc,lab = stat[s]
@@ -203,6 +204,7 @@ class empca_residuals(mask):
             self.R2ns[s] = R2n
             self.cvcs[s] = cvc
             self.labs[s] = lab
+        print 'Got stats'
         # Clear arrays from memory
         del self.matchingData 
         del self.teff
@@ -214,6 +216,8 @@ class empca_residuals(mask):
         del self._maskHere 
         # Clean directory of all but EMPCA files (don't store residuals)
         self.directoryClean()
+        print 'Cleaned'
+        print 'R2, R2noise, cvcs, labels'.format(self.R2As.T,self.R2ns,self.cvcs,self.labs)
         return (self.R2As.T,self.R2ns,self.cvcs,self.labs)
 
     def EMPCA_wrapper(self,v):
@@ -228,12 +232,14 @@ class empca_residuals(mask):
         # Find R^2 values
         R2A = self.empcaModelWeight.R2Array
         R2n = self.empcaModelWeight.R2noise
+        print 'Got R^2'
         # Find where R^2 intersects R^2_noise
         cvc = np.interp(R2n,R2A,np.arange(len(R2A)),left=0,right=-1)
         lab = 'subsamp {0}, {1} stars, func {2} - {3} vec'.format(self.samplenum,self.numberStars(),self.varfuncs[v].__name__,cvc)
+        print 'Found intersection'
         return (R2A,R2n,cvc,lab)
 
-    def samplesplit(self,division=False,seed=None,fullsamp=True,maxsamp=5,subsamples=5,varfuncs=[np.ma.var,meanMed],numcores=None):
+    def samplesplit(self,division=False,seed=None,fullsamp=True,maxsamp=5,subsamples=5,varfuncs=[np.ma.var,meanMed],numcores=None,ctmnorm=None):
         """                                                                     
         Take self.subsamples random subsamples of the original data set and
         run EMPCA.
@@ -245,6 +251,7 @@ class empca_residuals(mask):
         subsamples:   number of subsamples to divide up full samples
         varfuncs:     list of functions to compute variance in EMPCA
         numcores:     maximum number of simultaneous parallel processes
+        ctnnorm:      if set, renormalize for continuum
 
         Creates a plot comparing R^2 statistics for the subsamples.
 
@@ -256,6 +263,7 @@ class empca_residuals(mask):
             maxsamp = np.floor(float(numcores)/len(self.varfuncs))
         # If no subsamples, just run regular EMCPA
         if self.subsamples==1:
+            self.continuumNormalize(source=ctmnorm)
             self.findResiduals()
             R2Arrays = np.zeros((len(self.varfuncs),self.nvecs+1))
             R2noises = np.zeros((len(self.varfuncs)))
@@ -280,6 +288,7 @@ class empca_residuals(mask):
             elif seed:
                 self.seed=seed
             np.random.seed(self.seed)
+            self.continuumNormalize(source=ctmnorm)
             # Make copies of original data to use for slicing
             self.filterData = np.copy(self.matchingData)
             self.originalteff = np.ma.copy(self.teff)
@@ -344,6 +353,7 @@ class empca_residuals(mask):
                 # Unpack run statistics from sublist
                 stats = [item for sublist in stats for item in sublist]
             # Unpack information from parallel runs into appropriate arrays
+            print 'stats ',stats
             k = 0
             for s in range(len(stats)):
                 R2As,R2ns,cvcs,labs = stats[s]

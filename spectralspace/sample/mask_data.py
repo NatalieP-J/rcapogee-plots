@@ -1,5 +1,6 @@
 import numpy as np
 from apogee.tools import bitmask as bm
+from apogee.spec.continuum import fit
 from spectralspace.sample.star_sample import subStarSample
 
 # For reference, the APOGEE_PIXMASK
@@ -135,3 +136,13 @@ class mask(subStarSample):
                            'O_H':self.o_h
                        }
 
+    def continuumNormalize(self,source='cannon'):
+        if source:
+            newspecs = np.ma.masked_array(np.zeros((self.numberStars(),7214)))
+            for i in tqdm(range(self.numberStars()),'continuum normalization'):
+                newspecs[i] = self.spectra[i]/fit(self.spectra[i],
+                                                  self.spectra_errs[i],
+                                                  type=source)
+            newspecs.mask=self.spectra.mask
+            self.spectra = newspecs
+            self.name = self.name+'_ctmnorm-{0}'.format(source)
