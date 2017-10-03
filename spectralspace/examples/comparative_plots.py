@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
+import matplotlib.colors as colors
 from spectralspace.analysis.empca_residuals import *
 import os, glob
 from scipy.optimize import leastsq
@@ -55,7 +56,6 @@ def contrastR2_methods(direcs,models,labels,colours=None,titles=[],
         colours = plt.get_cmap('plasma')(np.linspace(0,0.85,len(models)))
     # Find point outline colours
     edgecolours = plt.get_cmap('Greys')(np.linspace(0.2,0.85,len(models)))
-    
     # DIRECTORIES
     for d in range(len(direcs)):
         # Create subplot for each directory
@@ -150,14 +150,14 @@ def contrastR2_methods(direcs,models,labels,colours=None,titles=[],
                 # many principal components
                 if len(model.R2Array)<=10:
                     plt.plot(model.R2Array,'o',color=colours[c],markersize=11,
-                             markeredgecolor=edgecolours[c],
+                             markeredgecolor=colors.rgb2hex(edgecolours[c][:-1]),
                              markeredgewidth=1.5)
                 if len(model.R2Array)>10:
                     xvals = np.arange(0,len(model.R2Array))
                     plt.plot(xvals[0::len(model.R2Array)/7],
                              model.R2Array[0::len(model.R2Array)/7],'o',
                              color=colours[c],markersize=11,
-                             markeredgecolor=edgecolours[c],
+                             markeredgecolor=colors.rgb2hex(edgecolours[c][:-1]),
                              markeredgewidth=1.5)
                 # If this is the last model, make lable for R^2_noise
                 if m==len(models)-1:
@@ -170,14 +170,14 @@ def contrastR2_methods(direcs,models,labels,colours=None,titles=[],
                 # many principal components 
                 if len(model.R2Array)<=10:
                     plt.plot(model.R2Array,'o',color=colours[c],markersize=11,
-                             markeredgecolor=edgecolours[c],
+                             markeredgecolor=colors.rgb2hex(edgecolours[c][:-1]),
                              markeredgewidth=1.5)
                 if len(model.R2Array)>10:
                     xvals = np.arange(0,len(model.R2Array))
                     plt.plot(xvals[0::len(model.R2Array)/7],
                              model.R2Array[0::len(model.R2Array)/7],'o',
                              color=colours[c],markersize=11,
-                             markeredgecolor=edgecolours[c],
+                             markeredgecolor=colors.rgb2hex(edgecolours[c][:-1]),
                              markeredgewidth=1.5)
             # Plot R^2_noise
             plt.axhline(model.R2noise,color=colours[c],ls='--',lw=3)
@@ -509,13 +509,13 @@ def contrast_Ncells(direcs,models,labels,colours,titles=[],savename=None,
                 # many principal components 
                 if len(model.R2Array)<=10:
                     plt.semilogy(xvals,plotcells,'o',color=colours[c],
-                                 markersize=11,markeredgecolor=edgecolours[c],
+                                 markersize=11,markeredgecolor=colors.rgb2hex(edgecolours[c][:-1]),
                                  markeredgewidth=1.5)
                 if len(model.R2Array) > 10:
                     plt.semilogy(xvals[0::len(model.R2Array)/7],
                                  plotcells[0::len(model.R2Array)/7],'o',
                                  color=colours[c],markersize=11,
-                                 markeredgecolor=edgecolours[c],
+                                 markeredgecolor=colors.rgb2hex(edgecolours[c][:-1]),
                                  markeredgewidth=1.5)
                 # Show model
                 if makemodel:
@@ -529,13 +529,13 @@ def contrast_Ncells(direcs,models,labels,colours,titles=[],savename=None,
                 # many principal components 
                 if len(model.R2Array)<=10:
                     plt.semilogy(xvals,plotcells,'o',color=colours[c],
-                                 markersize=11,markeredgecolor=edgecolours[c],
+                                 markersize=11,markeredgecolor=colors.rgb2hex(edgecolours[c][:-1]),
                                  markeredgewidth=1.5)
                 if len(model.R2Array) > 10:
                     plt.semilogy(xvals[0::len(model.R2Array)/7],
                                  plotcells[0::len(model.R2Array)/7],'o',
                                  color=colours[c],markersize=11,
-                                 markeredgecolor=edgecolours[c],
+                                 markeredgecolor=colors.rgb2hex(edgecolours[c][:-1]),
                                  markeredgewidth=1.5)
                 # Add model
                 if makemodel:
