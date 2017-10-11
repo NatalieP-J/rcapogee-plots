@@ -63,6 +63,7 @@ def get_synthetic(model,datadict=None,data=[],spectra=[],spectra_errs=[],bitmask
     model.c_h = np.ma.masked_array(data['C_H'])
     model.n_h = np.ma.masked_array(data['N_H'])
     model.o_h = np.ma.masked_array(data['O_H'])
+    model.fib = np.ma.masked_array(data['MEANFIB'])
 
     # Create spectra arrays                                                                                                                                       
     model.spectra = np.ma.masked_array(spectra)
@@ -176,6 +177,8 @@ class starSample(object):
                                                 dtype=float))
         self.o_h = np.ma.masked_array(np.zeros((len(stardata)),
                                                 dtype=float))
+        self.fib = np.ma.masked_array(np.zeros((len(stardata)),
+                                                dtype=float))
         # Create spectra arrays
         self.spectra = np.ma.masked_array(np.zeros((len(stardata),aspcappix),
                                                    dtype=float))
@@ -206,7 +209,8 @@ class starSample(object):
             C_H = stardata[star]['C_H']
             N_H = stardata[star]['N_H']
             O_H = stardata[star]['O_H']
-            
+            FIB = stardata[star]['MEANFIB']
+    
             # Fit variables
             self.teff[star] = np.ma.masked_array(TEFF)
             self.logg[star] = np.ma.masked_array(LOGG)
@@ -214,6 +218,7 @@ class starSample(object):
             self.c_h[star] = np.ma.masked_array(C_H)
             self.n_h[star] = np.ma.masked_array(N_H)
             self.o_h[star] = np.ma.masked_array(O_H)
+            self.fib[star] = np.ma.masked_array(FIB)
 
             # Spectral data
             try:
@@ -571,6 +576,7 @@ class subStarSample(makeFilter):
                            self.name+'/c_h.npy',
                            self.name+'/n_h.npy',
                            self.name+'/o_h.npy',
+                           self.name+'/fib.npy',
                            self.name+'/spectra.npy',
                            self.name+'/spectra_errs.npy',
                            self.name+'/bitmasks.npy'])
@@ -585,6 +591,7 @@ class subStarSample(makeFilter):
             self.c_h = np.load(self.name+'/c_h.npy')
             self.n_h = np.load(self.name+'/n_h.npy')
             self.o_h = np.load(self.name+'/o_h.npy')
+            self.fib = np.load(self.name+'/fib.npy')
             self.spectra = np.ma.masked_array(np.load(self.name+'/spectra.npy'))
             self.spectra_errs = np.ma.masked_array(np.load(self.name+'/spectra_errs.npy'))
             self._bitmasks = np.load(self.name+'/bitmasks.npy')
@@ -597,6 +604,7 @@ class subStarSample(makeFilter):
             np.save(self.name+'/c_h.npy',self.c_h.data)
             np.save(self.name+'/n_h.npy',self.n_h.data)
             np.save(self.name+'/o_h.npy',self.o_h.data)
+            np.save(self.name+'/fib.npy',self.fib.data)
             np.save(self.name+'/spectra.npy',self.spectra.data)
             np.save(self.name+'/spectra_errs.npy',self.spectra_errs.data)
             np.save(self.name+'/bitmasks.npy',self._bitmasks)

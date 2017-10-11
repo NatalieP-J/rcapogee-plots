@@ -25,7 +25,7 @@ matplotlib.rc('font',**font)
 independentVariables = {'apogee':{'clusters':['TEFF'],
                                   'OCs':['TEFF'],
                                   'GCs':['TEFF'],
-                                  'red_clump':['TEFF','LOGG','FE_H'],
+                                  'red_clump':['TEFF','LOGG','FE_H','MEANFIB'],
                                   'red_giant':['TEFF','LOGG','FE_H'],
                                   'syn':['TEFF','LOGG'],
                                   'elem':['TEFF','LOGG','C_H','N_H','O_H','FE_H']}}

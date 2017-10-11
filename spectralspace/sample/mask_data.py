@@ -133,7 +133,8 @@ class mask(subStarSample):
                            'FE_H':self.fe_h,
                            'C_H':self.c_h,
                            'N_H':self.n_h,
-                           'O_H':self.o_h
+                           'O_H':self.o_h,
+                           'MEANFIB':self.fib
                        }
 
     def continuumNormalize(self,source='cannon'):
