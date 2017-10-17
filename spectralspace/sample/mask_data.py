@@ -146,4 +146,4 @@ class mask(subStarSample):
                                                   type=source)
             newspecs.mask=self.spectra.mask
             self.spectra = newspecs
-            self.name = self.name+'_ctmnorm-{0}'.format(source)
+            self.name = self.name+'/ctmnorm-{0}/'.format(source)

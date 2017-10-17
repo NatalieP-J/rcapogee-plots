@@ -25,7 +25,7 @@ matplotlib.rc('font',**font)
 independentVariables = {'apogee':{'clusters':['TEFF'],
                                   'OCs':['TEFF'],
                                   'GCs':['TEFF'],
-                                  'red_clump':['TEFF','LOGG','FE_H','MEANFIB'],
+                                  'red_clump':['TEFF','LOGG','FE_H'],
                                   'red_giant':['TEFF','LOGG','FE_H'],
                                   'syn':['TEFF','LOGG'],
                                   'elem':['TEFF','LOGG','C_H','N_H','O_H','FE_H']}}
@@ -143,7 +143,7 @@ class empca_residuals(mask):
         self.polynomial = PolynomialFeatures(degree=degree)
         self.testM = self.makeMatrix(0)
         self.nvecs = nvecs
-        
+
     def sample_wrapper(self,i):
         """
         A wrapper to run subsamples in parallele.
@@ -559,6 +559,29 @@ class empca_residuals(mask):
             indeps[:,i] = indep-np.ma.median(indep)
         # use polynomial to produce matrix with all necessary columns
         return np.matrix(self.polynomial.fit_transform(indeps))
+
+    def fibFit(self):
+        fwhminfo = np.load(self.datadir+'/apogee_dr12_fiberfwhm_atpixel.npy')
+        fwhms_sample = fwhminfo[(np.round(self.matchingData['MEANFIB']).astype(int),)]
+        print fwhms_sample.shape
+        self.fibspectra = np.ma.masked_array(np.copy(self.spectra),mask=np.copy(self.spectra.mask))
+        for p in range(aspcappix):
+            fullindeps = fwhms_sample[:,p]
+            fullindeps -= np.ma.median(fullindeps)
+            indeps = fullindeps[self.unmasked[:,p]]
+            indeps = np.matrix(self.polynomial.fit_transform(indeps.reshape(-1,1)))
+            fullindeps = np.matrix(self.polynomial.fit_transform(fullindeps.reshape(-1,1)))
+            covInverse = np.diag(1./self.spectra_errs[:,p][self.unmasked[:,p]]**2)
+            starsAtPixel = np.matrix(self.spectra[:,p][self.unmasked[:,p]])
+            newIndeps = np.dot(indeps.T,np.dot(covInverse,indeps))
+            newStarsAtPixel = np.dot(indeps.T,np.dot(covInverse,starsAtPixel.T))
+            invNewIndeps = np.linalg.inv(newIndeps)
+            coeffs = np.dot(invNewIndeps,newStarsAtPixel)
+            #coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]                                              
+            coeff_errs = np.array([np.sqrt(np.array(invNewIndeps)[i][i]) for i in range(newIndeps.shape[1])])
+            bestFit = fullindeps*coeffs
+            self.fibspectra[:,p] = self.spectra[:,p]-bestFit.T[0]
+        self.spectra = self.fibspectra
 
     def findFit(self,pixel,eigcheck=False,givencoeffs=[],matrix='default'):
         """

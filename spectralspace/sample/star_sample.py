@@ -200,6 +200,7 @@ class starSample(object):
         self.initArrays(stardata)
         missing = 0
         # Fill arrays for each star
+        print stardata.dtype
         for star in tqdm(range(len(stardata)),desc='read star data'):
             LOC = stardata[star]['LOCATION_ID']
             APO = stardata[star]['APOGEE_ID']
@@ -330,11 +331,12 @@ class makeFilter(starSample):
                       
         """
         starSample.__init__(self,dataSource,sampleType,ask=ask,datadict=datadict)
+        self.datadir=datadir
         if ask:
             self.done = False
             print 'Type done at any prompt when finished'
             # Start name and condition string
-            self.name = datadir+'/'+self._sampleType+'_'+str(self.DR)
+            self.name = self.datadir+'/'+self._sampleType+'_'+str(self.DR)
             self.condition = ''
             # Ask for new key conditions until the user signals done
             while not self.done:
