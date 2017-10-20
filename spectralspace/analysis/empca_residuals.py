@@ -116,8 +116,9 @@ class empca_residuals(mask):
     Contains functions to find polynomial fits.
     
     """
-    def __init__(self,dataSource,sampleType,maskMaker,ask=True,datadict=None,datadir='.',
-                 func=None,badcombpixmask=4351,minSNR=50,degree=2,nvecs=5):
+    def __init__(self,dataSource,sampleType,maskMaker,ask=True,datadict=None,
+                 datadir='.',func=None,badcombpixmask=4351,minSNR=50,degree=2,
+                 nvecs=5,fibfit=False):
         """
         Fit a masked subsample.
         
@@ -141,6 +142,12 @@ class empca_residuals(mask):
                       badcombpixmask=badcombpixmask)
         self.degree = degree
         self.polynomial = PolynomialFeatures(degree=degree)
+        self.fibfit=fibfit
+        if self.fibfit:
+            fwhminfo = np.load(self.datadir+'/apogee_dr12_fiberfwhm_atpixel.npy')
+            self.fwhms_sample = fwhminfo[(np.round(self.matchingData['MEANFIB']).astype(int),)]
+            self.name += '/fibfit'
+            self.getDirectory()
         self.testM = self.makeMatrix(0)
         self.nvecs = nvecs
 
@@ -550,13 +557,19 @@ class empca_residuals(mask):
         # Find the number of unmasked stars at this pixel
         numberStars = len(self.spectra[:,pixel][self.unmasked[:,pixel]])
         # Create basic independent variable array
-        indeps = np.zeros((numberStars,
-                           len(independentVariables[self._dataSource][matrix])))
+        if not self.fibfit:
+            indeps = np.zeros((numberStars,
+                               len(independentVariables[self._dataSource][matrix])))
+        elif self.fibfit:
+            indeps = np.zeros((numberStars,
+                               len(independentVariables[self._dataSource][matrix])+1))
 
         for i in range(len(independentVariables[self._dataSource][matrix])):
             variable = independentVariables[self._dataSource][matrix][i]
             indep = self.keywordMap[variable][self.unmasked[:,pixel]]
             indeps[:,i] = indep-np.ma.median(indep)
+        if self.fibfit:
+            indeps[:,-1] = self.fwhms_sample[:,pixel][self.unmasked[:,pixel]]
         # use polynomial to produce matrix with all necessary columns
         return np.matrix(self.polynomial.fit_transform(indeps))
 
@@ -565,7 +578,8 @@ class empca_residuals(mask):
         fwhms_sample = fwhminfo[(np.round(self.matchingData['MEANFIB']).astype(int),)]
         print fwhms_sample.shape
         self.fibspectra = np.ma.masked_array(np.copy(self.spectra),mask=np.copy(self.spectra.mask))
-        for p in range(aspcappix):
+        bestFits = np.ma.masked_array(np.copy(self.spectra),mask=np.copy(self.spectra.mask))
+        for p in tqdm(range(aspcappix),'fibfit'):
             fullindeps = fwhms_sample[:,p]
             fullindeps -= np.ma.median(fullindeps)
             indeps = fullindeps[self.unmasked[:,p]]
@@ -580,10 +594,14 @@ class empca_residuals(mask):
             #coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]                                              
             coeff_errs = np.array([np.sqrt(np.array(invNewIndeps)[i][i]) for i in range(newIndeps.shape[1])])
             bestFit = fullindeps*coeffs
+            bestFits = bestFit.T[0]
             self.fibspectra[:,p] = self.spectra[:,p]-bestFit.T[0]
+        np.save('{0}/bestfibfit.npy'.format(self.name),bestFits)
+        np.save('{0}/fibfitspec.npy'.format(self.name),self.spectra.data)
         self.spectra = self.fibspectra
 
-    def findFit(self,pixel,eigcheck=False,givencoeffs=[],matrix='default'):
+    def findFit(self,pixel,eigcheck=False,givencoeffs=[],matrix='default',
+                fibfit=False):
         """
         Fits polynomial to all spectra at a given pixel, weighted by spectra 
         uncertainties.

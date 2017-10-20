@@ -207,9 +207,14 @@ class starSample(object):
             TEFF = stardata[star]['TEFF']
             LOGG = stardata[star]['LOGG']
             FE_H = stardata[star]['FE_H']
-            C_H = stardata[star]['C_H']
-            N_H = stardata[star]['N_H']
-            O_H = stardata[star]['O_H']
+            if self.DR=='12':
+                C_H = stardata[star]['C_H']
+                N_H = stardata[star]['N_H']
+                O_H = stardata[star]['O_H']
+            elif self.DR=='13':
+                C_H = stardata[star]['C_FE']
+                N_H = stardata[star]['N_FE']
+                O_H = stardata[star]['O_FE']
             FIB = stardata[star]['MEANFIB']
     
             # Fit variables
