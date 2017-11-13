@@ -60,7 +60,7 @@ def read_meszarosgcdata(filename=os.path.join(os.path.dirname(os.path.realpath(_
     data['FE_H'] = data['FEH']
     return data
 
-def read_caldata(filename=os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','data','clusterdata','aj485195t4_mrt.txt'),dr='13'):
+def read_caldata(filename=os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','data','clusterdata','aj485195t4_mrt.txt'),dr='12'):
     """
     NAME:
        read_caldata
@@ -83,14 +83,14 @@ def read_caldata(filename=os.path.join(os.path.dirname(os.path.realpath(__file__
     data.rename_column('[M/H]C','FEH')
     data.rename_column('2MASS','ID')
     # Now match to allStar to get the location_ids
-    alldata= apread.allStar(raw=True,dr=dr)
+    alldata= apread.allStar(raw=True)
     locids= numpy.zeros(len(data),dtype='int')-1
     hmags= numpy.zeros(len(data),dtype='float')-1
     snrs = numpy.zeros(len(data),dtype='float')-1
     ras= numpy.zeros(len(data),dtype='float')-1
     decs= numpy.zeros(len(data),dtype='float')-1
     # and match to allVisit for the fibers that each star was observed in
-    allvdata= apread.allVisit(raw=True,dr=dr)
+    allvdata= apread.allVisit(raw=True)
     fibers= numpy.zeros((len(data),numpy.nanmax(alldata['NVISITS'])),
                         dtype='int')-1
     inds = []

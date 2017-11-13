@@ -638,24 +638,31 @@ class empca_residuals(mask):
                     indeps = indeps.T[self.noncrossInds].T
         
             newStarsAtPixel = np.dot(indeps.T,np.dot(covInverse,starsAtPixel.T))
-            invNewIndeps = np.linalg.inv(newIndeps)
-            # calculate fit coefficients
-            coeffs = np.dot(invNewIndeps,newStarsAtPixel)
-            #coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]
-            coeff_errs = np.array([np.sqrt(np.array(invNewIndeps)[i][i]) for i in range(newIndeps.shape[1])])
-            bestFit = indeps*coeffs
-            # If degeneracy, make coefficients into the correct shape and mask appropriately
-            if degen:
+            try:
+                invNewIndeps = np.linalg.inv(newIndeps)
+                # calculate fit coefficients
+                coeffs = np.dot(invNewIndeps,newStarsAtPixel)
+                #coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]
+                coeff_errs = np.array([np.sqrt(np.array(invNewIndeps)[i][i]) for i in range(newIndeps.shape[1])])
+                bestFit = indeps*coeffs
+                # If degeneracy, make coefficients into the correct shape and mask appropriately
+            except np.linalg.LinAlgError:
                 newcoeffs = np.ma.masked_array(np.zeros(self.numparams),
                                                mask = np.zeros(self.numparams))
                 newcoeff_errs = np.ma.masked_array(np.zeros(self.numparams),
                                                    mask = np.zeros(self.numparams))
-                newcoeffs[self.noncrossInds] = coeffs
-                newcoeff_errs[self.noncrossInds] = coeff_errs
-                newcoeffs.mask[self.crossInds] = True
-                newcoeff_errs.mask[self.crossInds] = True
-                coeffs = newcoeffs
-                coeff_errs = newcoeff_errs
+                try:
+                    newcoeffs[self.noncrossInds] = coeffs
+                    newcoeff_errs[self.noncrossInds] = coeff_errs
+                    newcoeffs.mask[self.crossInds] = True
+                    newcoeff_errs.mask[self.crossInds] = True
+                    coeffs = newcoeffs
+                    coeff_errs = newcoeff_errs
+                    bestFit = indeps*coeffs
+                except UnboundLocalError:
+                    coeffs = newcoeffs.T
+                    coeff_errs = newcoeff_errs
+                    bestFit = np.zeros(len(self.spectra[:,pixel][self.unmasked[:,pixel]]))
         # If coefficients given, use those
         elif givencoeffs != []:
             coeffs,coeff_errs = givencoeffs
@@ -707,7 +714,7 @@ class empca_residuals(mask):
                     self.masked[:,pixel] = np.ones(self.masked[:,pixel].shape)
                 else:
                     # if fit possible update arrays
-                    fitSpectrum,coefficients,coefficient_uncertainty = self.findFit(pixel,eigcheck,matrix=matrix)
+                    fitSpectrum,coefficients,coefficient_uncertainty = self.findFit(pixel,eigcheck=eigcheck,matrix=matrix)
                     self.fitSpectra[:,pixel][self.unmasked[:,pixel]] = np.array(fitSpectrum).flatten()
                     self.fitCoeffs[pixel] = coefficients
                     self.fitCoeffErrs[pixel] = coefficient_uncertainty
@@ -725,7 +732,7 @@ class empca_residuals(mask):
                     self.masked[:,pixel] = np.ones(self.masked[:,pixel].shape)
                 else:
                      # if fit possible update arrays
-                    fitSpectrum,coefficients,coefficient_uncertainty = self.findFit(pixel,eigcheck,givencoeffs = [self.fitCoeffs[pixel],self.fitCoeffErrs[pixel]],matrix=matrix)
+                    fitSpectrum,coefficients,coefficient_uncertainty = self.findFit(pixel,eigcheck=eigcheck,givencoeffs = [self.fitCoeffs[pixel],self.fitCoeffErrs[pixel]],matrix=matrix)
                     self.fitSpectra[:,pixel][self.unmasked[:,pixel]] = fitSpectrum
 
         # update mask on input data
@@ -820,7 +827,7 @@ class empca_residuals(mask):
             dof = self.numberStars() - self.numparams - 1
         self.fitReducedChi = self.fitChiSquared/dof
     
-    def findResiduals(self,minStarNum='default',gen=True,coeffs=None,matrix='default'):
+    def findResiduals(self,minStarNum='default',gen=True,coeffs=None,matrix='default',eigcheck=False):
         """
         Calculate residuals from polynomial fits.
         
@@ -834,7 +841,7 @@ class empca_residuals(mask):
         Save fit information
         """
         if gen:
-            self.multiFit(minStarNum=minStarNum,coeffs=coeffs,matrix=matrix)
+            self.multiFit(minStarNum=minStarNum,coeffs=coeffs,matrix=matrix,eigcheck=eigcheck)
             self.residuals = self.spectra - self.fitSpectra 
             np.save(self.name+'/fitcoeffs.npy',self.fitCoeffs.data)
             np.save(self.name+'/fitcoeffmask.npy',self.fitCoeffs.mask)
