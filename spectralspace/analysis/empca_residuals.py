@@ -21,7 +21,7 @@ font = {'family': 'serif',
 
 matplotlib.rc('font',**font)
 
-# Specify which independent variables to use when fitting different sample types              
+# Specify which independent variables to use when fitting different sample types
 independentVariables = {'apogee':{'clusters':['TEFF'],
                                   'OCs':['TEFF'],
                                   'GCs':['TEFF'],
@@ -29,14 +29,14 @@ independentVariables = {'apogee':{'clusters':['TEFF'],
                                   'red_giant':['TEFF','LOGG','FE_H'],
                                   'syn':['TEFF','LOGG'],
                                   'elem':['TEFF','LOGG','C_H','N_H','O_H','FE_H']}}
-                        
+
 def smoothMedian(diag,frac=None,numpix=None):
     """
-    Uses Locally Weighted Scatterplot Smoothing to smooth an array on 
-    each detector separately. Interpolates at masked pixels and concatenates 
+    Uses Locally Weighted Scatterplot Smoothing to smooth an array on
+    each detector separately. Interpolates at masked pixels and concatenates
     the result.
-    
-    Returns the smoothed median value of the input array, with the same 
+
+    Returns the smoothed median value of the input array, with the same
     dimension.
     """
     mask = diag.mask==False
@@ -61,20 +61,20 @@ def smoothMedian(diag,frac=None,numpix=None):
 
 
 def getsmallEMPCAarrays(model):
-     """                                                                                 
-     Read out arrays                                                                     
+     """
+     Read out arrays
      """
      if model.savename:
          arc = np.load('{0}_data.npz'.format(model.savename))
-        
+
          model.eigval = arc['eigval']
          model.eigvec = np.ma.masked_array(arc['eigvec'],
                                           mask=arc['eigvecmask'])
          model.coeff = arc['coeff']
-         
+
 class smallEMPCA(object):
     """
-    
+
     Class to contain crucial EMPCA-related objects.
 
     """
@@ -98,9 +98,9 @@ class smallEMPCA(object):
         self.cleararrays()
 
     def cleararrays(self):
-        """                                                                    
-        Clear memory allocation for bigger arrays by writing them to file if 
-        self.savename is set                                                            
+        """
+        Clear memory allocation for bigger arrays by writing them to file if
+        self.savename is set
         """
         if self.savename:
             np.savez_compressed('{0}_data.npz'.format(self.savename),
@@ -114,19 +114,19 @@ class smallEMPCA(object):
 class empca_residuals(mask):
     """
     Contains functions to find polynomial fits.
-    
+
     """
     def __init__(self,dataSource,sampleType,maskMaker,ask=True,datadict=None,
                  datadir='.',func=None,badcombpixmask=4351,minSNR=50,degree=2,
                  nvecs=5,fibfit=False):
         """
         Fit a masked subsample.
-        
-        sampleType:      designator of the sample type - must be a key in readfn 
+
+        sampleType:      designator of the sample type - must be a key in readfn
                             and independentVariables in data.py
         maskMaker:       function that decides on elements to be masked
-        ask:             if True, function asks for user input to make 
-                            filter_function.py, if False, uses existing 
+        ask:             if True, function asks for user input to make
+                            filter_function.py, if False, uses existing
                             filter_function.py
         datadir          path to directory in which to write results
         badcombpixmask   sum of 2**<bits on which to mask> default value masks
@@ -134,8 +134,8 @@ class empca_residuals(mask):
         minSNR           minimum allowable signal to noise - pixels below this
                             threshold are masked
         degree:          degree of polynomial to fit
-        
-        
+
+
         """
         mask.__init__(self,dataSource,sampleType,maskMaker,ask=ask,datadict=datadict,
                       minSNR=minSNR,datadir=datadir,func=func,
@@ -157,13 +157,13 @@ class empca_residuals(mask):
 
         i:   index of subsample
 
-        If self.division is True, define the subsample as 
+        If self.division is True, define the subsample as
         where the randomly assigned sample numbers (self.inds) match i
-        If self.division is False, define the subsamples as 
+        If self.division is False, define the subsamples as
         where the randomly assigned sample numbers (self.inds) do not match i
-        
+
         """
-        print 'Working on {0}'.format(i+1)
+        print('Working on {0}'.format(i+1))
         # Select ith subsample and update arrays
         # If sample is to be divided, find where assigned indices match i
         if self.division:
@@ -203,7 +203,7 @@ class empca_residuals(mask):
         self.samplenum = i+1
         # Call EMPCA solver for all variance functions in parallel
         stat = ml.parallel_map(self.EMPCA_wrapper,range(len(self.varfuncs)))
-        print 'Did EMPCA'
+        print('Did EMPCA')
         # Unpack results of running in parallel and store
         for s in range(len(stat)):
             R2A,R2n,cvc,lab = stat[s]
@@ -211,20 +211,20 @@ class empca_residuals(mask):
             self.R2ns[s] = R2n
             self.cvcs[s] = cvc
             self.labs[s] = lab
-        print 'Got stats'
+        print('Got stats')
         # Clear arrays from memory
-        del self.matchingData 
+        del self.matchingData
         del self.teff
         del self.logg
         del self.fe_h
-        del self.spectra 
-        del self.spectra_errs 
+        del self.spectra
+        del self.spectra_errs
         del self._bitmasks
-        del self._maskHere 
+        del self._maskHere
         # Clean directory of all but EMPCA files (don't store residuals)
         self.directoryClean()
-        print 'Cleaned'
-        print 'R2, R2noise, cvcs, labels'.format(self.R2As.T,self.R2ns,self.cvcs,self.labs)
+        print('Cleaned')
+        print('R2, R2noise, cvcs, labels'.format(self.R2As.T,self.R2ns,self.cvcs,self.labs))
         return (self.R2As.T,self.R2ns,self.cvcs,self.labs)
 
     def EMPCA_wrapper(self,v):
@@ -239,15 +239,15 @@ class empca_residuals(mask):
         # Find R^2 values
         R2A = self.empcaModelWeight.R2Array
         R2n = self.empcaModelWeight.R2noise
-        print 'Got R^2'
+        print('Got R^2')
         # Find where R^2 intersects R^2_noise
         cvc = np.interp(R2n,R2A,np.arange(len(R2A)),left=0,right=-1)
         lab = 'subsamp {0}, {1} stars, func {2} - {3} vec'.format(self.samplenum,self.numberStars(),self.varfuncs[v].__name__,cvc)
-        print 'Found intersection'
+        print('Found intersection')
         return (R2A,R2n,cvc,lab)
 
     def samplesplit(self,division=False,seed=None,fullsamp=True,maxsamp=5,subsamples=5,varfuncs=[np.ma.var,meanMed],numcores=None,ctmnorm=None):
-        """                                                                     
+        """
         Take self.subsamples random subsamples of the original data set and
         run EMPCA.
 
@@ -286,7 +286,7 @@ class empca_residuals(mask):
                 R2noises[s] = R2n
                 crossvecs[s] = cvc
                 labels[s] = lab
-            
+
         # If subsamples, run EMPCA on many subsamples
         elif self.subsamples!=1:
             # Pick seed to initialize randomization for reproducibility
@@ -310,7 +310,7 @@ class empca_residuals(mask):
             # To self.subsamples-1
             self.inds = np.zeros((self.numberStars()))-1
             # Number of stars in each subsample
-            subnum = self.numberStars()/self.subsamples 
+            subnum = self.numberStars()/self.subsamples
             # Randomly choose stars to belong to each subsample
             for i in range(self.subsamples):
                 group = np.random.choice(np.where(self.inds==-1)[0],size=subnum,replace=False)
@@ -360,7 +360,7 @@ class empca_residuals(mask):
                 # Unpack run statistics from sublist
                 stats = [item for sublist in stats for item in sublist]
             # Unpack information from parallel runs into appropriate arrays
-            print 'stats ',stats
+            print('stats ',stats)
             k = 0
             for s in range(len(stats)):
                 R2As,R2ns,cvcs,labs = stats[s]
@@ -407,7 +407,7 @@ class empca_residuals(mask):
                 elif not cvec.size:
                     avgvec = -1
                     varvec = -1
-                print '{0} +/- {1}'.format(avgvec,np.sqrt(varvec))
+                print('{0} +/- {1}'.format(avgvec,np.sqrt(varvec)))
                 # Save results
                 self.numeigvec = avgvec
                 self.numeigvec_std = np.sqrt(varvec)
@@ -421,7 +421,7 @@ class empca_residuals(mask):
         self.R2compare(R2Arrays,R2noises,crossvecs,labels,funcsort=True)
         self.R2compare(R2Arrays,R2noises,crossvecs,labels,funcsort=False)
 
-            
+
 
     def func_sort(self,R2Arrays,R2noises,crossvecs,labels):
         """
@@ -447,16 +447,16 @@ class empca_residuals(mask):
             newlab.append(labels[i::len(self.varfuncs)])
             k += self.sampnum
         return newR2,newR2n,newvec,[item for sublist in newlab for item in sublist]
-    
+
     def R2compare(self,R2Arrays,R2noises,crossvecs,labels,funcsort=True):
         """
-        Make plots comparing R2 values for different samples and different 
+        Make plots comparing R2 values for different samples and different
         functions. If there are less than 10 subsamples (including each
         variance function as a different sample), this plots a 1D comparison
         of R^2 values as a function of eigenvector number. Regardless of the
         number of subsamples, this plots a 2D comparison of R^2.
 
-        R2Arrays:    An array of R2 values with size number of samples by 
+        R2Arrays:    An array of R2 values with size number of samples by
                      number of eigenvectors
         R2noises:    An array of R2noise values with size number of samples
         crossvecs:   An array of the location of the intersection of R2 and
@@ -467,7 +467,7 @@ class empca_residuals(mask):
 
         Saves 1 or 2 figures.
         """
-        # If sorting by function instead of sample, slice and reorient arrays 
+        # If sorting by function instead of sample, slice and reorient arrays
         # accordingly
         if funcsort:
             R2Arrays,R2noises,crossvecs,labels = self.func_sort(R2Arrays,R2noises,crossvecs,labels)
@@ -546,10 +546,10 @@ class empca_residuals(mask):
     def makeMatrix(self,pixel,matrix='default'):
         """
         Find independent variable matrix
-        
+
         pixel:    pixel to use, informs the mask on the matrix
         matrix:   choose which variables to fit
-        
+
         Returns the matrix of independent variables for fit
         """
         if matrix=='default':
@@ -576,7 +576,7 @@ class empca_residuals(mask):
     def fibFit(self):
         fwhminfo = np.load(self.datadir+'/apogee_dr12_fiberfwhm_atpixel.npy')
         fwhms_sample = fwhminfo[(np.round(self.matchingData['MEANFIB']).astype(int),)]
-        print fwhms_sample.shape
+        print(whms_sample.shape)
         self.fibspectra = np.ma.masked_array(np.copy(self.spectra),mask=np.copy(self.spectra.mask))
         bestFits = np.ma.masked_array(np.copy(self.spectra),mask=np.copy(self.spectra.mask))
         for p in tqdm(range(aspcappix),'fibfit'):
@@ -591,7 +591,7 @@ class empca_residuals(mask):
             newStarsAtPixel = np.dot(indeps.T,np.dot(covInverse,starsAtPixel.T))
             invNewIndeps = np.linalg.inv(newIndeps)
             coeffs = np.dot(invNewIndeps,newStarsAtPixel)
-            #coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]                                              
+            #coeffs = np.linalg.lstsq(newIndeps,newStarsAtPixel)[0]
             coeff_errs = np.array([np.sqrt(np.array(invNewIndeps)[i][i]) for i in range(newIndeps.shape[1])])
             bestFit = fullindeps*coeffs
             bestFits = bestFit.T[0]
@@ -603,7 +603,7 @@ class empca_residuals(mask):
     def findFit(self,pixel,eigcheck=False,givencoeffs=[],matrix='default',
                 fibfit=False):
         """
-        Fits polynomial to all spectra at a given pixel, weighted by spectra 
+        Fits polynomial to all spectra at a given pixel, weighted by spectra
         uncertainties.
 
         pixel:         pixel at which to perform fit
@@ -623,20 +623,20 @@ class empca_residuals(mask):
             covInverse = np.diag(1./self.spectra_errs[:,pixel][self.unmasked[:,pixel]]**2)
             # find matrix for spectra values
             starsAtPixel = np.matrix(self.spectra[:,pixel][self.unmasked[:,pixel]])
-            
-            # transform to matrices that have been weighted by the inverse 
+
+            # transform to matrices that have been weighted by the inverse
             # covariance
             newIndeps = np.dot(indeps.T,np.dot(covInverse,indeps))
-            
+
             # Degeneracy check
             degen = False
             if eigcheck:
                 eigvals,eigvecs = np.linalg.eig(newIndeps)
                 if any(np.fabs(eigvals)<1e-10) and indeps.shape[1] > self.degree+1:
-                    print 'degenerate pixel ',pixel,' coeffs ',np.where(np.fabs(eigvals) < 1e-10)[0] 
+                    print('degenerate pixel ',pixel,' coeffs ',np.where(np.fabs(eigvals) < 1e-10)[0])
                     degen = True
                     indeps = indeps.T[self.noncrossInds].T
-        
+
             newStarsAtPixel = np.dot(indeps.T,np.dot(covInverse,starsAtPixel.T))
             try:
                 invNewIndeps = np.linalg.inv(newIndeps)
@@ -671,28 +671,28 @@ class empca_residuals(mask):
 
     def multiFit(self,minStarNum='default',eigcheck=False,coeffs=None,matrix='default'):
         """
-        Loop over all pixels and find fit. Mask where there aren't enough 
+        Loop over all pixels and find fit. Mask where there aren't enough
         stars to fit.
 
-        minStarNum:   (optional) number of stars required to perform fit 
-                      (default:'default' which sets minStarNum to the number 
+        minStarNum:   (optional) number of stars required to perform fit
+                      (default:'default' which sets minStarNum to the number
                        of fit parameters plus one)
         eigcheck:     check for degeneracy between pixels
-        coeffs:       file containing alternate coefficients to use 
+        coeffs:       file containing alternate coefficients to use
         matrix:       choose which variables to fit
-        
+
         Saves fit coefficients, and resulting approximate spectra
         """
         # create sample matrix to confirm the number of parameters
         self.testM = self.makeMatrix(0,matrix=matrix)
         self.numparams = self.testM.shape[1]
-        
+
         # set minimum number of stars needed for the fit
         if minStarNum=='default':
             self.minStarNum = self.testM.shape[1]+1
         elif minStarNum!='default':
             self.minStarNum = minStarNum
-        
+
         # create arrays to hold fit results
         self.fitCoeffs = np.ma.masked_array(np.zeros((aspcappix,
                                                       self.numparams)))
@@ -700,9 +700,9 @@ class empca_residuals(mask):
                                                          self.numparams)))
         self.fitSpectra = np.ma.masked_array(np.zeros((self.spectra.shape)),
                                              mask = self.spectra.mask)
-            
+
         if not coeffs:
-            
+
             # perform fit at all pixels with enough stars
             for pixel in tqdm(range(aspcappix),desc='fit'):
                 if np.sum(self.unmasked[:,pixel].astype(int)) < self.minStarNum:
@@ -748,7 +748,7 @@ class empca_residuals(mask):
         pixel:     Pixel at which to plot the fit.
         figsize:   Tuple that determines figure size
         xlabel:    Label for the x-axis of the plot.
-        
+
         Creates a plot showing an example of a fit in one parameter
         """
         # Create figure
@@ -758,11 +758,11 @@ class empca_residuals(mask):
         indeps = self.makeMatrix(pixel)
         # Recreate fit
         fitresult = np.dot(indeps,self.fitCoeffs[pixel].T)
-        # Choose the independent variable to plot on the x-axis 
+        # Choose the independent variable to plot on the x-axis
         indep = np.array(np.reshape(indeps[:,indep],len(fitresult)))[0]
         # Sort stars by their independent variable values
         sortd = indep.argsort()
-        # Create an array of independent variables to plot smooth fit 
+        # Create an array of independent variables to plot smooth fit
         fitindep = np.arange(np.floor((min(indep)-100)/100.)*100,np.ceil((max(indep)+100)/100.)*100,100)
         fit = np.dot(np.matrix([np.ones(len(fitindep)),fitindep,fitindep**2]).T,self.fitCoeffs[pixel].T)
         # Get colors for points
@@ -826,23 +826,23 @@ class empca_residuals(mask):
         else:
             dof = self.numberStars() - self.numparams - 1
         self.fitReducedChi = self.fitChiSquared/dof
-    
+
     def findResiduals(self,minStarNum='default',gen=True,coeffs=None,matrix='default',eigcheck=False):
         """
         Calculate residuals from polynomial fits.
-        
-        minStarNum:   (optional) number of stars required to perform fit 
-                      (default:'default' which sets minStarNum to the number 
+
+        minStarNum:   (optional) number of stars required to perform fit
+                      (default:'default' which sets minStarNum to the number
                        of fit parameters plus one)
         gen:          if true, generate residuals from scratch rather than reading from file
         coeffs:       path to file containing fit coefficients
         matrix:       choose which independent variables to use
-        
+
         Save fit information
         """
         if gen:
             self.multiFit(minStarNum=minStarNum,coeffs=coeffs,matrix=matrix,eigcheck=eigcheck)
-            self.residuals = self.spectra - self.fitSpectra 
+            self.residuals = self.spectra - self.fitSpectra
             np.save(self.name+'/fitcoeffs.npy',self.fitCoeffs.data)
             np.save(self.name+'/fitcoeffmask.npy',self.fitCoeffs.mask)
             np.save(self.name+'/fitcoefferrs.npy',self.fitCoeffErrs.data)
@@ -865,7 +865,7 @@ class empca_residuals(mask):
         """
         Test fit accuracy by generating a data set from given input parameters.
 
-        errs:        Sets errors to use in the fit. If a int or float, set 
+        errs:        Sets errors to use in the fit. If a int or float, set
                      constant errors. Else, use data set errors.
         randomize:   Sets whether generated data gets Gaussian noise added,
                      drawn from flux uncertainty.
@@ -879,11 +879,11 @@ class empca_residuals(mask):
             self.minStarNum = self.testM.shape[1]+1
         elif minStarNum!='default':
             self.minStarNum = minStarNum
-        
+
         # Choose parameters if necessary
         if isinstance(params,(int)):
             params = self.fitCoeffs[params]
-        
+
         if isinstance(params,(dict)):
             params = params[self._sampleType]
 
@@ -902,14 +902,14 @@ class empca_residuals(mask):
             # assign errors as constant with consistent max
             self.spectra_errs = np.ma.masked_array(np.ones(self.old_spectra_errs.shape))
             self.spectra_errs.mask=self.old_spectra_errs.mask
-            
-        # Generate data 
+
+        # Generate data
         for pixel in range(aspcappix):
             if np.sum(self.unmasked[:,pixel].astype(int)) > self.minStarNum:
                 indeps = self.makeMatrix(pixel)
                 self.spectra[:,pixel][self.unmasked[:,pixel]] = np.reshape(np.array(indeps*self.testParams),self.spectra[:,pixel][self.unmasked[:,pixel]].shape)
-         
-        # If requested, added noise to the data        
+
+        # If requested, added noise to the data
         if randomize:
             self.spectra += self.spectra_errs*np.random.randn(self.spectra.shape[0],
                                                               self.spectra.shape[1])
@@ -925,7 +925,7 @@ class empca_residuals(mask):
             self.fitCoeffs = coefficients
             self.fitCoeffErrs = coefficient_uncertainty
             self.diff = self.testParams-coefficients
-    
+
         # Normalize the difference by standard error size
         self.errNormDiff = self.diff/np.ma.median(self.spectra_errs)
 
@@ -941,12 +941,12 @@ class empca_residuals(mask):
         either over a fraction of the data or a number of elements,
         where number of elements takes precedence if both are set.
 
-        cov:      Square matrix. If unspecified, calculate from residuals and 
+        cov:      Square matrix. If unspecified, calculate from residuals and
                   uncertainties
         median:   If true, returns smoothed median, not raw diagonal
         numpix:   Number of elements to smooth over
         frac:     Fraction of data to smooth over
-        tol:      Acceptable distance from 0, if greater than this, smooth to 
+        tol:      Acceptable distance from 0, if greater than this, smooth to
                   adjacent values when median is True
 
         Returns the diagonal of a covariance matrix
@@ -968,7 +968,7 @@ class empca_residuals(mask):
         elif not median:
             acs.pklwrite(savename,diagonal)
             return diagonal
-                    
+
 
     def pixelEMPCA(self,randomSeed=1,nvecs=5,deltR2=0,varfunc=np.ma.var,correction=None,savename=None,gen=True,weight=True):
         """
@@ -1000,7 +1000,7 @@ class empca_residuals(mask):
             # Find pixels with enough stars to do EMPCA
             self.goodPixels=([i for i in range(aspcappix) if np.sum(self.residuals[:,i].mask) < self.residuals.shape[0]-self.minStarNum],)
             self.empcaResiduals = self.residuals.T[self.goodPixels].T
-            
+
             # Calculate weights that just mask missing elements
             unmasked = (self.empcaResiduals.mask==False)
             errorWeights = unmasked.astype(float)
@@ -1008,7 +1008,7 @@ class empca_residuals(mask):
                 errorWeights[unmasked] = 1./((self.spectra_errs.T[self.goodPixels].T[unmasked])**2)
             self.empcaModelWeight = empca(self.empcaResiduals.data,weights=errorWeights,
                                           nvec=self.nvecs,deltR2=self.deltR2,
-                                          randseed=randomSeed,varfunc=varfunc)    
+                                          randseed=randomSeed,varfunc=varfunc)
 
             # Calculate eigenvalues
             self.empcaModelWeight.eigvals = np.zeros(len(self.empcaModelWeight.eigvec))
@@ -1073,7 +1073,7 @@ class empca_residuals(mask):
             neweigvec[vec] = newvec/np.sqrt(np.sum(newvec**2))
         # Change model eigenvectors to reshaped ones
         model.eigvec = neweigvec
-                            
+
     def setR2noise(self,model):
         """
         Calculate R2 noise, the threshold at which additional vectors are only
@@ -1087,4 +1087,3 @@ class empca_residuals(mask):
         model.Vnoise = np.mean(1./(model.weights[model.weights!=0]))
         # Calculate R2noise
         model.R2noise = 1.-(model.Vnoise/model.Vdata)
-

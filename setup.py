@@ -21,4 +21,4 @@ setup(name='spectralspace',
       )
 
 warnings.warn('''APOGEE installation requires environment variables to be set: SDSS_LOCAL_SAS_MIRROR=<path to file storage>, RESULTS_VERS=v603, APOGEE_APOKASC_REDUX=v7.3''')
-warnings.warn('''This installation relies on having https://github.com/NatalieP-J/empca/blob/master/empca.py in the PYTHONPATH''')
+warnings.warn('''This installation relies on having https://github.com/npricejones/empca/blob/master/empca.py in the PYTHONPATH''')

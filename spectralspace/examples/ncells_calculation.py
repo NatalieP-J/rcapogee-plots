@@ -3,9 +3,9 @@ from scipy.interpolate import interp1d
 from spectralspace.analysis.empca_residuals import *
 
 def getarrays(model):
-    """                                                                                            
+    """
     Read out arrays associated with a model holding EMPCA information.
-    
+
     model:     EMPCA model object
 
     Returns updated model object.
@@ -25,12 +25,12 @@ def getarrays(model):
 def reconstruct_EMPCA_data(direc,model,minStarNum=5):
     """
     Reconstruct the data used in the EMPCA analysis (with appropriate weights)
-    
+
     direc:        Directory where model files are stored
     model:        Model object to which attributes will be assigned
-    minstarNum:   Minimum number of stars required to perform EMPCA on a 
+    minstarNum:   Minimum number of stars required to perform EMPCA on a
                   given pixel, default 5
-    
+
     Returns updated model object
     """
     model = getarrays(model)
@@ -47,11 +47,11 @@ def reconstruct_EMPCA_data(direc,model,minStarNum=5):
     fitspec = np.load('{0}/fitspectra.npy'.format(direc))
     residuals = np.ma.masked_array(residuals,mask=mask)
     spectra_errs = np.ma.masked_array(spectra_errs,mask=mask)
-    # Find pixels with enough stars to do EMPCA                                                                                
+    # Find pixels with enough stars to do EMPCA
     goodPixels=([i for i in range(aspcappix) if np.sum(residuals[:,i].mask) < residuals.shape[0]-minStarNum],)
     empcaResiduals = residuals.T[goodPixels].T
 
-    # Calculate weights that just mask missing elements                                                                        
+    # Calculate weights that just mask missing elements
     unmasked = (empcaResiduals.mask==False)
     errorWeights = unmasked.astype(float)
     errorWeights[unmasked] = 1./((spectra_errs.T[goodPixels].T[unmasked])**2)
@@ -68,7 +68,7 @@ def reconstruct_EMPCA_data(direc,model,minStarNum=5):
 
 def consth(n,model,N,D,scale=1):
     """
-    Assume that all chemical space cells have the same size and calculate 
+    Assume that all chemical space cells have the same size and calculate
     that size from measurement uncertainties.
 
     n:          Number of eigenvectors for which to calculate cell size
@@ -81,19 +81,19 @@ def consth(n,model,N,D,scale=1):
     """
     hs = np.ones(n)
     hs = np.sqrt((1./len(model.weights[model.weights!=0]))*np.sum(1./model.weights[model.weights!=0]))*hs
-    return scale*hs    
+    return scale*hs
 
 def pessimh(n,model,N,D,cvc=None):
     """
-    Assume that all chemical space cells have the same size and calculate 
-    that size using the eigenvalue of the intersection point between R^2 and 
+    Assume that all chemical space cells have the same size and calculate
+    that size using the eigenvalue of the intersection point between R^2 and
     R^2_noise.
     n:          Number of eigenvectors for which to calculate cell size
     model:      EMPCA model object that contains eigenvalues
     N:          Number of measurements in the data set (i.e. number of stars)
     D:          Number of dimensions in each measurement (i.e. pixels)
     cvc:        User-specified point of intersection
-    
+
     Returns an array of length n filled with the chemical space cell size.
     """
     # If interesection point not given, calculate
@@ -109,15 +109,15 @@ def pessimh(n,model,N,D,cvc=None):
                 hs = np.ones(n)*np.sqrt(D*model.eigval[crossvec])
             elif N < D:
                 hs = np.ones(n)*np.sqrt((N**2/D)*model.eigval[crossvec])
-        
-        # If intersection does not exist, use the max number of eigenvectors 
+
+        # If intersection does not exist, use the max number of eigenvectors
         # and scale appropriately
         else:
             if D < N:
                 hs = np.ones(n)*np.sqrt(D*model.eigval[n-1])
             elif N < D:
                 hs = np.ones(n)*np.sqrt((N**2/D)*model.eigval[n-1])
-    
+
     # If intersection point given, use that
     elif cvc:
         crossvec=cvc-1
@@ -128,18 +128,18 @@ def pessimh(n,model,N,D,cvc=None):
         elif N < D:
             hs = np.ones(n)*np.sqrt((N**2/D)*lamnoise2)
     return hs
-    
+
 def calculate_Ncells(direc,model,modelname,N=None,D=None,denom=consth,
                      generate=False,**kwargs):
     """
     Calculate the number of chemical space cells as a function of the number of eigenvectors.
-    
+
     direc:      Directory where model files are stored
     model:      EMPCA model object that contains eigenvalues
     modelname:  Name of the model object for saving files
     N:          Number of measurements in the data set (i.e. number of stars)
     D:          Number of dimensions in each measurement (i.e. pixels)
-    denom:      If function given, use that to calculate denominator. 
+    denom:      If function given, use that to calculate denominator.
                 If constant or array given, use that.
     generate:   If False, read Ncells object from file. If True generate Ncell
                 object from scratch
@@ -173,10 +173,10 @@ def calculate_Ncells(direc,model,modelname,N=None,D=None,denom=consth,
         if callable(denom):
             denomarr = denom(numeig,model,N,D,**kwargs)
         try:
-            shapetest = denomarr*np.ones(numeig)    
+            shapetest = denomarr*np.ones(numeig)
         except ValueError as e:
-            print 'Input denominator array has invalid shape, should be {0}'.format(len(model.eigval))
-            print e
+            print('Input denominator array has invalid shape, should be {0}'.format(len(model.eigval)))
+            print(e)
             return None
         denom=denomarr
         # Constrain that cell size is never larger than span of chemical space
@@ -184,10 +184,10 @@ def calculate_Ncells(direc,model,modelname,N=None,D=None,denom=consth,
         cond = np.sqrt(N*model.eigval) < denom
         newdenom[cond] = np.sqrt(N*model.eigval[cond])
         denom = newdenom
-            
+
         def calcNcells(n,denom,D,N):
             """
-            Calculate the number of the chemical space cells for the space 
+            Calculate the number of the chemical space cells for the space
             spanned by first n eigenvectors.
 
             n:      Index of the eigenvector to use
@@ -195,7 +195,7 @@ def calculate_Ncells(direc,model,modelname,N=None,D=None,denom=consth,
             D:      Number of dimensions in each measurement (i.e. pixels)
             N:      Number of measurements in the data set (number of stars)
 
-            Return number of cells for a space defined by first n principal 
+            Return number of cells for a space defined by first n principal
             components
             """
             if D < N:

@@ -9,7 +9,7 @@ import os
 try:
     from apogee.spec import continuum
 except RuntimeError:
-    print 'Failed to load continuum'
+    print('Failed to load continuum')
 import astropy.io.ascii
 _COMBINED_INDEX=1
 _GCS= ['M15','M92','M53','N5466','M13','M2','M3','M5','M107','M71']
@@ -95,7 +95,7 @@ def read_caldata(filename=os.path.join(os.path.dirname(os.path.realpath(__file__
                         dtype='int')-1
     inds = []
     for ii in range(len(data)):
-        if 'Pleiades' in data['CLUSTER'][ii]: 
+        if 'Pleiades' in data['CLUSTER'][ii]:
             inds.append(0)
             continue
         indx= alldata['APOGEE_ID'] == data['ID'][ii]
